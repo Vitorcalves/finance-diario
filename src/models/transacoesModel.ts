@@ -1,6 +1,6 @@
 import { getConnection } from './database';
 
-export type Expense = {
+export type Transacoes = {
   id: string;
   descricao: string;
   valor: number;
@@ -10,7 +10,7 @@ export type Expense = {
   created_at: string;
 };
 
-type ExpenseRow = {
+type TransacoesRow = {
   id: string;
   descricao: string;
   valor: number;
@@ -23,10 +23,10 @@ type ExpenseRow = {
 export const listExpenses = async () => {
   const db = await getConnection();
 
-  const rows = await db.getAllAsync<ExpenseRow>(
+  const rows = await db.getAllAsync<TransacoesRow>(
     `
       SELECT id, descricao, valor, data, created_at, positivo, categoria_id
-      FROM entradas_saidas
+      FROM transacoes
       ORDER BY data DESC, created_at DESC
     `,
   );
@@ -39,23 +39,30 @@ export const listExpenses = async () => {
     created_at: row.created_at,
     positivo: row.positivo,
     categoria_id: row.categoria_id,
-
   }));
 };
 
-export const insertExpense = async (expense: Expense) => {
+export const insertExpense = async (expense: Transacoes) => {
   const db = await getConnection();
 
   await db.runAsync(
     `
-      INSERT INTO entradas_saidas (id, descricao, valor, data, positivo, categoria_id, created_at)
+      INSERT INTO transacoes (id, descricao, valor, data, positivo, categoria_id, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `,
-    [expense.id, expense.descricao, expense.valor, expense.data, expense.positivo, expense.categoria_id, expense.created_at],
+    [
+      expense.id,
+      expense.descricao,
+      expense.valor,
+      expense.data,
+      expense.positivo,
+      expense.categoria_id,
+      expense.created_at,
+    ],
   );
 };
 
 export const deleteExpenseById = async (id: string) => {
   const db = await getConnection();
-  await db.runAsync('DELETE FROM entradas_saidas WHERE id = ?', [id]);
+  await db.runAsync('DELETE FROM transacoes WHERE id = ?', [id]);
 };

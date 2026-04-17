@@ -11,7 +11,12 @@ import {
 } from 'react-native';
 import dayjs from 'dayjs';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { deleteExpenseById, insertExpense, listExpenses, type Expense } from '../models/expenseModel';
+import {
+  deleteExpenseById,
+  insertExpense,
+  listExpenses,
+  type Transacoes,
+} from '../models/transacoesModel';
 import { getMonthlyIncome, saveMonthlyIncome } from '../models/settingsModel';
 
 const todayIso = () => dayjs().format('YYYY-MM-DD');
@@ -33,7 +38,7 @@ export default function HomeView() {
   const [description, setDescription] = useState('');
   const [amountInput, setAmountInput] = useState('');
   const [dateInput, setDateInput] = useState(todayIso());
-  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [expenses, setExpenses] = useState<Transacoes[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -107,7 +112,7 @@ export default function HomeView() {
       return;
     }
 
-    const newExpense: Expense = {
+    const newExpense: Transacoes = {
       id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
       descricao: trimmedDescription,
       valor: amount,
@@ -174,10 +179,7 @@ export default function HomeView() {
           <View style={styles.summaryBox}>
             <Text style={styles.summaryLabel}>Saldo atual</Text>
             <Text
-              style={[
-                styles.summaryValue,
-                currentBalance < 0 ? styles.negative : styles.positive,
-              ]}
+              style={[styles.summaryValue, currentBalance < 0 ? styles.negative : styles.positive]}
             >
               {toCurrency(currentBalance)}
             </Text>

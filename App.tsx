@@ -1,14 +1,23 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import AppRoutes from './src/routes/AppRoutes';
-import { initializeDatabase } from './src/models/database';
+import { initializeDatabase, getConnection } from './src/models/database';
+import * as SQLite from 'expo-sqlite';
+import { useDrizzleStudio } from 'expo-drizzle-studio-plugin';
 
 export default function App() {
   const [ready, setReady] = useState(false);
+  const [db, setDb] = useState<SQLite.SQLiteDatabase | null>(null);
+
+  useDrizzleStudio(db);
 
   useEffect(() => {
     initializeDatabase()
-      .then(() => setReady(true))
+      .then(() => getConnection())
+      .then((connection) => {
+        setDb(connection);
+        setReady(true);
+      })
       .catch((error) => console.error('Erro ao inicializar banco de dados', error));
   }, []);
 

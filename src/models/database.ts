@@ -1,5 +1,4 @@
 import * as SQLite from 'expo-sqlite';
-import { useDrizzleStudio } from "expo-drizzle-studio-plugin";
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
@@ -14,11 +13,11 @@ export const getConnection = async () => {
 export const initializeDatabase = async () => {
   const db = await getConnection();
 
-    // DROP TABLE IF EXISTS recorrentes;
-    // DROP TABLE IF EXISTS entradas_saidas;
-    // DROP TABLE IF EXISTS categorias;
-    // DROP TABLE IF EXISTS expenses;
-    // DROP TABLE IF EXISTS settings;
+  // DROP TABLE IF EXISTS recorrentes;
+  // DROP TABLE IF EXISTS entradas_saidas;
+  // DROP TABLE IF EXISTS categorias;
+  // DROP TABLE IF EXISTS expenses;
+  // DROP TABLE IF EXISTS settings;
 
   await db.execAsync(`
     PRAGMA foreign_keys = OFF;
@@ -38,7 +37,7 @@ export const initializeDatabase = async () => {
       created_at TEXT NOT NULL
     );
 
-    CREATE TABLE IF NOT EXISTS entradas_saidas (
+    CREATE TABLE IF NOT EXISTS transacoes (
       id TEXT PRIMARY KEY NOT NULL,
       descricao TEXT NOT NULL,
       valor REAL NOT NULL,
@@ -60,6 +59,13 @@ export const initializeDatabase = async () => {
       inicio TEXT NOT NULL,
       frequencia TEXT NOT NULL,
       proximo_pagamento TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS saldos (
+      id TEXT PRIMARY KEY NOT NULL,
+      valor REAL NOT NULL,
+      data TEXT NOT NULL,
       created_at TEXT NOT NULL
     );
 

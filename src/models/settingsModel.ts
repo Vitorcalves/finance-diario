@@ -9,10 +9,9 @@ type SettingRow = {
 export const getMonthlyIncome = async () => {
   const db = await getConnection();
 
-  const row = await db.getFirstAsync<SettingRow>(
-    'SELECT value FROM settings WHERE key = ?',
-    [MONTHLY_INCOME_KEY],
-  );
+  const row = await db.getFirstAsync<SettingRow>('SELECT value FROM settings WHERE key = ?', [
+    MONTHLY_INCOME_KEY,
+  ]);
 
   if (!row?.value) {
     return 0;

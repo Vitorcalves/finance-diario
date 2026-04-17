@@ -41,10 +41,26 @@ export default function AppRoutes() {
           ),
         })}
       >
-        <Tab.Screen name="Home" component={HomeView} options={{ title: 'Finance Diario', tabBarLabel: 'Home' }} />
-        <Tab.Screen name="GastosMensais" component={Option2View} options={{ title: 'Gastos Mensais', tabBarLabel: 'Mes' }} />
-        <Tab.Screen name="Option3" component={Option3View} options={{ title: 'Opcao 3', tabBarLabel: 'Opcao 3' }} />
-        <Tab.Screen name="Menu" component={MenuNavigationView} options={{ title: 'Menu', tabBarLabel: 'Menu' }} />
+        <Tab.Screen
+          name="Home"
+          component={HomeView}
+          options={{ title: 'Finance Diario', tabBarLabel: 'Home' }}
+        />
+        <Tab.Screen
+          name="GastosMensais"
+          component={Option2View}
+          options={{ title: 'Gastos Mensais', tabBarLabel: 'Mes' }}
+        />
+        <Tab.Screen
+          name="Option3"
+          component={Option3View}
+          options={{ title: 'Opcao 3', tabBarLabel: 'Opcao 3' }}
+        />
+        <Tab.Screen
+          name="Menu"
+          component={MenuNavigationView}
+          options={{ title: 'Menu', tabBarLabel: 'Menu' }}
+        />
       </Tab.Navigator>
     </NavigationContainer>
   );

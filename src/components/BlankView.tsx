@@ -6,7 +6,7 @@ type BlankViewProps = {
 
 export default function BlankView({ backgroundColor = '#ffffff' }: BlankViewProps) {
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor }]}> 
+    <SafeAreaView style={[styles.safeArea, { backgroundColor }]}>
       <View style={styles.container} />
     </SafeAreaView>
   );

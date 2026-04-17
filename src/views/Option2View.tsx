@@ -17,29 +17,30 @@ const diasMes = dayjs().daysInMonth();
 export default function Option2View() {
   return (
     <SafeAreaView style={styles.safeArea}>
-        <StatusBar style="dark" />
-        <ScrollView contentContainerStyle={styles.content}>
-          <Text style={styles.title}>financas mensal</Text>
-          <View style={styles.row}>
-              <View style={styles.card}>
-                <Text style={styles.sectionTitle}>Dia</Text>
-              </View>
-              <View style={styles.card}>
-                <Text style={styles.sectionTitle}>Saldo</Text>
-              </View>
+      <StatusBar style="dark" />
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text style={styles.title}>financas mensal</Text>
+        <View style={styles.row}>
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Dia</Text>
+          </View>
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Saldo</Text>
+          </View>
+        </View>
+        {Array.from({ length: diasMes }, (_, index) => (
+          <View style={styles.row} key={index}>
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>{index + 1}</Text>
             </View>
-          {Array.from({ length: diasMes }, (_, index) => (
-            <View style={styles.row} key={index}>
-              <View style={styles.card}>
-                <Text style={styles.sectionTitle}>{index + 1}</Text>
-              </View>
-              <View style={styles.card}>
-                <Text style={styles.sectionTitle}>teste 2</Text>
-              </View>
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>teste 2</Text>
             </View>
-          ))}
-        </ScrollView>
-    </SafeAreaView>)
+          </View>
+        ))}
+      </ScrollView>
+    </SafeAreaView>
+  );
 }
 const styles = StyleSheet.create({
   safeArea: {

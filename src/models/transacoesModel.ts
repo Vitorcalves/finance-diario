@@ -5,46 +5,52 @@ export type Transacoes = {
   descricao: string;
   valor: number;
   categoria_id: string | null;
-  positivo: number;
+  contabilizado_saldo: boolean;
   data: string;
   created_at: string;
 };
 
-export const listExpenses = async () => {
+export const listTransacoes = async (start: string | null = null, end: string | null = null) => {
   const db = await getConnection();
-
-  const rows = await db.getAllAsync<Transacoes>(
-    `
-      SELECT id, descricao, valor, data, created_at, positivo, categoria_id
-      FROM transacoes
-      ORDER BY data DESC, created_at DESC
-    `,
-  );
-
+  let query = `
+    SELECT id, descricao, valor, data, created_at, contabilizado_saldo, categoria_id
+    FROM transacoes
+  `;
+  const params: (string | number)[] = [];
+  if (start && end) {
+    query += ' WHERE data BETWEEN ? AND ?';
+    params.push(start, end);
+  }
+  query += ' ORDER BY data DESC, created_at DESC';
+  if (!start || !end) {
+    query += ' LIMIT 50';
+  }
+  const rows = await db.getAllAsync<Transacoes>(query, params);
+  console.log('Transações carregadas:', rows);
   return rows;
 };
 
-export const insertExpense = async (expense: Transacoes) => {
+export const insertTransacao = async (transacao: Transacoes) => {
   const db = await getConnection();
 
   await db.runAsync(
     `
-      INSERT INTO transacoes (id, descricao, valor, data, positivo, categoria_id, created_at)
+      INSERT INTO transacoes (id, descricao, valor, data, contabilizado_saldo, categoria_id, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `,
     [
-      expense.id,
-      expense.descricao,
-      expense.valor,
-      expense.data,
-      expense.positivo,
-      expense.categoria_id,
-      expense.created_at,
+      transacao.id,
+      transacao.descricao,
+      transacao.valor,
+      transacao.data,
+      transacao.contabilizado_saldo,
+      transacao.categoria_id,
+      transacao.created_at,
     ],
   );
 };
 
-export const deleteExpenseById = async (id: string) => {
+export const deleteTransacaoById = async (id: string) => {
   const db = await getConnection();
   await db.runAsync('DELETE FROM transacoes WHERE id = ?', [id]);
 };

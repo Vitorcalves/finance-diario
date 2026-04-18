@@ -12,9 +12,9 @@ import {
 import dayjs from 'dayjs';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  deleteExpenseById,
-  insertExpense,
-  listExpenses,
+  deleteTransacaoById,
+  insertTransacao,
+  listTransacoes,
   type Transacoes,
 } from '../models/transacoesModel';
 import { getMonthlyIncome, saveMonthlyIncome } from '../models/settingsModel';
@@ -34,10 +34,10 @@ const parseMoney = (raw: string) => {
 };
 
 export default function HomeView() {
-  const [monthlyIncomeInput, setMonthlyIncomeInput] = useState('');
   const [description, setDescription] = useState('');
   const [amountInput, setAmountInput] = useState('');
   const [dateInput, setDateInput] = useState(todayIso());
+  const [tipoTransacao, setTipoTransacao] = useState<'saida' | 'entrada'>('saida');
   const [expenses, setExpenses] = useState<Transacoes[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -48,15 +48,11 @@ export default function HomeView() {
       try {
         const [storedIncome, storedExpenses] = await Promise.all([
           getMonthlyIncome(),
-          listExpenses(),
+          listTransacoes(),
         ]);
 
         if (!mounted) {
           return;
-        }
-
-        if (storedIncome > 0) {
-          setMonthlyIncomeInput(String(storedIncome));
         }
 
         setExpenses(storedExpenses);
@@ -76,14 +72,12 @@ export default function HomeView() {
     };
   }, []);
 
-  const monthlyIncome = parseMoney(monthlyIncomeInput);
-
   const totalExpenses = useMemo(
     () => expenses.reduce((sum, item) => sum + item.valor, 0),
     [expenses],
   );
 
-  const currentBalance = monthlyIncome - totalExpenses;
+  const currentBalance = totalExpenses;
 
   const expensesByDay = useMemo(() => {
     const grouped = new Map<string, number>();
@@ -95,14 +89,6 @@ export default function HomeView() {
     return [...grouped.entries()].sort(([a], [b]) => (a < b ? 1 : -1));
   }, [expenses]);
 
-  const persistMonthlyIncome = async () => {
-    try {
-      await saveMonthlyIncome(monthlyIncome);
-    } catch (error) {
-      console.error('Erro ao salvar entrada mensal', error);
-    }
-  };
-
   const addExpense = async () => {
     const amount = parseMoney(amountInput);
     const trimmedDescription = description.trim();
@@ -112,18 +98,20 @@ export default function HomeView() {
       return;
     }
 
+    const valorFinal = tipoTransacao === 'saida' ? -amount : amount;
+
     const newExpense: Transacoes = {
       id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
       descricao: trimmedDescription,
-      valor: amount,
+      valor: valorFinal,
       data: trimmedDate,
-      positivo: 0,
+      contabilizado_saldo: false,
       categoria_id: null,
       created_at: new Date().toISOString(),
     };
 
     try {
-      await insertExpense(newExpense);
+      await insertTransacao(newExpense);
       setExpenses((prev) => [newExpense, ...prev]);
       setDescription('');
       setAmountInput('');
@@ -135,7 +123,7 @@ export default function HomeView() {
 
   const removeExpense = async (id: string) => {
     try {
-      await deleteExpenseById(id);
+      await deleteTransacaoById(id);
       setExpenses((prev) => prev.filter((item) => item.id !== id));
     } catch (error) {
       console.error('Erro ao remover gasto', error);
@@ -158,19 +146,6 @@ export default function HomeView() {
         <Text style={styles.title}>Finance Diario</Text>
         <Text style={styles.subtitle}>Controle simples dos seus gastos dia apos dia</Text>
 
-        <View style={styles.card}>
-          <Text style={styles.label}>Entrada mensal (R$)</Text>
-          <TextInput
-            value={monthlyIncomeInput}
-            onChangeText={setMonthlyIncomeInput}
-            onBlur={persistMonthlyIncome}
-            keyboardType="decimal-pad"
-            placeholder="Ex.: 5000"
-            placeholderTextColor="#7b8a8e"
-            style={styles.input}
-          />
-        </View>
-
         <View style={styles.summaryRow}>
           <View style={styles.summaryBox}>
             <Text style={styles.summaryLabel}>Gasto total</Text>
@@ -187,7 +162,22 @@ export default function HomeView() {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Novo gasto diario</Text>
+          <Text style={styles.sectionTitle}>Novo lancamento</Text>
+
+          <View style={styles.tipoRow}>
+            <Pressable
+              style={[styles.tipoButton, tipoTransacao === 'saida' && styles.tipoButtonActiveSaida]}
+              onPress={() => setTipoTransacao('saida')}
+            >
+              <Text style={[styles.tipoButtonText, tipoTransacao === 'saida' && styles.tipoButtonTextActive]}>Saida</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.tipoButton, tipoTransacao === 'entrada' && styles.tipoButtonActiveEntrada]}
+              onPress={() => setTipoTransacao('entrada')}
+            >
+              <Text style={[styles.tipoButtonText, tipoTransacao === 'entrada' && styles.tipoButtonTextActive]}>Entrada</Text>
+            </Pressable>
+          </View>
 
           <Text style={styles.label}>Descricao</Text>
           <TextInput
@@ -217,8 +207,8 @@ export default function HomeView() {
             style={styles.input}
           />
 
-          <Pressable style={styles.button} onPress={addExpense}>
-            <Text style={styles.buttonText}>Adicionar gasto</Text>
+          <Pressable style={[styles.button, tipoTransacao === 'entrada' && styles.buttonEntrada]} onPress={addExpense}>
+            <Text style={styles.buttonText}>{tipoTransacao === 'saida' ? 'Adicionar saida' : 'Adicionar entrada'}</Text>
           </Pressable>
         </View>
 
@@ -249,7 +239,7 @@ export default function HomeView() {
                 </View>
 
                 <View style={styles.expenseActions}>
-                  <Text style={styles.expenseAmount}>{toCurrency(item.valor)}</Text>
+                  <Text style={[styles.expenseAmount, item.valor < 0 ? styles.negative : styles.positive]}>{toCurrency(item.valor)}</Text>
                   <Pressable onPress={() => removeExpense(item.id)}>
                     <Text style={styles.removeText}>Remover</Text>
                   </Pressable>
@@ -324,12 +314,44 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#123a2d',
   },
+  tipoRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  tipoButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#d6dfdb',
+    alignItems: 'center',
+    backgroundColor: '#f8fbfa',
+  },
+  tipoButtonActiveSaida: {
+    backgroundColor: '#c0352b',
+    borderColor: '#c0352b',
+  },
+  tipoButtonActiveEntrada: {
+    backgroundColor: '#0d8f50',
+    borderColor: '#0d8f50',
+  },
+  tipoButtonText: {
+    fontWeight: '700',
+    fontSize: 14,
+    color: '#334640',
+  },
+  tipoButtonTextActive: {
+    color: '#ffffff',
+  },
   button: {
     marginTop: 6,
     borderRadius: 12,
     backgroundColor: '#0f7a5b',
     paddingVertical: 12,
     alignItems: 'center',
+  },
+  buttonEntrada: {
+    backgroundColor: '#0d8f50',
   },
   buttonText: {
     color: '#ffffff',

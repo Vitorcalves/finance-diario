@@ -3,7 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import TabIcon from '../components/TabIcon';
 import HomeView from '../views/HomeView';
 import MenuNavigationView from '../views/MenuNavigationView';
-import Option2View from '../views/Option2View';
+import Option2View from '../views/MensalView';
 import Option3View from '../views/Option3View';
 import type { RootTabParamList } from './types';
 

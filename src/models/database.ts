@@ -41,7 +41,7 @@ export const initializeDatabase = async () => {
       id TEXT PRIMARY KEY NOT NULL,
       descricao TEXT NOT NULL,
       valor REAL NOT NULL,
-      positivo INTEGER NOT NULL,
+      contabilizado_saldo BOOLEAN NOT NULL DEFAULT 0,
       data TEXT NOT NULL,
       categoria_id TEXT,
       created_at TEXT NOT NULL,
@@ -54,7 +54,7 @@ export const initializeDatabase = async () => {
     CREATE TABLE IF NOT EXISTS recorrentes (
       id TEXT PRIMARY KEY NOT NULL,
       descricao TEXT NOT NULL,
-      positivo INTEGER NOT NULL,
+      positivo BOOLEAN NOT NULL DEFAULT 0,
       valor REAL NOT NULL,
       inicio TEXT NOT NULL,
       frequencia TEXT NOT NULL,

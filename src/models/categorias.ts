@@ -7,17 +7,11 @@ export type Categoria = {
   created_at: string;
 };
 
-type CategoriaRow = {
-  id: string;
-  nome: string;
-  tipo: 'entrada' | 'saida';
-  created_at: string;
-};
 
 export const listCategorias = async () => {
   const db = await getConnection();
 
-  const rows = await db.getAllAsync<CategoriaRow>(
+  const rows = await db.getAllAsync<Categoria>(
     `
         SELECT id, nome, tipo, created_at
         FROM categorias
@@ -47,7 +41,7 @@ export const deleteCategoriaById = async (id: string) => {
 
 export const getCategoriaById = async (id: string) => {
   const db = await getConnection();
-  const row = await db.getFirstAsync<CategoriaRow>(
+  const row = await db.getFirstAsync<Categoria>(
     `
         SELECT id, nome, tipo, created_at
         FROM categorias

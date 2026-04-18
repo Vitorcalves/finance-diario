@@ -10,20 +10,10 @@ export type Transacoes = {
   created_at: string;
 };
 
-type TransacoesRow = {
-  id: string;
-  descricao: string;
-  valor: number;
-  data: string;
-  positivo: number;
-  categoria_id: string | null;
-  created_at: string;
-};
-
 export const listExpenses = async () => {
   const db = await getConnection();
 
-  const rows = await db.getAllAsync<TransacoesRow>(
+  const rows = await db.getAllAsync<Transacoes>(
     `
       SELECT id, descricao, valor, data, created_at, positivo, categoria_id
       FROM transacoes
@@ -31,15 +21,7 @@ export const listExpenses = async () => {
     `,
   );
 
-  return rows.map((row) => ({
-    id: row.id,
-    descricao: row.descricao,
-    valor: row.valor,
-    data: row.data,
-    created_at: row.created_at,
-    positivo: row.positivo,
-    categoria_id: row.categoria_id,
-  }));
+  return rows;
 };
 
 export const insertExpense = async (expense: Transacoes) => {

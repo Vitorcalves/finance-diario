@@ -1,4 +1,6 @@
 import { getConnection } from './database';
+import dayjs from 'dayjs';
+import { getSaldoAtual, novoSaldoAtual } from './saldoModel';
 
 export type Transacoes = {
   id: string;
@@ -10,7 +12,10 @@ export type Transacoes = {
   created_at: string;
 };
 
-export const listTransacoes = async (start: string | null = null, end: string | null = null) => {
+export const listTransacoes = async (
+  start: string | null = null,
+  end: string | null = null,
+): Promise<Transacoes[]> => {
   const db = await getConnection();
   let query = `
     SELECT id, descricao, valor, data, created_at, contabilizado_saldo, categoria_id
@@ -30,9 +35,19 @@ export const listTransacoes = async (start: string | null = null, end: string | 
   return rows;
 };
 
-export const insertTransacao = async (transacao: Transacoes) => {
+export const insertTransacao = async (transacao: Transacoes): Promise<void> => {
   const db = await getConnection();
 
+  if (!dayjs(transacao.data).isBefore(dayjs(), 'day')) {
+    transacao.contabilizado_saldo = true;
+    try {
+      const saldoAtual = await getSaldoAtual();
+      const novoValor = saldoAtual ? saldoAtual.valor + transacao.valor : transacao.valor;
+      await novoSaldoAtual(novoValor);
+    } catch (e) {
+      console.error('Erro ao atualizar saldo:', e);
+    }
+  }
   await db.runAsync(
     `
       INSERT INTO transacoes (id, descricao, valor, data, contabilizado_saldo, categoria_id, created_at)
@@ -50,7 +65,7 @@ export const insertTransacao = async (transacao: Transacoes) => {
   );
 };
 
-export const deleteTransacaoById = async (id: string) => {
+export const deleteTransacaoById = async (id: string): Promise<void> => {
   const db = await getConnection();
   await db.runAsync('DELETE FROM transacoes WHERE id = ?', [id]);
 };

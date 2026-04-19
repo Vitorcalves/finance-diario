@@ -6,7 +6,7 @@ type SettingRow = {
   value: string;
 };
 
-export const getMonthlyIncome = async () => {
+export const getMonthlyIncome = async (): Promise<number> => {
   const db = await getConnection();
 
   const row = await db.getFirstAsync<SettingRow>('SELECT value FROM settings WHERE key = ?', [
@@ -21,7 +21,7 @@ export const getMonthlyIncome = async () => {
   return Number.isFinite(numeric) ? numeric : 0;
 };
 
-export const saveMonthlyIncome = async (value: number) => {
+export const saveMonthlyIncome = async (value: number): Promise<void> => {
   const db = await getConnection();
 
   await db.runAsync(

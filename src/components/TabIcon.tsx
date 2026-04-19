@@ -17,6 +17,6 @@ const iconByRoute: Record<TabName, ComponentProps<typeof Ionicons>['name']> = {
   Menu: 'menu',
 };
 
-export default function TabIcon({ routeName, color, size }: TabIconProps) {
+export default function TabIcon({ routeName, color, size }: TabIconProps): React.ReactNode {
   return <Ionicons name={iconByRoute[routeName]} color={color} size={size} />;
 }

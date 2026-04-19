@@ -2,7 +2,7 @@ import * as SQLite from 'expo-sqlite';
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
-export const getConnection = async () => {
+export const getConnection = async (): Promise<SQLite.SQLiteDatabase> => {
   if (!dbPromise) {
     dbPromise = SQLite.openDatabaseAsync('finance_diario.db');
   }
@@ -10,7 +10,7 @@ export const getConnection = async () => {
   return dbPromise;
 };
 
-export const initializeDatabase = async () => {
+export const initializeDatabase = async (): Promise<void> => {
   const db = await getConnection();
 
   // DROP TABLE IF EXISTS recorrentes;
@@ -65,6 +65,7 @@ export const initializeDatabase = async () => {
     CREATE TABLE IF NOT EXISTS saldos (
       id TEXT PRIMARY KEY NOT NULL,
       valor REAL NOT NULL,
+      atual BOOLEAN NOT NULL DEFAULT 1,
       data TEXT NOT NULL,
       created_at TEXT NOT NULL
     );

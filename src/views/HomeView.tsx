@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import dayjs from 'dayjs';
+import { v4 as uuidv4 } from 'uuid';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   deleteTransacaoById,
@@ -17,23 +18,22 @@ import {
   listTransacoes,
   type Transacoes,
 } from '../models/transacoesModel';
-import { getMonthlyIncome, saveMonthlyIncome } from '../models/settingsModel';
 
-const todayIso = () => dayjs().format('YYYY-MM-DD');
+const todayIso = (): string => dayjs().format('YYYY-MM-DD');
 
-const toCurrency = (value: number) =>
+const toCurrency = (value: number): string =>
   new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL',
   }).format(value);
 
-const parseMoney = (raw: string) => {
+const parseMoney = (raw: string): number => {
   const normalized = raw.replace(',', '.').replace(/[^\d.-]/g, '');
   const value = Number(normalized);
   return Number.isFinite(value) ? value : 0;
 };
 
-export default function HomeView() {
+export default function HomeView(): React.ReactNode {
   const [description, setDescription] = useState('');
   const [amountInput, setAmountInput] = useState('');
   const [dateInput, setDateInput] = useState(todayIso());
@@ -44,12 +44,9 @@ export default function HomeView() {
   useEffect(() => {
     let mounted = true;
 
-    const bootstrap = async () => {
+    const bootstrap = async (): Promise<void> => {
       try {
-        const [storedIncome, storedExpenses] = await Promise.all([
-          getMonthlyIncome(),
-          listTransacoes(),
-        ]);
+        const storedExpenses = await listTransacoes();
 
         if (!mounted) {
           return;
@@ -65,9 +62,9 @@ export default function HomeView() {
       }
     };
 
-    bootstrap();
+    bootstrap().catch((error) => console.error('Erro no bootstrap', error));
 
-    return () => {
+    return (): void => {
       mounted = false;
     };
   }, []);
@@ -89,7 +86,7 @@ export default function HomeView() {
     return [...grouped.entries()].sort(([a], [b]) => (a < b ? 1 : -1));
   }, [expenses]);
 
-  const addExpense = async () => {
+  const addTrasacao = (): void => {
     const amount = parseMoney(amountInput);
     const trimmedDescription = description.trim();
     const trimmedDate = dateInput.trim();
@@ -99,9 +96,18 @@ export default function HomeView() {
     }
 
     const valorFinal = tipoTransacao === 'saida' ? -amount : amount;
+    promisseAdd(trimmedDescription, valorFinal, trimmedDate).catch((error) =>
+      console.error('Erro ao adicionar transacao', error),
+    );
+  };
 
+  const promisseAdd = async (
+    trimmedDescription: string,
+    valorFinal: number,
+    trimmedDate: string,
+  ): Promise<void> => {
     const newExpense: Transacoes = {
-      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      id: uuidv4(),
       descricao: trimmedDescription,
       valor: valorFinal,
       data: trimmedDate,
@@ -121,9 +127,11 @@ export default function HomeView() {
     }
   };
 
-  const removeExpense = async (id: string) => {
+  const removeExpense = (id: string): void => {
     try {
-      await deleteTransacaoById(id);
+      deleteTransacaoById(id).catch((error) =>
+        console.error('Erro ao remover gasto do banco', error),
+      );
       setExpenses((prev) => prev.filter((item) => item.id !== id));
     } catch (error) {
       console.error('Erro ao remover gasto', error);
@@ -169,13 +177,30 @@ export default function HomeView() {
               style={[styles.tipoButton, tipoTransacao === 'saida' && styles.tipoButtonActiveSaida]}
               onPress={() => setTipoTransacao('saida')}
             >
-              <Text style={[styles.tipoButtonText, tipoTransacao === 'saida' && styles.tipoButtonTextActive]}>Saida</Text>
+              <Text
+                style={[
+                  styles.tipoButtonText,
+                  tipoTransacao === 'saida' && styles.tipoButtonTextActive,
+                ]}
+              >
+                Saida
+              </Text>
             </Pressable>
             <Pressable
-              style={[styles.tipoButton, tipoTransacao === 'entrada' && styles.tipoButtonActiveEntrada]}
+              style={[
+                styles.tipoButton,
+                tipoTransacao === 'entrada' && styles.tipoButtonActiveEntrada,
+              ]}
               onPress={() => setTipoTransacao('entrada')}
             >
-              <Text style={[styles.tipoButtonText, tipoTransacao === 'entrada' && styles.tipoButtonTextActive]}>Entrada</Text>
+              <Text
+                style={[
+                  styles.tipoButtonText,
+                  tipoTransacao === 'entrada' && styles.tipoButtonTextActive,
+                ]}
+              >
+                Entrada
+              </Text>
             </Pressable>
           </View>
 
@@ -207,8 +232,13 @@ export default function HomeView() {
             style={styles.input}
           />
 
-          <Pressable style={[styles.button, tipoTransacao === 'entrada' && styles.buttonEntrada]} onPress={addExpense}>
-            <Text style={styles.buttonText}>{tipoTransacao === 'saida' ? 'Adicionar saida' : 'Adicionar entrada'}</Text>
+          <Pressable
+            style={[styles.button, tipoTransacao === 'entrada' && styles.buttonEntrada]}
+            onPress={addTrasacao}
+          >
+            <Text style={styles.buttonText}>
+              {tipoTransacao === 'saida' ? 'Adicionar saida' : 'Adicionar entrada'}
+            </Text>
           </Pressable>
         </View>
 
@@ -239,7 +269,14 @@ export default function HomeView() {
                 </View>
 
                 <View style={styles.expenseActions}>
-                  <Text style={[styles.expenseAmount, item.valor < 0 ? styles.negative : styles.positive]}>{toCurrency(item.valor)}</Text>
+                  <Text
+                    style={[
+                      styles.expenseAmount,
+                      item.valor < 0 ? styles.negative : styles.positive,
+                    ]}
+                  >
+                    {toCurrency(item.valor)}
+                  </Text>
                   <Pressable onPress={() => removeExpense(item.id)}>
                     <Text style={styles.removeText}>Remover</Text>
                   </Pressable>

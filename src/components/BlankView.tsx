@@ -4,7 +4,9 @@ type BlankViewProps = {
   backgroundColor?: string;
 };
 
-export default function BlankView({ backgroundColor = '#ffffff' }: BlankViewProps) {
+export default function BlankView({
+  backgroundColor = '#ffffff',
+}: BlankViewProps): React.ReactNode {
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor }]}>
       <View style={styles.container} />

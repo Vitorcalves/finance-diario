@@ -7,8 +7,7 @@ export type Categoria = {
   created_at: string;
 };
 
-
-export const listCategorias = async () => {
+export const listCategorias = async (): Promise<Categoria[]> => {
   const db = await getConnection();
 
   const rows = await db.getAllAsync<Categoria>(
@@ -22,7 +21,7 @@ export const listCategorias = async () => {
   return rows;
 };
 
-export const insertCategoria = async (categoria: Categoria) => {
+export const insertCategoria = async (categoria: Categoria): Promise<void> => {
   const db = await getConnection();
 
   await db.runAsync(
@@ -34,12 +33,12 @@ export const insertCategoria = async (categoria: Categoria) => {
   );
 };
 
-export const deleteCategoriaById = async (id: string) => {
+export const deleteCategoriaById = async (id: string): Promise<void> => {
   const db = await getConnection();
   await db.runAsync('DELETE FROM categorias WHERE id = ?', [id]);
 };
 
-export const getCategoriaById = async (id: string) => {
+export const getCategoriaById = async (id: string): Promise<Categoria | null> => {
   const db = await getConnection();
   const row = await db.getFirstAsync<Categoria>(
     `

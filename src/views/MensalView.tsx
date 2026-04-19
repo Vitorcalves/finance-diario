@@ -1,80 +1,96 @@
-import BlankView from '../components/BlankView';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import {
-  listTransacoes,
-  type Transacoes,
-} from '../models/transacoesModel';
+import { Pressable, ScrollView, StyleProp, StyleSheet, Text, TextStyle, View } from 'react-native';
+import { listTransacoes, type Transacoes } from '../models/transacoesModel';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import dayjs from 'dayjs';
-require('dayjs/locale/pt-br');
+import 'dayjs/locale/pt-br';
+
+dayjs.locale('pt-br');
 
 export type ListDia = {
   valor: number;
   data: string;
 };
 
-export default function Option2View() {
+export default function Option2View(): React.ReactNode {
   const [mesSelecionado, setMesSelecionadoState] = useState(dayjs());
-  const [transacoes, setTransacoes] = useState<Transacoes[]>([]);
   const [dadosMes, setDadosMes] = useState<ListDia[]>([]);
-  const diasMes = mesSelecionado.daysInMonth();
-  
-  const processarMes = () => {
-    const saldoPorDia: ListDia[] = Array.from({ length: diasMes }, (_, index) => ({
-      valor: 0,
-      data: mesSelecionado.date(index + 1).format('YYYY-MM-DD'),
-    }));
 
-    transacoes.forEach((transacao) => {
+  const processarMes = (transacoesDoMes: Transacoes[], referenciaMes: dayjs.Dayjs): ListDia[] => {
+    const saldoPorDia: ListDia[] = Array.from(
+      { length: referenciaMes.daysInMonth() },
+      (_, index) => ({
+        valor: 0,
+        data: referenciaMes.date(index + 1).format('YYYY-MM-DD'),
+      }),
+    );
+
+    transacoesDoMes.forEach((transacao) => {
       const dia = dayjs(transacao.data).date() - 1;
-      if (dia >= 0 && dia < diasMes) {
-        saldoPorDia[dia].valor += transacao.contabilizado_saldo ? transacao.valor : -transacao.valor;
+      if (dia >= 0 && dia < saldoPorDia.length) {
+        saldoPorDia[dia].valor += transacao.contabilizado_saldo
+          ? transacao.valor
+          : -transacao.valor;
       }
     });
 
-    setDadosMes(saldoPorDia);
     console.log('Dados do mês processados:', saldoPorDia);
+    return saldoPorDia;
   };
 
-  const loadData = async () => {
-    const start = mesSelecionado.startOf('month').format('YYYY-MM-DD');
-    const end = mesSelecionado.endOf('month').format('YYYY-MM-DD');
-    const transacoes = await listTransacoes(start, end);
-    setTransacoes(transacoes);
-    processarMes();
-  }
-
-  const setMesSelecionado = (novoMes: dayjs.Dayjs) => {
+  const setMesSelecionado = (novoMes: dayjs.Dayjs): void => {
     setMesSelecionadoState(novoMes);
-    loadData();
-  }
-  const proximoMes = () => {
+  };
+
+  const proximoMes = (): void => {
     setMesSelecionado(mesSelecionado.add(1, 'month'));
   };
 
-  const mesAnterior = () => {
+  const mesAnterior = (): void => {
     setMesSelecionado(mesSelecionado.subtract(1, 'month'));
   };
 
-  const setDefaultDate = () => {
+  const setDefaultDate = (): void => {
     setMesSelecionado(dayjs());
   };
 
+  const getSaldoStyle = (valor: number): StyleProp<TextStyle> => {
+    if (valor < 0) {
+      return styles.negativeValue;
+    }
 
-  useEffect(() => {
-    setDefaultDate();
-  }, []);
+    if (valor === 0) {
+      return styles.neutralValue;
+    }
+
+    return styles.positiveValue;
+  };
+
+  useEffect((): (() => void) => {
+    let active = true;
+
+    const loadData = async (): Promise<void> => {
+      const start = mesSelecionado.startOf('month').format('YYYY-MM-DD');
+      const end = mesSelecionado.endOf('month').format('YYYY-MM-DD');
+      const transacoesDoMes = await listTransacoes(start, end);
+
+      if (!active) {
+        return;
+      }
+
+      setDadosMes(processarMes(transacoesDoMes, mesSelecionado));
+    };
+
+    void loadData().catch((error: unknown) => {
+      console.error('Erro ao carregar dados do mes:', error);
+    });
+
+    return (): void => {
+      active = false;
+    };
+  }, [mesSelecionado]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -106,8 +122,14 @@ export default function Option2View() {
           </View>
           {Array.from(dadosMes, (_, index) => (
             <View key={index} style={[styles.tableRow, index % 2 === 0 && styles.tableRowAlt]}>
-              <Text style={[styles.tableCell, styles.colDay]}>{dayjs(dadosMes[index].data).date()}</Text>
-              <Text style={[styles.tableCell, styles.colBalance, {color: dadosMes[index].valor < 0 ? 'red' : (dadosMes[index].valor === 0 ? 'orange' : 'green')}]}>{dadosMes[index].valor}</Text>
+              <Text style={[styles.tableCell, styles.colDay]}>
+                {dayjs(dadosMes[index].data).date()}
+              </Text>
+              <Text
+                style={[styles.tableCell, styles.colBalance, getSaldoStyle(dadosMes[index].valor)]}
+              >
+                {dadosMes[index].valor}
+              </Text>
             </View>
           ))}
         </View>
@@ -215,5 +237,14 @@ const styles = StyleSheet.create({
   colBalance: {
     flex: 2,
     textAlign: 'right',
+  },
+  negativeValue: {
+    color: 'red',
+  },
+  neutralValue: {
+    color: 'orange',
+  },
+  positiveValue: {
+    color: 'green',
   },
 });

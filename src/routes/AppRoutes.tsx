@@ -9,7 +9,7 @@ import type { RootTabParamList } from './types';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
-export default function AppRoutes() {
+export default function AppRoutes(): React.ReactNode {
   return (
     <NavigationContainer>
       <Tab.Navigator
@@ -33,11 +33,7 @@ export default function AppRoutes() {
             fontWeight: '700',
           },
           tabBarIcon: ({ color, size, focused }) => (
-            <TabIcon
-              routeName={route.name as keyof RootTabParamList}
-              color={color}
-              size={focused ? size + 1 : size}
-            />
+            <TabIcon routeName={route.name} color={color} size={focused ? size + 1 : size} />
           ),
         })}
       >

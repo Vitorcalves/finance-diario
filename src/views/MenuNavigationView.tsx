@@ -5,7 +5,7 @@ import type { RootTabParamList } from '../routes/types';
 
 type MenuNavigation = BottomTabNavigationProp<RootTabParamList, 'Menu'>;
 
-export default function MenuNavigationView() {
+export default function MenuNavigationView(): React.ReactNode {
   const navigation = useNavigation<MenuNavigation>();
 
   return (
@@ -18,8 +18,8 @@ export default function MenuNavigationView() {
           <Text style={styles.itemText}>Ir para Home</Text>
         </Pressable>
 
-        <Pressable style={styles.item} onPress={() => navigation.navigate('Option2')}>
-          <Text style={styles.itemText}>Ir para Opcao 2</Text>
+        <Pressable style={styles.item} onPress={() => navigation.navigate('GastosMensais')}>
+          <Text style={styles.itemText}>Ir para Gastos Mensais</Text>
         </Pressable>
 
         <Pressable style={styles.item} onPress={() => navigation.navigate('Option3')}>

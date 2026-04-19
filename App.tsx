@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import AppRoutes from './src/routes/AppRoutes';
 import { initializeDatabase, getConnection } from './src/models/database';
 import * as SQLite from 'expo-sqlite';
 import { useDrizzleStudio } from 'expo-drizzle-studio-plugin';
 
-export default function App() {
+export default function App(): React.ReactNode {
   const [ready, setReady] = useState(false);
   const [db, setDb] = useState<SQLite.SQLiteDatabase | null>(null);
 
@@ -23,7 +23,7 @@ export default function App() {
 
   if (!ready) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={styles.safeArea}>
         <ActivityIndicator size="large" color="#0f7a5b" />
       </View>
     );
@@ -31,3 +31,11 @@ export default function App() {
 
   return <AppRoutes />;
 }
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

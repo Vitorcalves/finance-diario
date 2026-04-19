@@ -1,6 +1,6 @@
 import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
 
-export default function MoreView() {
+export default function MoreView(): React.ReactNode {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>

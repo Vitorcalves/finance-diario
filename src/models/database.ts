@@ -62,14 +62,6 @@ export const initializeDatabase = async (): Promise<void> => {
       created_at TEXT NOT NULL
     );
 
-    CREATE TABLE IF NOT EXISTS saldos (
-      id TEXT PRIMARY KEY NOT NULL,
-      valor REAL NOT NULL,
-      atual BOOLEAN NOT NULL DEFAULT 1,
-      data TEXT NOT NULL,
-      created_at TEXT NOT NULL
-    );
-
     PRAGMA foreign_keys = ON;
   `);
 };

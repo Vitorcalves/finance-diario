@@ -118,7 +118,7 @@ export default function HomeView(): React.ReactNode {
 
     try {
       await insertTransacao(newExpense);
-      setExpenses((prev) => [newExpense, ...prev]);
+      await listTransacoes().then((updatedExpenses) => setExpenses(updatedExpenses));
       setDescription('');
       setAmountInput('');
       setDateInput(todayIso());

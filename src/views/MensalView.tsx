@@ -36,7 +36,6 @@ export default function Option2View(): React.ReactNode {
       }
     });
 
-    console.log('Dados do mês processados:', saldoPorDia);
     return saldoPorDia;
   };
 

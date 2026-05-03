@@ -38,7 +38,7 @@ export default function HomeView(): React.ReactNode {
   const [amountInput, setAmountInput] = useState('');
   const [dateInput, setDateInput] = useState(todayIso());
   const [tipoTransacao, setTipoTransacao] = useState<'saida' | 'entrada'>('saida');
-  const [expenses, setExpenses] = useState<Transacoes[]>([]);
+  const [transacoes, setTransacoes] = useState<Transacoes[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -46,13 +46,13 @@ export default function HomeView(): React.ReactNode {
 
     const bootstrap = async (): Promise<void> => {
       try {
-        const storedExpenses = await listTransacoes();
+        const storedTransacoes = await listTransacoes();
 
         if (!mounted) {
           return;
         }
 
-        setExpenses(storedExpenses);
+        setTransacoes(storedTransacoes);
       } catch (error) {
         console.error('Erro ao inicializar banco de dados', error);
       } finally {
@@ -69,22 +69,22 @@ export default function HomeView(): React.ReactNode {
     };
   }, []);
 
-  const totalExpenses = useMemo(
-    () => expenses.reduce((sum, item) => sum + item.valor, 0),
-    [expenses],
+  const totalTransacoes = useMemo(
+    () => transacoes.reduce((sum, item) => sum + item.valor, 0),
+    [transacoes],
   );
 
-  const currentBalance = totalExpenses;
+  const currentBalance = totalTransacoes;
 
-  const expensesByDay = useMemo(() => {
+  const transacoesByDay = useMemo(() => {
     const grouped = new Map<string, number>();
 
-    for (const item of expenses) {
+    for (const item of transacoes) {
       grouped.set(item.data, (grouped.get(item.data) ?? 0) + item.valor);
     }
 
     return [...grouped.entries()].sort(([a], [b]) => (a < b ? 1 : -1));
-  }, [expenses]);
+  }, [transacoes]);
 
   const addTrasacao = (): void => {
     const amount = parseMoney(amountInput);
@@ -106,7 +106,7 @@ export default function HomeView(): React.ReactNode {
     valorFinal: number,
     trimmedDate: string,
   ): Promise<void> => {
-    const newExpense: Transacoes = {
+    const newTransacao: Transacoes = {
       id: uuidv4(),
       descricao: trimmedDescription,
       valor: valorFinal,
@@ -117,8 +117,8 @@ export default function HomeView(): React.ReactNode {
     };
 
     try {
-      await insertTransacao(newExpense);
-      await listTransacoes().then((updatedExpenses) => setExpenses(updatedExpenses));
+      await insertTransacao(newTransacao);
+      await listTransacoes().then((updatedTransacoes) => setTransacoes(updatedTransacoes));
       setDescription('');
       setAmountInput('');
       setDateInput(todayIso());
@@ -127,12 +127,12 @@ export default function HomeView(): React.ReactNode {
     }
   };
 
-  const removeExpense = (id: string): void => {
+  const removeTransacao = (id: string): void => {
     try {
       deleteTransacaoById(id).catch((error) =>
         console.error('Erro ao remover gasto do banco', error),
       );
-      setExpenses((prev) => prev.filter((item) => item.id !== id));
+      setTransacoes((prev) => prev.filter((item) => item.id !== id));
     } catch (error) {
       console.error('Erro ao remover gasto', error);
     }
@@ -157,7 +157,7 @@ export default function HomeView(): React.ReactNode {
         <View style={styles.summaryRow}>
           <View style={styles.summaryBox}>
             <Text style={styles.summaryLabel}>Gasto total</Text>
-            <Text style={styles.summaryValue}>{toCurrency(totalExpenses)}</Text>
+            <Text style={styles.summaryValue}>{toCurrency(totalTransacoes)}</Text>
           </View>
           <View style={styles.summaryBox}>
             <Text style={styles.summaryLabel}>Saldo atual</Text>
@@ -244,10 +244,10 @@ export default function HomeView(): React.ReactNode {
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Resumo por dia</Text>
-          {expensesByDay.length === 0 ? (
+          {transacoesByDay.length === 0 ? (
             <Text style={styles.emptyText}>Sem gastos cadastrados ainda.</Text>
           ) : (
-            expensesByDay.map(([day, total]) => (
+            transacoesByDay.map(([day, total]) => (
               <View style={styles.dayRow} key={day}>
                 <Text style={styles.dayText}>{day}</Text>
                 <Text style={styles.dayValue}>{toCurrency(total)}</Text>
@@ -258,26 +258,26 @@ export default function HomeView(): React.ReactNode {
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Lancamentos</Text>
-          {expenses.length === 0 ? (
+          {transacoes.length === 0 ? (
             <Text style={styles.emptyText}>Adicione o primeiro gasto para comecar.</Text>
           ) : (
-            expenses.map((item) => (
-              <View style={styles.expenseRow} key={item.id}>
-                <View style={styles.expenseInfo}>
-                  <Text style={styles.expenseTitle}>{item.descricao}</Text>
-                  <Text style={styles.expenseMeta}>{item.data}</Text>
+            transacoes.map((item) => (
+              <View style={styles.transacaoRow} key={item.id}>
+                <View style={styles.transacaoInfo}>
+                  <Text style={styles.transacaoTitle}>{item.descricao}</Text>
+                  <Text style={styles.transacaoMeta}>{item.data}</Text>
                 </View>
 
-                <View style={styles.expenseActions}>
+                <View style={styles.transacaoActions}>
                   <Text
                     style={[
-                      styles.expenseAmount,
+                      styles.transacaoAmount,
                       item.valor < 0 ? styles.negative : styles.positive,
                     ]}
                   >
                     {toCurrency(item.valor)}
                   </Text>
-                  <Pressable onPress={() => removeExpense(item.id)}>
+                  <Pressable onPress={() => removeTransacao(item.id)}>
                     <Text style={styles.removeText}>Remover</Text>
                   </Pressable>
                 </View>
@@ -436,7 +436,7 @@ const styles = StyleSheet.create({
     color: '#0f2c23',
     fontWeight: '700',
   },
-  expenseRow: {
+  transacaoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -444,25 +444,25 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#edf2ef',
   },
-  expenseInfo: {
+  transacaoInfo: {
     flex: 1,
     gap: 3,
   },
-  expenseActions: {
+  transacaoActions: {
     alignItems: 'flex-end',
     gap: 4,
     marginLeft: 10,
   },
-  expenseTitle: {
+  transacaoTitle: {
     fontSize: 15,
     color: '#17342b',
     fontWeight: '600',
   },
-  expenseMeta: {
+  transacaoMeta: {
     fontSize: 12,
     color: '#5b6f67',
   },
-  expenseAmount: {
+  transacaoAmount: {
     fontWeight: '700',
     color: '#193d31',
   },

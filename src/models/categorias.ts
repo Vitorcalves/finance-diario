@@ -3,7 +3,7 @@ import { getConnection } from './database';
 export type Categoria = {
   id: string;
   nome: string;
-  tipo: 'entrada' | 'saida';
+  descricao: string;
   created_at: string;
 };
 
@@ -12,7 +12,7 @@ export const listCategorias = async (): Promise<Categoria[]> => {
 
   const rows = await db.getAllAsync<Categoria>(
     `
-        SELECT id, nome, tipo, created_at
+        SELECT id, nome, descricao, created_at
         FROM categorias
         ORDER BY created_at DESC
         `,
@@ -26,10 +26,10 @@ export const insertCategoria = async (categoria: Categoria): Promise<void> => {
 
   await db.runAsync(
     `
-        INSERT INTO categorias (id, nome, tipo, created_at)
+        INSERT INTO categorias (id, nome, descricao, created_at)
         VALUES (?, ?, ?, ?)
         `,
-    [categoria.id, categoria.nome, categoria.tipo, categoria.created_at],
+    [categoria.id, categoria.nome, categoria.descricao, categoria.created_at],
   );
 };
 
@@ -42,7 +42,7 @@ export const getCategoriaById = async (id: string): Promise<Categoria | null> =>
   const db = await getConnection();
   const row = await db.getFirstAsync<Categoria>(
     `
-        SELECT id, nome, tipo, created_at
+        SELECT id, nome, descricao, created_at
         FROM categorias
         WHERE id = ?
         `,

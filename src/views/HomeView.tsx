@@ -18,6 +18,7 @@ import {
   listTransacoes,
   type Transacoes,
 } from '../models/transacoesModel';
+import { insertItemTransacao } from '../models/itensTransacao';
 
 const todayIso = (): string => dayjs().format('YYYY-MM-DD');
 

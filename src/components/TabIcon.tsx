@@ -13,7 +13,7 @@ type TabIconProps = {
 const iconByRoute: Record<TabName, ComponentProps<typeof Ionicons>['name']> = {
   Home: 'home',
   GastosMensais: 'calendar',
-  Option3: 'ellipse-outline',
+  Produtos: 'ellipse-outline',
   Menu: 'menu',
 };
 

@@ -1,13 +1,25 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import TabIcon from '../components/TabIcon';
 import HomeView from '../views/HomeView';
 import MenuNavigationView from '../views/MenuNavigationView';
 import Option2View from '../views/MensalView';
-import Option3View from '../views/Option3View';
-import type { RootTabParamList } from './types';
+import ProdutosView from '../views/ProdutosView';
+import CategoriasView from '../views/CategoriasView';
+import type { MenuStackParamList, RootTabParamList } from './types';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
+const Stack = createNativeStackNavigator<MenuStackParamList>();
+
+function MenuStack(): React.ReactNode {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="MenuHome" component={MenuNavigationView} />
+      <Stack.Screen name="Categorias" component={CategoriasView} />
+    </Stack.Navigator>
+  );
+}
 
 export default function AppRoutes(): React.ReactNode {
   return (
@@ -48,13 +60,13 @@ export default function AppRoutes(): React.ReactNode {
           options={{ title: 'Gastos Mensais', tabBarLabel: 'Mes' }}
         />
         <Tab.Screen
-          name="Option3"
-          component={Option3View}
-          options={{ title: 'Opcao 3', tabBarLabel: 'Opcao 3' }}
+          name="Produtos"
+          component={ProdutosView}
+          options={{ title: 'Produtos', tabBarLabel: 'Produtos' }}
         />
         <Tab.Screen
           name="Menu"
-          component={MenuNavigationView}
+          component={MenuStack}
           options={{ title: 'Menu', tabBarLabel: 'Menu' }}
         />
       </Tab.Navigator>

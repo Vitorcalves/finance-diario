@@ -1,6 +1,7 @@
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import type { RootTabParamList } from '../routes/types';
 
 type MenuNavigation = BottomTabNavigationProp<RootTabParamList, 'Menu'>;
@@ -22,8 +23,15 @@ export default function MenuNavigationView(): React.ReactNode {
           <Text style={styles.itemText}>Ir para Gastos Mensais</Text>
         </Pressable>
 
-        <Pressable style={styles.item} onPress={() => navigation.navigate('Option3')}>
-          <Text style={styles.itemText}>Ir para Opcao 3</Text>
+        <Pressable style={styles.item} onPress={() => navigation.navigate('Produtos')}>
+          <Text style={styles.itemText}>Ir para Produtos</Text>
+        </Pressable>
+
+        <Pressable
+          style={styles.item}
+          onPress={() => navigation.navigate('Menu', { screen: 'Categorias' })}
+        >
+          <Text style={styles.itemText}>Ir para Categorias</Text>
         </Pressable>
       </View>
     </SafeAreaView>

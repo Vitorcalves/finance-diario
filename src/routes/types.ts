@@ -1,6 +1,13 @@
+import type { NavigatorScreenParams } from '@react-navigation/native';
+
+export type MenuStackParamList = {
+  MenuHome: undefined;
+  Categorias: undefined;
+};
+
 export type RootTabParamList = {
   Home: undefined;
   GastosMensais: undefined;
-  Option3: undefined;
-  Menu: undefined;
+  Produtos: undefined;
+  Menu: NavigatorScreenParams<MenuStackParamList> | undefined;
 };

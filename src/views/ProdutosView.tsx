@@ -1,6 +1,7 @@
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import {
   Pressable,
@@ -58,6 +59,9 @@ export default function ProdutosView(): React.ReactNode {
   );
   const [historicoPrecos, setHistoricoPrecos] = useState<HistoricoPrecoProduto[]>([]);
   const [carregandoHistorico, setCarregandoHistorico] = useState(false);
+  const [showScannerModal, setShowScannerModal] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+  const [permission, requestPermission] = useCameraPermissions() as any;
 
   const categoriaSelecionadaNome =
     categorias.find((categoria) => categoria.id === categoriaId)?.nome ?? '';
@@ -109,6 +113,26 @@ export default function ProdutosView(): React.ReactNode {
     setShowHistoricoModal(false);
     setProdutoSelecionadoHistorico(null);
     setHistoricoPrecos([]);
+  };
+
+  const abrirScanner = async (): Promise<void> => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    if (!permission?.granted) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+      await requestPermission();
+    }
+    setShowScannerModal(true);
+  };
+
+  const fecharScanner = (): void => {
+    setShowScannerModal(false);
+  };
+
+  const handleBarcodeScanned = (result: { data: string }): void => {
+    if (result.data && result.data.trim()) {
+      setCodigoBarras(result.data);
+      fecharScanner();
+    }
   };
 
   useEffect((): (() => void) => {
@@ -282,6 +306,38 @@ export default function ProdutosView(): React.ReactNode {
         </ScrollView>
       )}
 
+      <Modal visible={showScannerModal} animationType="slide" transparent={false}>
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Pressable onPress={fecharScanner}>
+              <Ionicons name="close" size={32} color="#0b3d2e" />
+            </Pressable>
+            <Text style={styles.modalTitle}>Escanear Código de Barras</Text>
+            <View style={styles.modalSpacer} />
+          </View>
+
+          {/* eslint-disable-next-line @typescript-eslint/no-unsafe-member-access */}
+          {permission?.granted ? (
+            <CameraView
+              style={styles.camera}
+              onBarcodeScanned={handleBarcodeScanned}
+              barcodeScannerSettings={{
+                barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'itf14'],
+              }}
+            >
+              <View style={styles.scannerOverlay}>
+                <View style={styles.scannerFrame} />
+              </View>
+            </CameraView>
+          ) : (
+            <View style={styles.centerContent}>
+              <Ionicons name="camera-outline" size={64} color="#8ba29a" />
+              <Text style={styles.emptyText}>Permissão de câmera negada</Text>
+            </View>
+          )}
+        </SafeAreaView>
+      </Modal>
+
       <Modal visible={showHistoricoModal} animationType="slide" transparent={false}>
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
@@ -367,14 +423,19 @@ export default function ProdutosView(): React.ReactNode {
 
             <View style={styles.formGroup}>
               <Text style={styles.label}>Código de Barras</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Ex: 1234567890"
-                value={codigoBarras}
-                onChangeText={setCodigoBarras}
-                keyboardType="number-pad"
-                placeholderTextColor="#ccc"
-              />
+              <View style={styles.codigoBarrasContainer}>
+                <TextInput
+                  style={[styles.input, styles.codigoBarrasInput]}
+                  placeholder="Ex: 1234567890"
+                  value={codigoBarras}
+                  onChangeText={setCodigoBarras}
+                  keyboardType="number-pad"
+                  placeholderTextColor="#ccc"
+                />
+                <Pressable style={styles.scanButton} onPress={() => void abrirScanner()}>
+                  <Ionicons name="camera" size={20} color="#0f7a5b" />
+                </Pressable>
+              </View>
             </View>
 
             <View style={styles.formGroup}>
@@ -740,5 +801,37 @@ const styles = StyleSheet.create({
   historicoData: {
     fontSize: 12,
     color: '#8ba29a',
+  },
+  codigoBarrasContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  codigoBarrasInput: {
+    flex: 1,
+  },
+  scanButton: {
+    backgroundColor: '#e6f4ed',
+    borderRadius: 8,
+    padding: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  camera: {
+    flex: 1,
+  },
+  scannerOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  scannerFrame: {
+    width: 250,
+    height: 250,
+    borderWidth: 2,
+    borderColor: '#0f7a5b',
+    backgroundColor: 'transparent',
+    borderRadius: 12,
   },
 });

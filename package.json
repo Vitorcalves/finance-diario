@@ -19,6 +19,7 @@
     "@react-navigation/native-stack": "^7.14.11",
     "dayjs": "^1.11.20",
     "expo": "~54.0.33",
+    "expo-camera": "^55.0.18",
     "expo-drizzle-studio-plugin": "^0.2.1",
     "expo-sqlite": "~16.0.10",
     "expo-status-bar": "~3.0.9",

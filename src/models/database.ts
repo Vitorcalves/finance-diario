@@ -151,6 +151,9 @@ export const clearDatabase = async (): Promise<void> => {
 };
 
 export const recriarDatabase = async (): Promise<void> => {
+  const db = await getConnection();
   await clearDatabase();
+  await db.closeAsync();
+  dbPromise = null;
   await initializeDatabase();
 };

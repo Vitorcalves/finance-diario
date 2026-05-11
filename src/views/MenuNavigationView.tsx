@@ -1,6 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { RootTabParamList } from '../routes/types';
 import { recriarDatabase } from '../models/database';
@@ -35,8 +35,22 @@ export default function MenuNavigationView(): React.ReactNode {
           <Text style={styles.itemText}>Ir para Categorias</Text>
         </Pressable>
 
-        <Pressable style={styles.item} onPress={() => void recriarDatabase()}>
-          <Text style={styles.itemText}>Recriar Banco de Dados</Text>
+        <View style={styles.spacer} />
+
+        <Pressable
+          style={[styles.item, styles.itemDanger]}
+          onPress={() => {
+            Alert.alert(
+              'Recriar Banco de Dados',
+              'Todos os dados serão apagados permanentemente. Deseja continuar?',
+              [
+                { text: 'Cancelar', style: 'cancel' },
+                { text: 'Confirmar', style: 'destructive', onPress: () => void recriarDatabase() },
+              ],
+            );
+          }}
+        >
+          <Text style={[styles.itemText, styles.itemTextDanger]}>Recriar Banco de Dados</Text>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -75,5 +89,15 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#17342b',
+  },
+  spacer: {
+    flex: 1,
+  },
+  itemDanger: {
+    backgroundColor: '#fff0f0',
+    borderColor: '#f5c2c2',
+  },
+  itemTextDanger: {
+    color: '#c0392b',
   },
 });

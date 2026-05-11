@@ -137,15 +137,15 @@ export const clearDatabase = async (): Promise<void> => {
   const db = await getConnection();
   await db.execAsync(`
     PRAGMA foreign_keys = OFF;
-    DELETE FROM settings;
-    DELETE FROM categorias;
-    DELETE FROM transacoes;
-    DELETE FROM recorrentes;
-    DELETE FROM itens_transacao;
-    DELETE FROM marcas;
-    DELETE FROM produtos;
-    DELETE FROM categoria_produto;
-    DELETE FROM historico_preco_produtos;
+    DROP TABLE IF EXISTS itens_transacao;
+    DROP TABLE IF EXISTS transacoes;
+    DROP TABLE IF EXISTS recorrentes;
+    DROP TABLE IF EXISTS categorias;
+    DROP TABLE IF EXISTS produtos;
+    DROP TABLE IF EXISTS marcas;
+    DROP TABLE IF EXISTS categoria_produto;
+    DROP TABLE IF EXISTS historico_preco_produtos;
+    DROP TABLE IF EXISTS settings;
     PRAGMA foreign_keys = ON;
   `);
 };

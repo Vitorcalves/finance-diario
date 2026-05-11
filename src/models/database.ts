@@ -132,3 +132,25 @@ export const initializeDatabase = async (): Promise<void> => {
     PRAGMA foreign_keys = ON;
   `);
 };
+
+export const clearDatabase = async (): Promise<void> => {
+  const db = await getConnection();
+  await db.execAsync(`
+    PRAGMA foreign_keys = OFF;
+    DELETE FROM settings;
+    DELETE FROM categorias;
+    DELETE FROM transacoes;
+    DELETE FROM recorrentes;
+    DELETE FROM itens_transacao;
+    DELETE FROM marcas;
+    DELETE FROM produtos;
+    DELETE FROM categoria_produto;
+    DELETE FROM historico_preco_produtos;
+    PRAGMA foreign_keys = ON;
+  `);
+};
+
+export const recriarDatabase = async (): Promise<void> => {
+  await clearDatabase();
+  await initializeDatabase();
+};

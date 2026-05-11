@@ -3,6 +3,7 @@ import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { RootTabParamList } from '../routes/types';
+import { recriarDatabase } from '../models/database';
 
 type MenuNavigation = BottomTabNavigationProp<RootTabParamList, 'Menu'>;
 
@@ -32,6 +33,10 @@ export default function MenuNavigationView(): React.ReactNode {
           onPress={() => navigation.navigate('Menu', { screen: 'Categorias' })}
         >
           <Text style={styles.itemText}>Ir para Categorias</Text>
+        </Pressable>
+
+        <Pressable style={styles.item} onPress={() => void recriarDatabase()}>
+          <Text style={styles.itemText}>Recriar Banco de Dados</Text>
         </Pressable>
       </View>
     </SafeAreaView>

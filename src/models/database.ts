@@ -34,7 +34,7 @@ export const initializeDatabase = async (): Promise<void> => {
 
   for (const migration of pending) {
     await db.withTransactionAsync(async () => {
-      await db.execAsync(migration.sql);
+      await migration.up(db);
       await db.runAsync('INSERT INTO migrations (id, name, applied_at) VALUES (?, ?, ?)', [
         migration.id,
         migration.name,
@@ -48,13 +48,15 @@ export const initializeDatabase = async (): Promise<void> => {
 
 export const clearDatabase = async (): Promise<void> => {
   const db = await getConnection();
-  const rows = await db.getAllAsync<{ id: number }>('SELECT id FROM migrations ORDER BY id');
+  const rows = await db.getAllAsync<{ id: number }>('SELECT id FROM migrations ORDER BY id DESC');
 
   for (const row of rows) {
     const migration = migrations.find((m) => m.id === row.id);
-    if (migration && migration.reverseSql) {
-      await db.execAsync(migration.reverseSql);
-      await db.runAsync('DELETE FROM migrations WHERE id = ?', [migration.id]);
+    if (migration?.down) {
+      await db.withTransactionAsync(async () => {
+        await migration.down!(db);
+        await db.runAsync('DELETE FROM migrations WHERE id = ?', [migration.id]);
+      });
     }
   }
 };

@@ -3,7 +3,8 @@ import { Migration } from './types';
 export const migration001: Migration = {
   id: 1,
   name: '001_initial',
-  sql: `
+  up: async (db) => {
+    await db.execAsync(`
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY NOT NULL,
       value TEXT NOT NULL
@@ -145,18 +146,21 @@ export const migration001: Migration = {
         REFERENCES produtos(id) 
         ON DELETE SET NULL
     );
-  `,
-  reverseSql: `
-    DROP TABLE IF EXISTS itens_transacao;
-    DROP TABLE IF EXISTS recorrentes;
-    DROP TABLE IF EXISTS transacoes_tags;
-    DROP TABLE IF EXISTS transacoes;
-    DROP TABLE IF EXISTS historico_preco_produtos;
-    DROP TABLE IF EXISTS categoria_produto;
-    DROP TABLE IF EXISTS produtos;
-    DROP TABLE IF EXISTS marcas;
-    DROP TABLE IF EXISTS empresas;
-    DROP TABLE IF EXISTS categorias;
-    DROP TABLE IF EXISTS tags;
-  `,
+    `);
+  },
+  down: async (db) => {
+    await db.execAsync(`
+      DROP TABLE IF EXISTS itens_transacao;
+      DROP TABLE IF EXISTS recorrentes;
+      DROP TABLE IF EXISTS transacoes_tags;
+      DROP TABLE IF EXISTS transacoes;
+      DROP TABLE IF EXISTS historico_preco_produtos;
+      DROP TABLE IF EXISTS categoria_produto;
+      DROP TABLE IF EXISTS produtos;
+      DROP TABLE IF EXISTS marcas;
+      DROP TABLE IF EXISTS empresas;
+      DROP TABLE IF EXISTS categorias;
+      DROP TABLE IF EXISTS tags;
+    `);
+  },
 };

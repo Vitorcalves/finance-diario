@@ -27,7 +27,6 @@ export default function CategoriasView(): React.ReactNode {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [nome, setNome] = useState('');
-  const [descricao, setDescricao] = useState('');
 
   useEffect((): (() => void) => {
     let active = true;
@@ -72,7 +71,6 @@ export default function CategoriasView(): React.ReactNode {
 
   const limparFormulario = (): void => {
     setNome('');
-    setDescricao('');
   };
 
   const fecharFormulario = (): void => {
@@ -82,7 +80,6 @@ export default function CategoriasView(): React.ReactNode {
 
   const salvarCategoria = async (): Promise<void> => {
     const nomeLimpo = nome.trim();
-    const descricaoLimpa = descricao.trim();
 
     if (!nomeLimpo) {
       Alert.alert('Erro', 'Nome da categoria e obrigatorio');
@@ -93,7 +90,6 @@ export default function CategoriasView(): React.ReactNode {
       await insertCategoria({
         id: uuidv4(),
         nome: nomeLimpo,
-        descricao: descricaoLimpa,
         created_at: new Date().toISOString(),
       });
 
@@ -157,7 +153,6 @@ export default function CategoriasView(): React.ReactNode {
             <View key={categoria.id} style={styles.card}>
               <View style={styles.info}>
                 <Text style={styles.nome}>{categoria.nome}</Text>
-                <Text style={styles.descricao}>Descricao: {categoria.descricao}</Text>
               </View>
               <Pressable
                 style={[styles.actionButton, styles.deleteButton]}
@@ -188,17 +183,6 @@ export default function CategoriasView(): React.ReactNode {
                 placeholder="Ex: Alimentacao"
                 value={nome}
                 onChangeText={setNome}
-                placeholderTextColor="#9ca3af"
-              />
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Descricao *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Ex: Gastos com mercado e feira"
-                value={descricao}
-                onChangeText={setDescricao}
                 placeholderTextColor="#9ca3af"
               />
             </View>
@@ -283,10 +267,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#0b3d2e',
     marginBottom: 4,
-  },
-  descricao: {
-    fontSize: 13,
-    color: '#4b665d',
   },
   actionButton: {
     padding: 8,

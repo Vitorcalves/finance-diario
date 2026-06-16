@@ -14,8 +14,10 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import BrazilianIntegerInput from '../components/BrazilianIntegerInput';
 import {
   type Produto,
+  type ProdutoListagem,
   listProdutos,
   insertProduto,
   deleteProdutoById,
@@ -26,6 +28,7 @@ import {
   listHistoricoPrecoProdutos,
 } from '../models/historicoPrecoProduto';
 import { type Categoria, listCategorias } from '../models/categorias';
+import { type Marca, listMarcas } from '../models/marcas';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -35,15 +38,13 @@ const toCurrency = (value: number): string =>
     currency: 'BRL',
   }).format(value);
 
-const parseMoney = (raw: string): number => {
-  const normalized = raw.replace(',', '.').replace(/[^\d.-]/g, '');
-  const value = Number(normalized);
-  return Number.isFinite(value) ? value : 0;
-};
-
 export default function ProdutosView(): React.ReactNode {
-  const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [produtos, setProdutos] = useState<ProdutoListagem[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [marcas, setMarcas] = useState<Marca[]>([]);
+  const [comboMarcaAberto, setComboMarcaAberto] = useState(false);
+  const [marcaBusca, setMarcaBusca] = useState('');
+  const [marcaId, setMarcaId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingProduto, setEditingProduto] = useState<Produto | null>(null);
@@ -60,14 +61,19 @@ export default function ProdutosView(): React.ReactNode {
   const [historicoPrecos, setHistoricoPrecos] = useState<HistoricoPrecoProduto[]>([]);
   const [carregandoHistorico, setCarregandoHistorico] = useState(false);
   const [showScannerModal, setShowScannerModal] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
-  const [permission, requestPermission] = useCameraPermissions() as any;
+  const [permission, requestPermission] = useCameraPermissions();
 
   const categoriaSelecionadaNome =
     categorias.find((categoria) => categoria.id === categoriaId)?.nome ?? '';
 
   const categoriasFiltradas = categorias.filter((categoria) =>
     categoria.nome.toLowerCase().includes(categoriaBusca.trim().toLowerCase()),
+  );
+
+  const marcaSelecionadaNome = marcas.find((marca) => marca.id === marcaId)?.nome ?? '';
+
+  const marcasFiltradas = marcas.filter((marca) =>
+    marca.nome.toLowerCase().includes(categoriaBusca.trim().toLowerCase()),
   );
 
   const carregarProdutos = async (): Promise<void> => {
@@ -93,7 +99,17 @@ export default function ProdutosView(): React.ReactNode {
     }
   };
 
-  const abrirHistorico = async (produto: Produto): Promise<void> => {
+  const carregarMarcas = async (): Promise<void> => {
+    try {
+      const marcasDoBanco = await listMarcas();
+      setMarcas(marcasDoBanco);
+    } catch (error: unknown) {
+      console.error('Erro ao carregar marcas:', error);
+      Alert.alert('Erro', 'Não foi possível carregar as marcas');
+    }
+  };
+
+  const abrirHistorico = async (produto: ProdutoListagem): Promise<void> => {
     setProdutoSelecionadoHistorico(produto);
     setShowHistoricoModal(true);
     setCarregandoHistorico(true);
@@ -116,9 +132,7 @@ export default function ProdutosView(): React.ReactNode {
   };
 
   const abrirScanner = async (): Promise<void> => {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     if (!permission?.granted) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       await requestPermission();
     }
     setShowScannerModal(true);
@@ -142,7 +156,7 @@ export default function ProdutosView(): React.ReactNode {
       if (!active) {
         return;
       }
-      await Promise.all([carregarProdutos(), carregarCategorias()]);
+      await Promise.all([carregarProdutos(), carregarCategorias(), carregarMarcas()]);
     })();
 
     return (): void => {
@@ -164,9 +178,10 @@ export default function ProdutosView(): React.ReactNode {
     if (produto) {
       setEditingProduto(produto);
       setNome(produto.nome);
-      setPreco(produto.preco.toString());
+      setPreco(produto.preco.toFixed(2));
       setCodigoBarras(produto.codigo_barras ?? '');
       setCategoriaId(produto.categoria_id ?? '');
+      setMarcaId(produto.marca_id ?? null);
       setCategoriaBusca('');
     } else {
       limparFormulario();
@@ -185,7 +200,7 @@ export default function ProdutosView(): React.ReactNode {
       return;
     }
 
-    const precoParsado = parseMoney(preco);
+    const precoParsado = Number(preco);
     if (precoParsado <= 0) {
       Alert.alert('Erro', 'Preço deve ser maior que zero');
       return;
@@ -199,11 +214,13 @@ export default function ProdutosView(): React.ReactNode {
           preco: precoParsado,
           codigo_barras: codigoBarras || undefined,
           categoria_id: categoriaId || undefined,
+          marca_id: marcaId || null,
         });
       } else {
         const novoProduto: Produto = {
           id: uuidv4(),
           nome,
+          marca_id: marcaId || null,
           preco: precoParsado,
           codigo_barras: codigoBarras || undefined,
           categoria_id: categoriaId || undefined,
@@ -221,7 +238,7 @@ export default function ProdutosView(): React.ReactNode {
     }
   };
 
-  const deletarProduto = (produto: Produto): void => {
+  const deletarProduto = (produto: ProdutoListagem): void => {
     Alert.alert('Confirmar exclusão', `Deseja deletar "${produto.nome}"?`, [
       { text: 'Cancelar', onPress: (): void => {}, style: 'cancel' },
       {
@@ -279,6 +296,9 @@ export default function ProdutosView(): React.ReactNode {
                 {produto.codigo_barras && (
                   <Text style={styles.codigoBarras}>Código: {produto.codigo_barras}</Text>
                 )}
+                {produto.marca_nome && (
+                  <Text style={styles.marcaProduto}>Marca: {produto.marca_nome}</Text>
+                )}
               </View>
 
               <View style={styles.actionsContainer}>
@@ -316,7 +336,7 @@ export default function ProdutosView(): React.ReactNode {
             <View style={styles.modalSpacer} />
           </View>
 
-          {/* eslint-disable-next-line @typescript-eslint/no-unsafe-member-access */}
+          {}
           {permission?.granted ? (
             <CameraView
               style={styles.camera}
@@ -411,12 +431,13 @@ export default function ProdutosView(): React.ReactNode {
 
             <View style={styles.formGroup}>
               <Text style={styles.label}>Preço *</Text>
-              <TextInput
+              <BrazilianIntegerInput
                 style={styles.input}
                 placeholder="Ex: 10,50"
                 value={preco}
-                onChangeText={setPreco}
-                keyboardType="decimal-pad"
+                onChangeValue={setPreco}
+                decimalScale={2}
+                fixedDecimalScale
                 placeholderTextColor="#ccc"
               />
             </View>
@@ -436,6 +457,76 @@ export default function ProdutosView(): React.ReactNode {
                   <Ionicons name="camera" size={20} color="#0f7a5b" />
                 </Pressable>
               </View>
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Marca</Text>
+              <Pressable
+                style={styles.comboTrigger}
+                onPress={(): void => setComboMarcaAberto((aberto) => !aberto)}
+              >
+                <Text style={[styles.comboTriggerText, !marcaSelecionadaNome && styles.comboHint]}>
+                  {marcaSelecionadaNome || 'Sem marca'}
+                </Text>
+                <Ionicons
+                  name={comboMarcaAberto ? 'chevron-up' : 'chevron-down'}
+                  size={18}
+                  color="#0b3d2e"
+                />
+              </Pressable>
+
+              {comboMarcaAberto && (
+                <View style={styles.comboDropdown}>
+                  <TextInput
+                    style={styles.comboBuscaInput}
+                    placeholder="Buscar marca"
+                    value={marcaBusca}
+                    onChangeText={setMarcaBusca}
+                    placeholderTextColor="#8ba29a"
+                  />
+                  <ScrollView style={styles.comboLista} nestedScrollEnabled>
+                    <Pressable
+                      style={styles.comboItem}
+                      onPress={(): void => {
+                        setMarcaId(null);
+                        setMarcaBusca('');
+                        setComboMarcaAberto(false);
+                      }}
+                    >
+                      <Text style={[styles.comboItemText, !marcaId && styles.comboItemTextAtivo]}>
+                        Sem marca
+                      </Text>
+                    </Pressable>
+                    {marcasFiltradas.map((marca) => (
+                      <Pressable
+                        key={marca.id}
+                        style={styles.comboItem}
+                        onPress={(): void => {
+                          setMarcaId(marca.id);
+                          setMarcaBusca('');
+                          setComboMarcaAberto(false);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.comboItemText,
+                            marcaId === marca.id && styles.comboItemTextAtivo,
+                          ]}
+                        >
+                          {marca.nome}
+                        </Text>
+                      </Pressable>
+                    ))}
+                    {marcasFiltradas.length === 0 && (
+                      <Text style={styles.emptyCategoriasText}>Nenhuma marca encontrada</Text>
+                    )}
+                  </ScrollView>
+                </View>
+              )}
+
+              {marcas.length === 0 && (
+                <Text style={styles.emptyCategoriasText}>Nenhuma marca cadastrada</Text>
+              )}
             </View>
 
             <View style={styles.formGroup}>
@@ -596,6 +687,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#0f7a5b',
     marginBottom: 4,
+  },
+  marcaProduto: {
+    fontSize: 12,
+    color: '#0f7a5b',
   },
   actionsContainer: {
     flexDirection: 'row',

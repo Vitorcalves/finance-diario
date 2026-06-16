@@ -4,9 +4,8 @@ export type Transacoes = {
   id: string;
   descricao: string;
   valor: number;
-  categoria_id: string | null;
-  contabilizado_saldo: boolean;
   data: string;
+  empresa_id?: string | null;
   created_at: string;
 };
 
@@ -16,7 +15,7 @@ export const listTransacoes = async (
 ): Promise<Transacoes[]> => {
   const db = await getConnection();
   let query = `
-    SELECT id, descricao, valor, data, created_at, contabilizado_saldo, categoria_id
+    SELECT id, descricao, valor, data, empresa_id, created_at
     FROM transacoes
   `;
   const params: (string | number)[] = [];
@@ -37,16 +36,15 @@ export const insertTransacao = async (transacao: Transacoes): Promise<void> => {
   await db
     .runAsync(
       `
-      INSERT INTO transacoes (id, descricao, valor, data, contabilizado_saldo, categoria_id, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO transacoes (id, descricao, valor, data, empresa_id, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
     `,
       [
         transacao.id,
         transacao.descricao,
         transacao.valor,
         transacao.data,
-        transacao.contabilizado_saldo,
-        transacao.categoria_id,
+        transacao.empresa_id ?? null,
         transacao.created_at,
       ],
     )

@@ -35,6 +35,20 @@ export default function MenuNavigationView(): React.ReactNode {
           <Text style={styles.itemText}>Ir para Categorias</Text>
         </Pressable>
 
+        <Pressable
+          style={styles.item}
+          onPress={() => navigation.navigate('Menu', { screen: 'Empresas' })}
+        >
+          <Text style={styles.itemText}>Ir para Empresas</Text>
+        </Pressable>
+
+        <Pressable
+          style={styles.item}
+          onPress={() => navigation.navigate('Menu', { screen: 'Marcas' })}
+        >
+          <Text style={styles.itemText}>Ir para Marcas</Text>
+        </Pressable>
+
         <View style={styles.spacer} />
 
         <Pressable

@@ -1,14 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import dayjs from 'dayjs';
 import { v4 as uuidv4 } from 'uuid';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,6 +11,8 @@ import {
   type Transacoes,
 } from '../models/transacoesModel';
 import { insertItemTransacao } from '../models/itensTransacao';
+import NovoLancamentoForm from '../components/NovoLancamentoForm';
+import { toLocaleString } from '../../eslint.config';
 
 const todayIso = (): string => dayjs().format('YYYY-MM-DD');
 
@@ -28,17 +22,7 @@ const toCurrency = (value: number): string =>
     currency: 'BRL',
   }).format(value);
 
-const parseMoney = (raw: string): number => {
-  const normalized = raw.replace(',', '.').replace(/[^\d.-]/g, '');
-  const value = Number(normalized);
-  return Number.isFinite(value) ? value : 0;
-};
-
 export default function HomeView(): React.ReactNode {
-  const [description, setDescription] = useState('');
-  const [amountInput, setAmountInput] = useState('');
-  const [dateInput, setDateInput] = useState(todayIso());
-  const [tipoTransacao, setTipoTransacao] = useState<'saida' | 'entrada'>('saida');
   const [transacoes, setTransacoes] = useState<Transacoes[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -87,42 +71,18 @@ export default function HomeView(): React.ReactNode {
     return [...grouped.entries()].sort(([a], [b]) => (a < b ? 1 : -1));
   }, [transacoes]);
 
-  const addTrasacao = (): void => {
-    const amount = parseMoney(amountInput);
-    const trimmedDescription = description.trim();
-    const trimmedDate = dateInput.trim();
-
-    if (!trimmedDescription || amount <= 0 || !/^\d{4}-\d{2}-\d{2}$/.test(trimmedDate)) {
-      return;
-    }
-
-    const valorFinal = tipoTransacao === 'saida' ? -amount : amount;
-    promisseAdd(trimmedDescription, valorFinal, trimmedDate).catch((error) =>
-      console.error('Erro ao adicionar transacao', error),
-    );
-  };
-
-  const promisseAdd = async (
-    trimmedDescription: string,
-    valorFinal: number,
-    trimmedDate: string,
-  ): Promise<void> => {
+  const handleAddTransacao = async (transacao: Transacoes): Promise<void> => {
     const newTransacao: Transacoes = {
       id: uuidv4(),
-      descricao: trimmedDescription,
-      valor: valorFinal,
-      data: trimmedDate,
-      contabilizado_saldo: false,
-      categoria_id: null,
+      descricao: transacao.descricao,
+      valor: transacao.valor,
+      data: transacao.data,
       created_at: new Date().toISOString(),
     };
 
     try {
       await insertTransacao(newTransacao);
       await listTransacoes().then((updatedTransacoes) => setTransacoes(updatedTransacoes));
-      setDescription('');
-      setAmountInput('');
-      setDateInput(todayIso());
     } catch (error) {
       console.error('Erro ao salvar gasto', error);
     }
@@ -170,78 +130,7 @@ export default function HomeView(): React.ReactNode {
           </View>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Novo lancamento</Text>
-
-          <View style={styles.tipoRow}>
-            <Pressable
-              style={[styles.tipoButton, tipoTransacao === 'saida' && styles.tipoButtonActiveSaida]}
-              onPress={() => setTipoTransacao('saida')}
-            >
-              <Text
-                style={[
-                  styles.tipoButtonText,
-                  tipoTransacao === 'saida' && styles.tipoButtonTextActive,
-                ]}
-              >
-                Saida
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[
-                styles.tipoButton,
-                tipoTransacao === 'entrada' && styles.tipoButtonActiveEntrada,
-              ]}
-              onPress={() => setTipoTransacao('entrada')}
-            >
-              <Text
-                style={[
-                  styles.tipoButtonText,
-                  tipoTransacao === 'entrada' && styles.tipoButtonTextActive,
-                ]}
-              >
-                Entrada
-              </Text>
-            </Pressable>
-          </View>
-
-          <Text style={styles.label}>Descricao</Text>
-          <TextInput
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Ex.: Mercado"
-            placeholderTextColor="#7b8a8e"
-            style={styles.input}
-          />
-
-          <Text style={styles.label}>Valor (R$)</Text>
-          <TextInput
-            value={amountInput}
-            onChangeText={setAmountInput}
-            keyboardType="decimal-pad"
-            placeholder="Ex.: 43,90"
-            placeholderTextColor="#7b8a8e"
-            style={styles.input}
-          />
-
-          <Text style={styles.label}>Data (AAAA-MM-DD)</Text>
-          <TextInput
-            value={dateInput}
-            onChangeText={setDateInput}
-            placeholder={todayIso()}
-            placeholderTextColor="#7b8a8e"
-            style={styles.input}
-          />
-
-          <Pressable
-            style={[styles.button, tipoTransacao === 'entrada' && styles.buttonEntrada]}
-            onPress={addTrasacao}
-          >
-            <Text style={styles.buttonText}>
-              {tipoTransacao === 'saida' ? 'Adicionar saida' : 'Adicionar entrada'}
-            </Text>
-          </Pressable>
-        </View>
+        <NovoLancamentoForm onAddTransacao={handleAddTransacao} />
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Resumo por dia</Text>
@@ -250,7 +139,7 @@ export default function HomeView(): React.ReactNode {
           ) : (
             transacoesByDay.map(([day, total]) => (
               <View style={styles.dayRow} key={day}>
-                <Text style={styles.dayText}>{day}</Text>
+                <Text style={styles.dayText}>{dayjs(day).format('DD/MM/YYYY')}</Text>
                 <Text style={styles.dayValue}>{toCurrency(total)}</Text>
               </View>
             ))
@@ -266,7 +155,7 @@ export default function HomeView(): React.ReactNode {
               <View style={styles.transacaoRow} key={item.id}>
                 <View style={styles.transacaoInfo}>
                   <Text style={styles.transacaoTitle}>{item.descricao}</Text>
-                  <Text style={styles.transacaoMeta}>{item.data}</Text>
+                  <Text style={styles.transacaoMeta}>{dayjs(item.data).format('DD/MM/YYYY')}</Text>
                 </View>
 
                 <View style={styles.transacaoActions}>
@@ -332,69 +221,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     elevation: 2,
   },
-  label: {
-    fontSize: 13,
-    color: '#2d3e38',
-    fontWeight: '600',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#d6dfdb',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-    color: '#17211d',
-    backgroundColor: '#f8fbfa',
-  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: '#123a2d',
-  },
-  tipoRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  tipoButton: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#d6dfdb',
-    alignItems: 'center',
-    backgroundColor: '#f8fbfa',
-  },
-  tipoButtonActiveSaida: {
-    backgroundColor: '#c0352b',
-    borderColor: '#c0352b',
-  },
-  tipoButtonActiveEntrada: {
-    backgroundColor: '#0d8f50',
-    borderColor: '#0d8f50',
-  },
-  tipoButtonText: {
-    fontWeight: '700',
-    fontSize: 14,
-    color: '#334640',
-  },
-  tipoButtonTextActive: {
-    color: '#ffffff',
-  },
-  button: {
-    marginTop: 6,
-    borderRadius: 12,
-    backgroundColor: '#0f7a5b',
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  buttonEntrada: {
-    backgroundColor: '#0d8f50',
-  },
-  buttonText: {
-    color: '#ffffff',
-    fontWeight: '700',
-    fontSize: 15,
   },
   summaryRow: {
     flexDirection: 'row',

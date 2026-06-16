@@ -7,16 +7,22 @@ export type Produto = {
   nome: string;
   preco: number;
   codigo_barras?: string;
-  marca_id?: string;
+  marca_id: number | null;
   categoria_id?: string;
-  categoria_nome?: string;
   created_at: string;
 };
 
-export const listProdutos = async (): Promise<Produto[]> => {
+export type ProdutoListagem = Produto & {
+  categoria_nome?: string;
+  marca_nome?: string;
+  quantidade?: number | null;
+  unidade?: string | null;
+};
+
+export const listProdutos = async (): Promise<ProdutoListagem[]> => {
   const db = await getConnection();
 
-  const rows = await db.getAllAsync<Produto>(
+  const rows = await db.getAllAsync<ProdutoListagem>(
     `
         SELECT
           p.id,
@@ -24,10 +30,14 @@ export const listProdutos = async (): Promise<Produto[]> => {
           p.preco,
           p.codigo_barras,
           p.marca_id,
+          m.nome AS marca_nome,
           cp.categoria_id,
           c.nome AS categoria_nome,
+          p.quantidade,
+          p.unidade,
           p.created_at
         FROM produtos p
+        LEFT JOIN marcas m ON m.id = p.marca_id
         LEFT JOIN categoria_produto cp ON cp.produto_id = p.id
         LEFT JOIN categorias c ON c.id = cp.categoria_id
         ORDER BY p.created_at DESC
@@ -82,9 +92,9 @@ export const deleteProdutoById = async (id: string): Promise<void> => {
   await db.runAsync('DELETE FROM produtos WHERE id = ?', [id]);
 };
 
-export const getProdutoById = async (id: string): Promise<Produto | null> => {
+export const getProdutoById = async (id: string): Promise<ProdutoListagem | null> => {
   const db = await getConnection();
-  const row = await db.getFirstAsync<Produto>(
+  const row = await db.getFirstAsync<ProdutoListagem>(
     `
         SELECT
           p.id,
@@ -92,10 +102,14 @@ export const getProdutoById = async (id: string): Promise<Produto | null> => {
           p.preco,
           p.codigo_barras,
           p.marca_id,
+          m.nome AS marca_nome,
           cp.categoria_id,
           c.nome AS categoria_nome,
+          p.quantidade,
+          p.unidade,
           p.created_at
         FROM produtos p
+        LEFT JOIN marcas m ON m.id = p.marca_id
         LEFT JOIN categoria_produto cp ON cp.produto_id = p.id
         LEFT JOIN categorias c ON c.id = cp.categoria_id
         WHERE p.id = ?

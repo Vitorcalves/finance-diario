@@ -7,6 +7,8 @@ import MenuNavigationView from '../views/MenuNavigationView';
 import Option2View from '../views/MensalView';
 import ProdutosView from '../views/ProdutosView';
 import CategoriasView from '../views/CategoriasView';
+import EmpresasView from '../views/EmpresasView';
+import MarcasView from '../views/MarcasView';
 import type { MenuStackParamList, RootTabParamList } from './types';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -17,6 +19,8 @@ function MenuStack(): React.ReactNode {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="MenuHome" component={MenuNavigationView} />
       <Stack.Screen name="Categorias" component={CategoriasView} />
+      <Stack.Screen name="Empresas" component={EmpresasView} />
+      <Stack.Screen name="Marcas" component={MarcasView} />
     </Stack.Navigator>
   );
 }

@@ -3,12 +3,45 @@ import { migrations } from './migrations';
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
-export const getConnection = async (): Promise<SQLite.SQLiteDatabase> => {
-  if (!dbPromise) {
-    dbPromise = SQLite.openDatabaseAsync('finance_diario.db');
+const DATABASE_NAME = 'finance_diario.db';
+
+const openConnection = async (): Promise<SQLite.SQLiteDatabase> => {
+  return SQLite.openDatabaseAsync(DATABASE_NAME);
+};
+
+const isInvalidNativeConnectionError = (error: unknown): boolean => {
+  if (!(error instanceof Error)) {
+    return false;
   }
 
-  return dbPromise;
+  const message = error.message.toLowerCase();
+  return (
+    message.includes('nativedatabase.prepareasync') ||
+    message.includes('nullpointerexception') ||
+    message.includes('database is closed')
+  );
+};
+
+export const getConnection = async (): Promise<SQLite.SQLiteDatabase> => {
+  if (!dbPromise) {
+    dbPromise = openConnection();
+  }
+
+  let db = await dbPromise;
+
+  try {
+    await db.getFirstAsync<{ ok: number }>('SELECT 1 AS ok');
+    return db;
+  } catch (error: unknown) {
+    if (!isInvalidNativeConnectionError(error)) {
+      throw error;
+    }
+
+    dbPromise = openConnection();
+    db = await dbPromise;
+    await db.getFirstAsync<{ ok: number }>('SELECT 1 AS ok');
+    return db;
+  }
 };
 
 export const initializeDatabase = async (): Promise<void> => {

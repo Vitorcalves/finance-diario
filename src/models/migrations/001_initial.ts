@@ -26,13 +26,13 @@ export const migration001: Migration = {
     CREATE TABLE IF NOT EXISTS empresas (
       id TEXT PRIMARY KEY NOT NULL,
       nome TEXT NOT NULL,
-      CNPJ TEXT,
-      OBSERVACAO TEXT,
+      cnpj TEXT,
+      observacao TEXT,
       created_at TEXT NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS marcas (
-      id TEXT PRIMARY KEY NOT NULL,
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
       nome TEXT NOT NULL,
       created_at TEXT NOT NULL
     );
@@ -42,7 +42,7 @@ export const migration001: Migration = {
       nome TEXT NOT NULL,
       preco REAL NOT NULL,
       codigo_barras TEXT,
-      marca_id TEXT,
+      marca_id INTEGER,
       quantidade REAL,
       unidade TEXT,
       created_at TEXT NOT NULL,
@@ -90,13 +90,8 @@ export const migration001: Migration = {
       valor REAL NOT NULL,
       contabilizado_saldo BOOLEAN NOT NULL DEFAULT 0,
       data TEXT NOT NULL,
-      categoria_id TEXT,
       empresa_id TEXT,
       created_at TEXT NOT NULL,
-      CONSTRAINT fk_categoria 
-        FOREIGN KEY (categoria_id) 
-        REFERENCES categorias(id) 
-        ON DELETE SET NULL,
       CONSTRAINT fk_empresa 
         FOREIGN KEY (empresa_id) 
         REFERENCES empresas(id) 

@@ -11,15 +11,13 @@ export type Empresa = {
 export const listEmpresas = async (): Promise<Empresa[]> => {
   const db = await getConnection();
 
-  const rows = await db.getAllAsync<Empresa>(
+  return await db.getAllAsync<Empresa>(
     `
         SELECT id, nome, cnpj, observacao, created_at
         FROM empresas
         ORDER BY created_at DESC
     `,
   );
-
-  return rows;
 };
 
 export const insertEmpresa = async (empresa: Empresa): Promise<void> => {
@@ -69,8 +67,8 @@ export const updateEmpresa = async (empresa: Empresa): Promise<void> => {
   await db.runAsync(
     `
         UPDATE empresas
-        SET nome = ?,
-            cnpj = ?,
+        SET nome       = ?,
+            cnpj       = ?,
             observacao = ?
         WHERE id = ?
     `,

@@ -27,8 +27,7 @@ export const listTransacoes = async (
   if (!start || !end) {
     query += ' LIMIT 50';
   }
-  const rows = await db.getAllAsync<Transacoes>(query, params);
-  return rows;
+  return await db.getAllAsync<Transacoes>(query, params);
 };
 
 export const insertTransacao = async (transacao: Transacoes): Promise<void> => {

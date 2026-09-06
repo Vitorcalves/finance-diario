@@ -14,15 +14,13 @@ export type ItemTransacao = {
 export const listItensTransacao = async (): Promise<ItemTransacao[]> => {
   const db = await getConnection();
 
-  const rows = await db.getAllAsync<ItemTransacao>(
+  return await db.getAllAsync<ItemTransacao>(
     `
         SELECT id, transacao_id, produto_id, descricao, valor, quantidade, created_at
         FROM itens_transacao
         ORDER BY created_at DESC
     `,
   );
-
-  return rows;
 };
 
 export const insertItemTransacao = async (item: ItemTransacao): Promise<void> => {

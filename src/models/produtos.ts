@@ -13,7 +13,7 @@ export type Produto = {
 export const listProdutos = async (): Promise<Produto[]> => {
   const db = await getConnection();
 
-  const rows = await db.getAllAsync<Produto>(
+  return await db.getAllAsync<Produto>(
     `
         SELECT id,
                nome,
@@ -24,8 +24,6 @@ export const listProdutos = async (): Promise<Produto[]> => {
         ORDER BY created_at DESC
     `,
   );
-
-  return rows;
 };
 
 export const insertProduto = async (produto: Produto): Promise<void> => {

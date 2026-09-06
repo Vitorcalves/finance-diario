@@ -13,7 +13,7 @@ export const listUnidades = async (): Promise<Unidade[]> => {
     `
         SELECT id, descricao, primario
         FROM unidades
-        ORDER BY descricao ASC
+        ORDER BY descricao
     `,
   );
 

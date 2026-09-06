@@ -1,4 +1,4 @@
-import { getConnection } from './database';
+import {getConnection} from './database';
 
 export type Empresa = {
   id: string;
@@ -16,7 +16,7 @@ export const listEmpresas = async (): Promise<Empresa[]> => {
         SELECT id, nome, cnpj, observacao, created_at
         FROM empresas
         ORDER BY created_at DESC
-        `,
+    `,
   );
 
   return rows;
@@ -29,7 +29,7 @@ export const insertEmpresa = async (empresa: Empresa): Promise<void> => {
     `
         INSERT INTO empresas (id, nome, cnpj, observacao, created_at)
         VALUES (?, ?, ?, ?, ?)
-        `,
+    `,
     [
       empresa.id,
       empresa.nome,
@@ -52,7 +52,7 @@ export const getEmpresaById = async (id: string): Promise<Empresa | null> => {
         SELECT id, nome, cnpj, observacao, created_at
         FROM empresas
         WHERE id = ?
-        `,
+    `,
     [id],
   );
 
@@ -69,9 +69,11 @@ export const updateEmpresa = async (empresa: Empresa): Promise<void> => {
   await db.runAsync(
     `
         UPDATE empresas
-        SET nome = ?, cnpj = ?, observacao = ?
+        SET nome = ?,
+            cnpj = ?,
+            observacao = ?
         WHERE id = ?
-        `,
+    `,
     [empresa.nome, empresa.cnpj ?? null, empresa.observacao ?? null, empresa.id],
   );
 };

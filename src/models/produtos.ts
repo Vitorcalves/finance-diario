@@ -1,47 +1,28 @@
-import { getConnection } from './database';
-import { HistoricoPrecoProduto, insertHistoricoPrecoProduto } from './historicoPrecoProduto';
-import { v4 as uuidv4 } from 'uuid';
+import {getConnection} from './database';
+import {HistoricoPreco, insertHistoricoPreco} from './historicoPreco';
+import {v4 as uuidv4} from 'uuid';
 
 export type Produto = {
   id: string;
   nome: string;
   preco: number;
-  codigo_barras?: string;
-  marca_id: number | null;
-  categoria_id?: string;
+  unidade_id: number | null;
   created_at: string;
 };
 
-export type ProdutoListagem = Produto & {
-  categoria_nome?: string;
-  marca_nome?: string;
-  quantidade?: number | null;
-  unidade?: string | null;
-};
-
-export const listProdutos = async (): Promise<ProdutoListagem[]> => {
+export const listProdutos = async (): Promise<Produto[]> => {
   const db = await getConnection();
 
-  const rows = await db.getAllAsync<ProdutoListagem>(
+  const rows = await db.getAllAsync<Produto>(
     `
-        SELECT
-          p.id,
-          p.nome,
-          p.preco,
-          p.codigo_barras,
-          p.marca_id,
-          m.nome AS marca_nome,
-          cp.categoria_id,
-          c.nome AS categoria_nome,
-          p.quantidade,
-          p.unidade,
-          p.created_at
-        FROM produtos p
-        LEFT JOIN marcas m ON m.id = p.marca_id
-        LEFT JOIN categoria_produto cp ON cp.produto_id = p.id
-        LEFT JOIN categorias c ON c.id = cp.categoria_id
-        ORDER BY p.created_at DESC
-        `,
+        SELECT id,
+               nome,
+               preco,
+               unidade_id,
+               created_at
+        FROM produtos
+        ORDER BY created_at DESC
+    `,
   );
 
   return rows;
@@ -52,39 +33,17 @@ export const insertProduto = async (produto: Produto): Promise<void> => {
 
   await db.runAsync(
     `
-        INSERT INTO produtos (id, nome, preco, codigo_barras, marca_id, created_at)
-        VALUES (?, ?, ?, ?, ?, ?)
-        `,
+        INSERT INTO produtos (id, nome, preco, unidade_id, created_at)
+        VALUES (?, ?, ?, ?, ?)
+    `,
     [
       produto.id,
       produto.nome,
       produto.preco,
-      produto.codigo_barras ?? null,
-      produto.marca_id ?? null,
+      produto.unidade_id,
       produto.created_at,
     ],
   );
-
-  if (produto.categoria_id) {
-    await db.runAsync(
-      `
-        INSERT INTO categoria_produto (id, categoria_id, produto_id, created_at)
-        VALUES (?, ?, ?, ?)
-        `,
-      [uuidv4(), produto.categoria_id, produto.id, new Date().toISOString()],
-    );
-  }
-
-  // Inserir um novo registro no histórico de preços
-  const historico: HistoricoPrecoProduto = {
-    id: uuidv4(),
-    produto_id: produto.id,
-    preco: produto.preco,
-    data: new Date().toISOString(),
-    created_at: new Date().toISOString(),
-  };
-
-  await insertHistoricoPrecoProduto(historico);
 };
 
 export const deleteProdutoById = async (id: string): Promise<void> => {
@@ -92,28 +51,18 @@ export const deleteProdutoById = async (id: string): Promise<void> => {
   await db.runAsync('DELETE FROM produtos WHERE id = ?', [id]);
 };
 
-export const getProdutoById = async (id: string): Promise<ProdutoListagem | null> => {
+export const getProdutoById = async (id: string): Promise<Produto | null> => {
   const db = await getConnection();
-  const row = await db.getFirstAsync<ProdutoListagem>(
+  const row = await db.getFirstAsync<Produto>(
     `
-        SELECT
-          p.id,
-          p.nome,
-          p.preco,
-          p.codigo_barras,
-          p.marca_id,
-          m.nome AS marca_nome,
-          cp.categoria_id,
-          c.nome AS categoria_nome,
-          p.quantidade,
-          p.unidade,
-          p.created_at
-        FROM produtos p
-        LEFT JOIN marcas m ON m.id = p.marca_id
-        LEFT JOIN categoria_produto cp ON cp.produto_id = p.id
-        LEFT JOIN categorias c ON c.id = cp.categoria_id
-        WHERE p.id = ?
-        `,
+        SELECT id,
+               nome,
+               preco,
+               unidade_id,
+               created_at
+        FROM produtos
+        WHERE id = ?
+    `,
     [id],
   );
 
@@ -136,43 +85,19 @@ export const updateProduto = async (produto: Produto): Promise<void> => {
   await db.runAsync(
     `
         UPDATE produtos
-        SET nome = ?, preco = ?, codigo_barras = ?, marca_id = ?
+        SET nome       = ?,
+            preco      = ?,
+            unidade_id = ?
         WHERE id = ?
-        `,
+    `,
     [
       produto.nome,
       produto.preco,
-      produto.codigo_barras ?? null,
-      produto.marca_id ?? null,
+      produto.unidade_id ?? null,
       produto.id,
     ],
   );
 
-  await db.runAsync('DELETE FROM categoria_produto WHERE produto_id = ?', [produto.id]);
-
-  if (produto.categoria_id) {
-    await db.runAsync(
-      `
-        INSERT INTO categoria_produto (id, categoria_id, produto_id, created_at)
-        VALUES (?, ?, ?, ?)
-        `,
-      [uuidv4(), produto.categoria_id, produto.id, new Date().toISOString()],
-    );
-  }
-
-  if (produto.preco === produto_oud.preco) {
-    return;
-  }
-  // Inserir um novo registro no histórico de preços
-  const historico: HistoricoPrecoProduto = {
-    id: uuidv4(),
-    produto_id: produto.id,
-    preco: produto.preco,
-    data: new Date().toISOString(),
-    created_at: new Date().toISOString(),
-  };
-
-  await insertHistoricoPrecoProduto(historico);
 };
 
 export const upadetePrecoProduto = async (produto_id: string, preco: number): Promise<void> => {
@@ -189,18 +114,21 @@ export const upadetePrecoProduto = async (produto_id: string, preco: number): Pr
         UPDATE produtos
         SET preco = ?
         WHERE id = ?
-        `,
+    `,
     [preco, produto_id],
   );
 
   // Inserir um novo registro no histórico de preços
-  const historico: HistoricoPrecoProduto = {
+  const historico: HistoricoPreco = {
     id: uuidv4(),
     produto_id,
     preco,
+    // aaaaaaaaaaaaaaaa
+    variante_id: uuidv4(),
+    empresa_id: uuidv4(),
     data: new Date().toISOString(),
     created_at: new Date().toISOString(),
   };
 
-  await insertHistoricoPrecoProduto(historico);
+  await insertHistoricoPreco(historico);
 };

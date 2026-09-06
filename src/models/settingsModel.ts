@@ -1,4 +1,4 @@
-import { getConnection } from './database';
+import {getConnection} from './database';
 
 const MONTHLY_INCOME_KEY = 'monthly_income';
 
@@ -26,9 +26,9 @@ export const saveMonthlyIncome = async (value: number): Promise<void> => {
 
   await db.runAsync(
     `
-      INSERT INTO settings (key, value)
-      VALUES (?, ?)
-      ON CONFLICT(key) DO UPDATE SET value = excluded.value
+        INSERT INTO settings (key, value)
+        VALUES (?, ?)
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value
     `,
     [MONTHLY_INCOME_KEY, String(value)],
   );

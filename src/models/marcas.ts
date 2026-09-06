@@ -1,4 +1,4 @@
-import { getConnection } from './database';
+import {getConnection} from './database';
 
 export type Marca = {
   id: number;
@@ -9,15 +9,13 @@ export type Marca = {
 export const listMarcas = async (): Promise<Marca[]> => {
   const db = await getConnection();
 
-  const rows = await db.getAllAsync<Marca>(
+  return await db.getAllAsync<Marca>(
     `
         SELECT id, nome, created_at
         FROM marcas
         ORDER BY created_at DESC
-        `,
+    `,
   );
-
-  return rows;
 };
 
 export const insertMarca = async (marca: Omit<Marca, 'id'>): Promise<void> => {
@@ -27,7 +25,7 @@ export const insertMarca = async (marca: Omit<Marca, 'id'>): Promise<void> => {
     `
         INSERT INTO marcas (nome, created_at)
         VALUES (?, ?)
-        `,
+    `,
     [marca.nome, marca.created_at],
   );
 };
@@ -44,7 +42,7 @@ export const getMarcaById = async (id: number): Promise<Marca | null> => {
         SELECT id, nome, created_at
         FROM marcas
         WHERE id = ?
-        `,
+    `,
     [id],
   );
 
@@ -61,9 +59,10 @@ export const updateMarca = async (marca: Marca): Promise<void> => {
   await db.runAsync(
     `
         UPDATE marcas
-        SET nome = ?, created_at = ?
+        SET nome       = ?,
+            created_at = ?
         WHERE id = ?
-        `,
+    `,
     [marca.nome, marca.created_at, marca.id],
   );
 };

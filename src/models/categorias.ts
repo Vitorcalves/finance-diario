@@ -1,4 +1,4 @@
-import { getConnection } from './database';
+import {getConnection} from './database';
 
 export type Categoria = {
   id: string;
@@ -9,15 +9,13 @@ export type Categoria = {
 export const listCategorias = async (): Promise<Categoria[]> => {
   const db = await getConnection();
 
-  const rows = await db.getAllAsync<Categoria>(
+  return await db.getAllAsync<Categoria>(
     `
         SELECT id, nome, created_at
         FROM categorias
         ORDER BY created_at DESC
-        `,
+    `,
   );
-
-  return rows;
 };
 
 export const insertCategoria = async (categoria: Categoria): Promise<void> => {
@@ -27,7 +25,7 @@ export const insertCategoria = async (categoria: Categoria): Promise<void> => {
     `
         INSERT INTO categorias (id, nome, created_at)
         VALUES (?, ?, ?)
-        `,
+    `,
     [categoria.id, categoria.nome, categoria.created_at],
   );
 };
@@ -44,7 +42,7 @@ export const getCategoriaById = async (id: string): Promise<Categoria | null> =>
         SELECT id, nome, created_at
         FROM categorias
         WHERE id = ?
-        `,
+    `,
     [id],
   );
 

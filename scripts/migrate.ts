@@ -1,4 +1,6 @@
+// @ts-ignore
 import { DatabaseSync } from 'node:sqlite';
+// @ts-ignore
 import path from 'node:path';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { migrations } from '../src/models/migrations';
@@ -6,8 +8,6 @@ import { migrations } from '../src/models/migrations';
 const DATABASE_NAME = 'finance_diario.db';
 
 function createAdapter(raw: DatabaseSync): SQLiteDatabase {
-  // expo-sqlite accepts bind params either as a single array or spread as
-  // varargs; this normalizes both calling conventions to a flat array.
   const normalizeParams = (args: unknown[]): never[] => {
     if (args.length === 1 && Array.isArray(args[0])) {
       return args[0] as never[];
@@ -49,6 +49,7 @@ function createAdapter(raw: DatabaseSync): SQLiteDatabase {
 }
 
 async function main(): Promise<void> {
+  // @ts-ignore
   const dbPath = path.resolve(__dirname, '..', DATABASE_NAME);
   const raw = new DatabaseSync(dbPath);
   const db = createAdapter(raw);

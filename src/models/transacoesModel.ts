@@ -1,4 +1,4 @@
-import { getConnection } from './database';
+import {getConnection} from './database';
 
 export type Transacoes = {
   id: string;
@@ -15,8 +15,8 @@ export const listTransacoes = async (
 ): Promise<Transacoes[]> => {
   const db = await getConnection();
   let query = `
-    SELECT id, descricao, valor, data, empresa_id, created_at
-    FROM transacoes
+      SELECT id, descricao, valor, data, empresa_id, created_at
+      FROM transacoes
   `;
   const params: (string | number)[] = [];
   if (start && end) {
@@ -36,9 +36,9 @@ export const insertTransacao = async (transacao: Transacoes): Promise<void> => {
   await db
     .runAsync(
       `
-      INSERT INTO transacoes (id, descricao, valor, data, empresa_id, created_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `,
+          INSERT INTO transacoes (id, descricao, valor, data, empresa_id, created_at)
+          VALUES (?, ?, ?, ?, ?, ?)
+      `,
       [
         transacao.id,
         transacao.descricao,

@@ -56,6 +56,13 @@ export default function MenuNavigationView(): React.ReactNode {
           <Text style={styles.itemText}>Ir para Historico de Precos</Text>
         </Pressable>
 
+        <Pressable
+          style={styles.item}
+          onPress={() => navigation.navigate('Menu', { screen: 'Orcamento' })}
+        >
+          <Text style={styles.itemText}>Ir para Orcamento</Text>
+        </Pressable>
+
         <View style={styles.spacer} />
 
         <Pressable

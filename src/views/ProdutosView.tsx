@@ -20,7 +20,7 @@ import {
   listCategorias as listCategoriaVinculos,
 } from '../models/categoriasProduto';
 import {listMarcas, type Marca} from '../models/marcas';
-import {listUnidades, type Unidade} from '../models/unidades';
+import {Unidades} from '../utils/unidades';
 import {type HistoricoPreco, listHistoricoPreco} from '../models/historicoPreco';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {v4 as uuidv4} from 'uuid';
@@ -47,7 +47,7 @@ export default function ProdutosView(): React.ReactNode {
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [categoriaVinculos, setCategoriaVinculos] = useState<CategoriaProduto[]>([]);
   const [marcas, setMarcas] = useState<Marca[]>([]);
-  const [unidades, setUnidades] = useState<Unidade[]>([]);
+  const unidades = Unidades.listar();
   const [loading, setLoading] = useState(true);
 
   const [showForm, setShowForm] = useState(false);
@@ -134,16 +134,6 @@ export default function ProdutosView(): React.ReactNode {
     }
   };
 
-  const carregarUnidades = async (): Promise<void> => {
-    try {
-      const unidadesDoBanco = await listUnidades();
-      setUnidades(unidadesDoBanco);
-    } catch (error: unknown) {
-      console.error('Erro ao carregar unidades:', error);
-      Alert.alert('Erro', 'Não foi possível carregar as unidades');
-    }
-  };
-
   const abrirHistorico = async (produto: Produto): Promise<void> => {
     setProdutoSelecionadoHistorico(produto);
     setShowHistoricoModal(true);
@@ -191,12 +181,7 @@ export default function ProdutosView(): React.ReactNode {
       if (!active) {
         return;
       }
-      await Promise.all([
-        carregarProdutos(),
-        carregarCategorias(),
-        carregarMarcas(),
-        carregarUnidades(),
-      ]);
+      await Promise.all([carregarProdutos(), carregarCategorias(), carregarMarcas()]);
     })();
 
     return (): void => {

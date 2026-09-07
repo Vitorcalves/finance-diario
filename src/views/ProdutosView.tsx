@@ -1,40 +1,29 @@
-import React from 'react';
-import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import React, {useEffect, useState} from 'react';
+import {StatusBar} from 'expo-status-bar';
+import {CameraView, useCameraPermissions} from 'expo-camera';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  Modal,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
+import {ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View,} from 'react-native';
 import BrazilianIntegerInput from '../components/BrazilianIntegerInput';
-import { type Produto, listProdutos, insertProduto, deleteProdutoById, updateProduto } from '../models/produtos';
+import {deleteProdutoById, insertProduto, listProdutos, type Produto, updateProduto} from '../models/produtos';
 import {
-  type ProdutoVariantes,
-  listProdutoVariantes,
-  insertProdutoVariantes,
   deleteProdutoVariantesById,
+  insertProdutoVariantes,
+  listProdutoVariantes,
+  type ProdutoVariantes,
   updateProdutoVariantes,
 } from '../models/produtoVariantes';
-import { type Categoria, listCategorias } from '../models/categorias';
+import {type Categoria, listCategorias} from '../models/categorias';
 import {
   type CategoriaProduto,
-  listCategorias as listCategoriaVinculos,
-  insertCategoria as insertCategoriaVinculo,
   deleteCategoriaById as deleteCategoriaVinculo,
+  insertCategoria as insertCategoriaVinculo,
+  listCategorias as listCategoriaVinculos,
 } from '../models/categoriasProduto';
-import { type Marca, listMarcas } from '../models/marcas';
-import { type Unidade, listUnidades } from '../models/unidades';
-import { type HistoricoPreco, listHistoricoPreco } from '../models/historicoPreco';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { v4 as uuidv4 } from 'uuid';
+import {listMarcas, type Marca} from '../models/marcas';
+import {listUnidades, type Unidade} from '../models/unidades';
+import {type HistoricoPreco, listHistoricoPreco} from '../models/historicoPreco';
+import {SafeAreaView} from 'react-native-safe-area-context';
+import {v4 as uuidv4} from 'uuid';
 
 const toCurrency = (value: number): string =>
   new Intl.NumberFormat('pt-BR', {
@@ -328,6 +317,13 @@ export default function ProdutosView(): React.ReactNode {
     limparVarianteMiniFormulario();
   };
 
+  const filterUnidades = (primitivo: boolean = false) => {
+    if (primitivo) {
+      return unidades.filter((unidade) => unidade.primario === primitivo);
+    }
+    return unidades;
+  }
+
   const salvarProduto = async (): Promise<void> => {
     if (!nome.trim()) {
       Alert.alert('Erro', 'Nome do produto é obrigatório');
@@ -419,7 +415,10 @@ export default function ProdutosView(): React.ReactNode {
 
   const deletarProduto = (produto: Produto): void => {
     Alert.alert('Confirmar exclusão', `Deseja deletar "${produto.nome}"?`, [
-      { text: 'Cancelar', onPress: (): void => {}, style: 'cancel' },
+      {
+        text: 'Cancelar', onPress: (): void => {
+        }, style: 'cancel'
+      },
       {
         text: 'Deletar',
         onPress: (): void => {
@@ -442,6 +441,7 @@ export default function ProdutosView(): React.ReactNode {
   const renderSeletorUnidade = (
     valorSelecionado: number | null,
     onSelecionar: (id: number | null) => void,
+    primitivo: boolean = false
   ): React.ReactNode => (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.unidadeChipsRow}>
       <Pressable
@@ -452,7 +452,7 @@ export default function ProdutosView(): React.ReactNode {
           Nenhuma
         </Text>
       </Pressable>
-      {unidades.map((unidade) => (
+      {filterUnidades(primitivo).map((unidade) => (
         <Pressable
           key={unidade.id}
           style={[styles.unidadeChip, valorSelecionado === unidade.id && styles.unidadeChipAtivo]}
@@ -470,22 +470,22 @@ export default function ProdutosView(): React.ReactNode {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar style="dark" />
+      <StatusBar style="dark"/>
 
       <View style={styles.header}>
         <Text style={styles.title}>Produtos</Text>
         <Pressable style={styles.addButton} onPress={() => abrirFormulario()}>
-          <Ionicons name="add-circle" size={32} color="#0f7a5b" />
+          <Ionicons name="add-circle" size={32} color="#0f7a5b"/>
         </Pressable>
       </View>
 
       {loading ? (
         <View style={styles.centerContent}>
-          <ActivityIndicator size="large" color="#0f7a5b" />
+          <ActivityIndicator size="large" color="#0f7a5b"/>
         </View>
       ) : produtos.length === 0 ? (
         <View style={styles.centerContent}>
-          <Ionicons name="cube-outline" size={64} color="#8ba29a" />
+          <Ionicons name="cube-outline" size={64} color="#8ba29a"/>
           <Text style={styles.emptyText}>Nenhum produto adicionado</Text>
           <Pressable style={styles.primaryButton} onPress={() => abrirFormulario()}>
             <Text style={styles.buttonText}>Adicionar Produto</Text>
@@ -537,19 +537,19 @@ export default function ProdutosView(): React.ReactNode {
                     style={[styles.actionButton, styles.viewButton]}
                     onPress={() => void abrirHistorico(produto)}
                   >
-                    <Ionicons name="eye" size={20} color="#0f7a5b" />
+                    <Ionicons name="eye" size={20} color="#0f7a5b"/>
                   </Pressable>
                   <Pressable
                     style={[styles.actionButton, styles.editButton]}
                     onPress={() => abrirFormulario(produto)}
                   >
-                    <Ionicons name="pencil" size={20} color="#0f7a5b" />
+                    <Ionicons name="pencil" size={20} color="#0f7a5b"/>
                   </Pressable>
                   <Pressable
                     style={[styles.actionButton, styles.deleteButton]}
                     onPress={() => deletarProduto(produto)}
                   >
-                    <Ionicons name="trash" size={20} color="#dc2626" />
+                    <Ionicons name="trash" size={20} color="#dc2626"/>
                   </Pressable>
                 </View>
               </View>
@@ -562,10 +562,10 @@ export default function ProdutosView(): React.ReactNode {
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Pressable onPress={fecharScanner}>
-              <Ionicons name="close" size={32} color="#0b3d2e" />
+              <Ionicons name="close" size={32} color="#0b3d2e"/>
             </Pressable>
             <Text style={styles.modalTitle}>Escanear Código de Barras</Text>
-            <View style={styles.modalSpacer} />
+            <View style={styles.modalSpacer}/>
           </View>
 
           {permission?.granted ? (
@@ -577,12 +577,12 @@ export default function ProdutosView(): React.ReactNode {
               }}
             >
               <View style={styles.scannerOverlay}>
-                <View style={styles.scannerFrame} />
+                <View style={styles.scannerFrame}/>
               </View>
             </CameraView>
           ) : (
             <View style={styles.centerContent}>
-              <Ionicons name="camera-outline" size={64} color="#8ba29a" />
+              <Ionicons name="camera-outline" size={64} color="#8ba29a"/>
               <Text style={styles.emptyText}>Permissão de câmera negada</Text>
             </View>
           )}
@@ -593,19 +593,19 @@ export default function ProdutosView(): React.ReactNode {
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Pressable onPress={fecharHistorico}>
-              <Ionicons name="close" size={32} color="#0b3d2e" />
+              <Ionicons name="close" size={32} color="#0b3d2e"/>
             </Pressable>
             <Text style={styles.modalTitle}>Histórico de Preços</Text>
-            <View style={styles.modalSpacer} />
+            <View style={styles.modalSpacer}/>
           </View>
 
           {carregandoHistorico ? (
             <View style={styles.centerContent}>
-              <ActivityIndicator size="large" color="#0f7a5b" />
+              <ActivityIndicator size="large" color="#0f7a5b"/>
             </View>
           ) : historicoPrecos.length === 0 ? (
             <View style={styles.centerContent}>
-              <Ionicons name="time-outline" size={64} color="#8ba29a" />
+              <Ionicons name="time-outline" size={64} color="#8ba29a"/>
               <Text style={styles.emptyText}>Nenhum histórico de preço</Text>
             </View>
           ) : (
@@ -646,10 +646,10 @@ export default function ProdutosView(): React.ReactNode {
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Pressable onPress={fecharFormulario}>
-              <Ionicons name="close" size={32} color="#0b3d2e" />
+              <Ionicons name="close" size={32} color="#0b3d2e"/>
             </Pressable>
             <Text style={styles.modalTitle}>{editingProduto ? 'Editar Produto' : 'Novo Produto'}</Text>
-            <View style={styles.modalSpacer} />
+            <View style={styles.modalSpacer}/>
           </View>
 
           <ScrollView style={styles.formContainer}>
@@ -679,7 +679,7 @@ export default function ProdutosView(): React.ReactNode {
 
             <View style={styles.formGroup}>
               <Text style={styles.label}>Unidade</Text>
-              {renderSeletorUnidade(unidadeId, setUnidadeId)}
+              {renderSeletorUnidade(unidadeId, setUnidadeId, true)}
             </View>
 
             <View style={styles.formGroup}>
@@ -696,7 +696,7 @@ export default function ProdutosView(): React.ReactNode {
                         onPress={(): void => toggleCategoriaSelecionada(categoriaId)}
                       >
                         <Text style={styles.chipText}>{nomeCategoria}</Text>
-                        <Ionicons name="close" size={14} color="#0f7a5b" />
+                        <Ionicons name="close" size={14} color="#0f7a5b"/>
                       </Pressable>
                     );
                   })}
@@ -708,7 +708,7 @@ export default function ProdutosView(): React.ReactNode {
                 onPress={(): void => setComboCategoriaAberto((aberto) => !aberto)}
               >
                 <Text style={styles.comboTriggerText}>Adicionar categoria</Text>
-                <Ionicons name={comboCategoriaAberto ? 'chevron-up' : 'chevron-down'} size={18} color="#0b3d2e" />
+                <Ionicons name={comboCategoriaAberto ? 'chevron-up' : 'chevron-down'} size={18} color="#0b3d2e"/>
               </Pressable>
 
               {comboCategoriaAberto && (
@@ -773,13 +773,13 @@ export default function ProdutosView(): React.ReactNode {
                       style={[styles.actionButton, styles.editButton]}
                       onPress={(): void => editarVariante(index)}
                     >
-                      <Ionicons name="pencil" size={18} color="#0f7a5b" />
+                      <Ionicons name="pencil" size={18} color="#0f7a5b"/>
                     </Pressable>
                     <Pressable
                       style={[styles.actionButton, styles.deleteButton]}
                       onPress={(): void => removerVariante(index)}
                     >
-                      <Ionicons name="trash" size={18} color="#dc2626" />
+                      <Ionicons name="trash" size={18} color="#dc2626"/>
                     </Pressable>
                   </View>
                 </View>
@@ -878,7 +878,7 @@ export default function ProdutosView(): React.ReactNode {
                     placeholderTextColor="#ccc"
                   />
                   <Pressable style={styles.scanButton} onPress={() => void abrirScanner()}>
-                    <Ionicons name="camera" size={20} color="#0f7a5b" />
+                    <Ionicons name="camera" size={20} color="#0f7a5b"/>
                   </Pressable>
                 </View>
 

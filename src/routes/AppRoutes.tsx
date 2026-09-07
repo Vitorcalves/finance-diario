@@ -10,6 +10,7 @@ import ProdutoFormView from '../views/ProdutoFormView';
 import CategoriasView from '../views/CategoriasView';
 import EmpresasView from '../views/EmpresasView';
 import MarcasView from '../views/MarcasView';
+import HistoricoPrecosView from '../views/HistoricoPrecosView';
 import type { MenuStackParamList, ProdutosStackParamList, RootTabParamList } from './types';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -23,6 +24,7 @@ function MenuStack(): React.ReactNode {
       <Stack.Screen name="Categorias" component={CategoriasView} />
       <Stack.Screen name="Empresas" component={EmpresasView} />
       <Stack.Screen name="Marcas" component={MarcasView} />
+      <Stack.Screen name="HistoricoPrecos" component={HistoricoPrecosView} />
     </Stack.Navigator>
   );
 }

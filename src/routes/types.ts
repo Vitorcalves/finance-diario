@@ -7,9 +7,14 @@ export type MenuStackParamList = {
   Marcas: undefined;
 };
 
+export type ProdutosStackParamList = {
+  ProdutosList: undefined;
+  ProdutoForm: { produtoId?: string } | undefined;
+};
+
 export type RootTabParamList = {
   Home: undefined;
   GastosMensais: undefined;
-  Produtos: undefined;
+  Produtos: NavigatorScreenParams<ProdutosStackParamList> | undefined;
   Menu: NavigatorScreenParams<MenuStackParamList> | undefined;
 };

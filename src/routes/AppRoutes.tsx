@@ -5,14 +5,16 @@ import TabIcon from '../components/TabIcon';
 import HomeView from '../views/HomeView';
 import MenuNavigationView from '../views/MenuNavigationView';
 import Option2View from '../views/MensalView';
-import ProdutosView from '../views/ProdutosView';
+import ProdutosListView from '../views/ProdutosListView';
+import ProdutoFormView from '../views/ProdutoFormView';
 import CategoriasView from '../views/CategoriasView';
 import EmpresasView from '../views/EmpresasView';
 import MarcasView from '../views/MarcasView';
-import type { MenuStackParamList, RootTabParamList } from './types';
+import type { MenuStackParamList, ProdutosStackParamList, RootTabParamList } from './types';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 const Stack = createNativeStackNavigator<MenuStackParamList>();
+const ProdutosStackNav = createNativeStackNavigator<ProdutosStackParamList>();
 
 function MenuStack(): React.ReactNode {
   return (
@@ -22,6 +24,15 @@ function MenuStack(): React.ReactNode {
       <Stack.Screen name="Empresas" component={EmpresasView} />
       <Stack.Screen name="Marcas" component={MarcasView} />
     </Stack.Navigator>
+  );
+}
+
+function ProdutosStack(): React.ReactNode {
+  return (
+    <ProdutosStackNav.Navigator screenOptions={{ headerShown: false }}>
+      <ProdutosStackNav.Screen name="ProdutosList" component={ProdutosListView} />
+      <ProdutosStackNav.Screen name="ProdutoForm" component={ProdutoFormView} />
+    </ProdutosStackNav.Navigator>
   );
 }
 
@@ -65,7 +76,7 @@ export default function AppRoutes(): React.ReactNode {
         />
         <Tab.Screen
           name="Produtos"
-          component={ProdutosView}
+          component={ProdutosStack}
           options={{ title: 'Produtos', tabBarLabel: 'Produtos' }}
         />
         <Tab.Screen

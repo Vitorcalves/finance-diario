@@ -4,7 +4,7 @@ export type HistoricoPreco = {
   id: string;
   produto_id: string;
   variante_id: string;
-  empresa_id: string;
+  empresa_id: string | null;
   preco: number;
   data: string;
   created_at: string;
@@ -32,7 +32,15 @@ export const insertHistoricoPreco = async (
         INSERT INTO historico_preco (id, produto_id, variante_id, empresa_id, preco, data, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?)
     `,
-    [historico.id, historico.produto_id, historico.variante_id, historico.empresa_id, historico.preco, historico.data, historico.created_at],
+    [
+      historico.id,
+      historico.produto_id,
+      historico.variante_id,
+      historico.empresa_id ?? null,
+      historico.preco,
+      historico.data,
+      historico.created_at,
+    ],
   );
 };
 

@@ -10,11 +10,16 @@ import {
   listTransacoes,
   type Transacoes,
 } from '../models/transacoesModel';
-import { insertItemTransacao } from '../models/itensTransacao';
-import NovoLancamentoForm from '../components/NovoLancamentoForm';
-import { toLocaleString } from '../../eslint.config';
-
-const todayIso = (): string => dayjs().format('YYYY-MM-DD');
+import {
+  deleteItensTransacaoByTransacao,
+  insertItemTransacao,
+  listItensTransacao,
+  totalItemTransacao,
+  type ItemTransacao,
+} from '../models/itensTransacao';
+import { registrarPrecoVariante } from '../models/produtoVariantes';
+import { type Empresa, listEmpresas } from '../models/empresas';
+import NovoLancamentoForm, { type NovoLancamento } from '../components/NovoLancamentoForm';
 
 const toCurrency = (value: number): string =>
   new Intl.NumberFormat('pt-BR', {
@@ -22,22 +27,33 @@ const toCurrency = (value: number): string =>
     currency: 'BRL',
   }).format(value);
 
+/** Data com hora local, para o historico de precos ser exibido no dia correto. */
+const toDataHistorico = (data: string): string => dayjs(data).format('YYYY-MM-DDTHH:mm:ss');
+
 export default function HomeView(): React.ReactNode {
   const [transacoes, setTransacoes] = useState<Transacoes[]>([]);
+  const [itens, setItens] = useState<ItemTransacao[]>([]);
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const carregarDados = async (): Promise<void> => {
+    const [transacoesDoBanco, itensDoBanco, empresasDoBanco] = await Promise.all([
+      listTransacoes(),
+      listItensTransacao(),
+      listEmpresas(),
+    ]);
+
+    setTransacoes(transacoesDoBanco);
+    setItens(itensDoBanco);
+    setEmpresas(empresasDoBanco);
+  };
 
   useEffect(() => {
     let mounted = true;
 
     const bootstrap = async (): Promise<void> => {
       try {
-        const storedTransacoes = await listTransacoes();
-
-        if (!mounted) {
-          return;
-        }
-
-        setTransacoes(storedTransacoes);
+        await carregarDados();
       } catch (error) {
         console.error('Erro ao inicializar banco de dados', error);
       } finally {
@@ -54,12 +70,15 @@ export default function HomeView(): React.ReactNode {
     };
   }, []);
 
-  const totalTransacoes = useMemo(
-    () => transacoes.reduce((sum, item) => sum + item.valor, 0),
+  const totalSaidas = useMemo(
+    () => transacoes.reduce((soma, item) => (item.valor < 0 ? soma + item.valor : soma), 0),
     [transacoes],
   );
 
-  const currentBalance = totalTransacoes;
+  const currentBalance = useMemo(
+    () => transacoes.reduce((soma, item) => soma + item.valor, 0),
+    [transacoes],
+  );
 
   const transacoesByDay = useMemo(() => {
     const grouped = new Map<string, number>();
@@ -71,32 +90,70 @@ export default function HomeView(): React.ReactNode {
     return [...grouped.entries()].sort(([a], [b]) => (a < b ? 1 : -1));
   }, [transacoes]);
 
-  const handleAddTransacao = async (transacao: Transacoes): Promise<void> => {
-    const newTransacao: Transacoes = {
-      id: uuidv4(),
-      descricao: transacao.descricao,
-      valor: transacao.valor,
-      data: transacao.data,
-      created_at: new Date().toISOString(),
-    };
+  const itensPorTransacao = useMemo(() => {
+    const grouped = new Map<string, ItemTransacao[]>();
 
-    try {
-      await insertTransacao(newTransacao);
-      await listTransacoes().then((updatedTransacoes) => setTransacoes(updatedTransacoes));
-    } catch (error) {
-      console.error('Erro ao salvar gasto', error);
+    for (const item of itens) {
+      const atuais = grouped.get(item.transacao_id) ?? [];
+      atuais.push(item);
+      grouped.set(item.transacao_id, atuais);
     }
+
+    return grouped;
+  }, [itens]);
+
+  const nomeEmpresa = (id?: string | null): string =>
+    empresas.find((empresa) => empresa.id === id)?.nome ?? '';
+
+  const handleAddLancamento = async (lancamento: NovoLancamento): Promise<void> => {
+    const agora = new Date().toISOString();
+    const transacaoId = uuidv4();
+
+    await insertTransacao({
+      id: transacaoId,
+      descricao: lancamento.descricao,
+      valor: lancamento.valor,
+      data: lancamento.data,
+      empresa_id: lancamento.empresaId,
+      created_at: agora,
+    });
+
+    for (const item of lancamento.itens) {
+      await insertItemTransacao({
+        id: uuidv4(),
+        transacao_id: transacaoId,
+        produto_id: item.produtoId,
+        variante_id: item.varianteId,
+        descricao: item.descricao,
+        valor: item.precoUnitario,
+        quantidade: item.quantidade,
+        created_at: agora,
+      });
+
+      if (item.produtoId && item.varianteId) {
+        await registrarPrecoVariante({
+          produtoId: item.produtoId,
+          varianteId: item.varianteId,
+          empresaId: lancamento.empresaId,
+          preco: item.precoUnitario,
+          data: toDataHistorico(lancamento.data),
+        });
+      }
+    }
+
+    await carregarDados();
   };
 
   const removeTransacao = (id: string): void => {
-    try {
-      deleteTransacaoById(id).catch((error) =>
-        console.error('Erro ao remover gasto do banco', error),
-      );
-      setTransacoes((prev) => prev.filter((item) => item.id !== id));
-    } catch (error) {
-      console.error('Erro ao remover gasto', error);
-    }
+    void (async (): Promise<void> => {
+      try {
+        await deleteItensTransacaoByTransacao(id);
+        await deleteTransacaoById(id);
+        await carregarDados();
+      } catch (error) {
+        console.error('Erro ao remover lancamento', error);
+      }
+    })();
   };
 
   if (loading) {
@@ -118,7 +175,7 @@ export default function HomeView(): React.ReactNode {
         <View style={styles.summaryRow}>
           <View style={styles.summaryBox}>
             <Text style={styles.summaryLabel}>Gasto total</Text>
-            <Text style={styles.summaryValue}>{toCurrency(totalTransacoes)}</Text>
+            <Text style={styles.summaryValue}>{toCurrency(totalSaidas)}</Text>
           </View>
           <View style={styles.summaryBox}>
             <Text style={styles.summaryLabel}>Saldo atual</Text>
@@ -130,7 +187,7 @@ export default function HomeView(): React.ReactNode {
           </View>
         </View>
 
-        <NovoLancamentoForm onAddTransacao={handleAddTransacao} />
+        <NovoLancamentoForm onAddLancamento={handleAddLancamento} />
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Resumo por dia</Text>
@@ -151,28 +208,53 @@ export default function HomeView(): React.ReactNode {
           {transacoes.length === 0 ? (
             <Text style={styles.emptyText}>Adicione o primeiro gasto para comecar.</Text>
           ) : (
-            transacoes.map((item) => (
-              <View style={styles.transacaoRow} key={item.id}>
-                <View style={styles.transacaoInfo}>
-                  <Text style={styles.transacaoTitle}>{item.descricao}</Text>
-                  <Text style={styles.transacaoMeta}>{dayjs(item.data).format('DD/MM/YYYY')}</Text>
-                </View>
+            transacoes.map((transacao) => {
+              const itensDaTransacao = itensPorTransacao.get(transacao.id) ?? [];
+              const empresa = nomeEmpresa(transacao.empresa_id);
 
-                <View style={styles.transacaoActions}>
-                  <Text
-                    style={[
-                      styles.transacaoAmount,
-                      item.valor < 0 ? styles.negative : styles.positive,
-                    ]}
-                  >
-                    {toCurrency(item.valor)}
-                  </Text>
-                  <Pressable onPress={() => removeTransacao(item.id)}>
-                    <Text style={styles.removeText}>Remover</Text>
-                  </Pressable>
+              return (
+                <View style={styles.transacaoRow} key={transacao.id}>
+                  <View style={styles.transacaoHeader}>
+                    <View style={styles.transacaoInfo}>
+                      <Text style={styles.transacaoTitle}>{transacao.descricao}</Text>
+                      <Text style={styles.transacaoMeta}>
+                        {dayjs(transacao.data).format('DD/MM/YYYY')}
+                        {empresa ? ` • ${empresa}` : ''}
+                      </Text>
+                    </View>
+
+                    <View style={styles.transacaoActions}>
+                      <Text
+                        style={[
+                          styles.transacaoAmount,
+                          transacao.valor < 0 ? styles.negative : styles.positive,
+                        ]}
+                      >
+                        {toCurrency(transacao.valor)}
+                      </Text>
+                      <Pressable onPress={(): void => removeTransacao(transacao.id)}>
+                        <Text style={styles.removeText}>Remover</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+
+                  {itensDaTransacao.length > 0 && (
+                    <View style={styles.itensLista}>
+                      {itensDaTransacao.map((item) => (
+                        <View style={styles.itemRow} key={item.id}>
+                          <Text style={styles.itemDescricao} numberOfLines={1}>
+                            {`${item.quantidade}x ${item.descricao}`}
+                          </Text>
+                          <Text style={styles.itemValor}>
+                            {toCurrency(totalItemTransacao(item))}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
                 </View>
-              </View>
-            ))
+              );
+            })
           )}
         </View>
       </ScrollView>
@@ -268,12 +350,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   transacaoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#edf2ef',
+    gap: 6,
+  },
+  transacaoHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   transacaoInfo: {
     flex: 1,
@@ -301,6 +386,27 @@ const styles = StyleSheet.create({
     color: '#b23a31',
     fontSize: 12,
     fontWeight: '700',
+  },
+  itensLista: {
+    borderLeftWidth: 2,
+    borderLeftColor: '#deebe4',
+    paddingLeft: 10,
+    gap: 2,
+  },
+  itemRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  itemDescricao: {
+    flex: 1,
+    fontSize: 12,
+    color: '#5b6f67',
+  },
+  itemValor: {
+    fontSize: 12,
+    color: '#193d31',
+    fontWeight: '600',
   },
   emptyText: {
     color: '#5c6b66',

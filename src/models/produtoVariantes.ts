@@ -1,4 +1,6 @@
+import {v4 as uuidv4} from 'uuid';
 import {getConnection} from './database';
+import {type HistoricoPreco, insertHistoricoPreco} from './historicoPreco';
 
 export type ProdutoVariantes = {
   id: string;
@@ -27,6 +29,29 @@ export const listProdutoVariantes = async (): Promise<ProdutoVariantes[]> => {
         FROM produto_variantes
         ORDER BY created_at DESC
     `,
+  );
+};
+
+export const listProdutoVariantesByProduto = async (
+  produtoId: string,
+): Promise<ProdutoVariantes[]> => {
+  const db = await getConnection();
+
+  return await db.getAllAsync<ProdutoVariantes>(
+    `
+        SELECT id,
+               produto_id,
+               marca_id,
+               unidade_id,
+               quantidade,
+               codigo_barras,
+               preco,
+               created_at
+        FROM produto_variantes
+        WHERE produto_id = ?
+        ORDER BY created_at DESC
+    `,
+    [produtoId],
   );
 };
 
@@ -85,6 +110,44 @@ export const updateProdutoVariantes = async (variante: ProdutoVariantes): Promis
       variante.id,
     ],
   );
+};
+
+/**
+ * Registra o preco praticado em um lancamento: atualiza o preco atual da variante
+ * e guarda a ocorrencia no historico, sempre amarrada ao produto, a variante e
+ * (quando informada) a empresa onde a compra aconteceu.
+ */
+export const registrarPrecoVariante = async (params: {
+  produtoId: string;
+  varianteId: string;
+  empresaId: string | null;
+  preco: number;
+  data: string;
+}): Promise<void> => {
+  const db = await getConnection();
+
+  const variante = await getProdutoVariantesById(params.varianteId);
+
+  if (!variante) {
+    throw new Error('Variante não encontrada');
+  }
+
+  await db.runAsync('UPDATE produto_variantes SET preco = ? WHERE id = ?', [
+    params.preco,
+    params.varianteId,
+  ]);
+
+  const historico: HistoricoPreco = {
+    id: uuidv4(),
+    produto_id: params.produtoId,
+    variante_id: params.varianteId,
+    empresa_id: params.empresaId,
+    preco: params.preco,
+    data: params.data,
+    created_at: new Date().toISOString(),
+  };
+
+  await insertHistoricoPreco(historico);
 };
 
 export const getProdutoVariantesById = async (id: string): Promise<ProdutoVariantes | null> => {

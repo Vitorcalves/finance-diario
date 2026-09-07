@@ -32,24 +32,20 @@ export const listTransacoes = async (
 
 export const insertTransacao = async (transacao: Transacoes): Promise<void> => {
   const db = await getConnection();
-  await db
-    .runAsync(
-      `
-          INSERT INTO transacoes (id, descricao, valor, data, empresa_id, created_at)
-          VALUES (?, ?, ?, ?, ?, ?)
-      `,
-      [
-        transacao.id,
-        transacao.descricao,
-        transacao.valor,
-        transacao.data,
-        transacao.empresa_id ?? null,
-        transacao.created_at,
-      ],
-    )
-    .catch((e) => {
-      console.error('Erro ao inserir transação model:', e);
-    });
+  await db.runAsync(
+    `
+        INSERT INTO transacoes (id, descricao, valor, data, empresa_id, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+    `,
+    [
+      transacao.id,
+      transacao.descricao,
+      transacao.valor,
+      transacao.data,
+      transacao.empresa_id ?? null,
+      transacao.created_at,
+    ],
+  );
 };
 
 export const deleteTransacaoById = async (id: string): Promise<void> => {

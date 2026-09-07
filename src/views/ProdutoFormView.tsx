@@ -1,24 +1,15 @@
-import React, { useEffect, useState } from 'react';
-import { StatusBar } from 'expo-status-bar';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import React, {useEffect, useState} from 'react';
+import {StatusBar} from 'expo-status-bar';
+import {CameraView, useCameraPermissions} from 'expo-camera';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import {
-  ActivityIndicator,
-  Alert,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { v4 as uuidv4 } from 'uuid';
+import {ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View,} from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
+import {type RouteProp, useNavigation, useRoute} from '@react-navigation/native';
+import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import {v4 as uuidv4} from 'uuid';
 import BrazilianIntegerInput from '../components/BrazilianIntegerInput';
-import { getProdutoById, insertProduto, updateProduto } from '../models/produtos';
+import SeletorMultiplo from '../components/SeletorMultiplo';
+import {getProdutoById, insertProduto, updateProduto} from '../models/produtos';
 import {
   deleteProdutoVariantesById,
   insertProdutoVariantes,
@@ -26,16 +17,16 @@ import {
   type ProdutoVariantes,
   updateProdutoVariantes,
 } from '../models/produtoVariantes';
-import { type Categoria, listCategorias } from '../models/categorias';
+import {type Categoria, insertCategoria, listCategorias} from '../models/categorias';
 import {
   type CategoriaProduto,
   deleteCategoriaById as deleteCategoriaVinculo,
   insertCategoria as insertCategoriaVinculo,
   listCategorias as listCategoriaVinculos,
 } from '../models/categoriasProduto';
-import { listMarcas, type Marca } from '../models/marcas';
-import { Unidades } from '../utils/unidades';
-import type { ProdutosStackParamList } from '../routes/types';
+import {insertMarca, listMarcas, type Marca} from '../models/marcas';
+import {Unidades} from '../utils/unidades';
+import type {ProdutosStackParamList} from '../routes/types';
 
 type ProdutoFormNavigation = NativeStackNavigationProp<ProdutosStackParamList, 'ProdutoForm'>;
 type ProdutoFormRoute = RouteProp<ProdutosStackParamList, 'ProdutoForm'>;
@@ -75,8 +66,7 @@ export default function ProdutoFormView(): React.ReactNode {
   const [categoriaVinculosOriginais, setCategoriaVinculosOriginais] = useState<CategoriaProduto[]>(
     [],
   );
-  const [comboCategoriaAberto, setComboCategoriaAberto] = useState(false);
-  const [categoriaBusca, setCategoriaBusca] = useState('');
+  const [novaCategoriaNome, setNovaCategoriaNome] = useState('');
 
   const [variantesOriginais, setVariantesOriginais] = useState<ProdutoVariantes[]>([]);
   const [variantesForm, setVariantesForm] = useState<VarianteFormItem[]>([]);
@@ -86,19 +76,10 @@ export default function ProdutoFormView(): React.ReactNode {
   const [varianteQuantidade, setVarianteQuantidade] = useState('');
   const [varianteCodigoBarras, setVarianteCodigoBarras] = useState('');
   const [variantePreco, setVariantePreco] = useState('');
-  const [comboVarianteMarcaAberto, setComboVarianteMarcaAberto] = useState(false);
-  const [varianteMarcaBusca, setVarianteMarcaBusca] = useState('');
+  const [novaMarcaNome, setNovaMarcaNome] = useState('');
 
   const [showScannerModal, setShowScannerModal] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
-
-  const categoriasFiltradas = categorias.filter((categoria) =>
-    categoria.nome.toLowerCase().includes(categoriaBusca.trim().toLowerCase()),
-  );
-
-  const marcasFiltradas = marcas.filter((marca) =>
-    marca.nome.toLowerCase().includes(varianteMarcaBusca.trim().toLowerCase()),
-  );
 
   const nomeUnidade = (id: number | null): string =>
     unidades.find((unidade) => unidade.id === id)?.descricao ?? '';
@@ -181,14 +162,63 @@ export default function ProdutoFormView(): React.ReactNode {
     setVarianteQuantidade('');
     setVarianteCodigoBarras('');
     setVariantePreco('');
-    setVarianteMarcaBusca('');
-    setComboVarianteMarcaAberto(false);
   };
 
   const toggleCategoriaSelecionada = (categoriaId: string): void => {
     setCategoriasSelecionadas((prev) =>
       prev.includes(categoriaId) ? prev.filter((id) => id !== categoriaId) : [...prev, categoriaId],
     );
+  };
+
+  const salvarNovaCategoria = async (fechar: () => void): Promise<void> => {
+    if (!novaCategoriaNome.trim()) {
+      Alert.alert('Erro', 'Nome da categoria é obrigatório');
+      return;
+    }
+
+    try {
+      const novaCategoria: Categoria = {
+        id: uuidv4(),
+        nome: novaCategoriaNome.trim(),
+        created_at: new Date().toISOString(),
+      };
+      await insertCategoria(novaCategoria);
+      const categoriasAtualizadas = await listCategorias();
+      setCategorias(categoriasAtualizadas);
+      setCategoriasSelecionadas((prev) => [...prev, novaCategoria.id]);
+      setNovaCategoriaNome('');
+      fechar();
+    } catch (error: unknown) {
+      console.error('Erro ao criar categoria:', error);
+      Alert.alert('Erro', 'Não foi possível criar a categoria');
+    }
+  };
+
+  const toggleVarianteMarcaSelecionada = (id: string): void => {
+    setVarianteMarcaId((atual) => (atual === Number(id) ? null : Number(id)));
+  };
+
+  const salvarNovaMarca = async (fechar: () => void): Promise<void> => {
+    if (!novaMarcaNome.trim()) {
+      Alert.alert('Erro', 'Nome da marca é obrigatório');
+      return;
+    }
+
+    try {
+      const nomeParaCriar = novaMarcaNome.trim();
+      await insertMarca({ nome: nomeParaCriar, created_at: new Date().toISOString() });
+      const marcasAtualizadas = await listMarcas();
+      setMarcas(marcasAtualizadas);
+      const marcaCriada = marcasAtualizadas.find((marca) => marca.nome === nomeParaCriar);
+      if (marcaCriada) {
+        setVarianteMarcaId(marcaCriada.id);
+      }
+      setNovaMarcaNome('');
+      fechar();
+    } catch (error: unknown) {
+      console.error('Erro ao criar marca:', error);
+      Alert.alert('Erro', 'Não foi possível criar a marca');
+    }
   };
 
   const editarVariante = (index: number): void => {
@@ -199,8 +229,6 @@ export default function ProdutoFormView(): React.ReactNode {
     setVarianteQuantidade(item.quantidade);
     setVarianteCodigoBarras(item.codigoBarras);
     setVariantePreco(item.preco);
-    setVarianteMarcaBusca('');
-    setComboVarianteMarcaAberto(false);
   };
 
   const removerVariante = (index: number): void => {
@@ -379,9 +407,9 @@ export default function ProdutoFormView(): React.ReactNode {
   if (carregandoProduto) {
     return (
       <SafeAreaView style={styles.modalContainer}>
-        <StatusBar style="dark" />
+        <StatusBar style="dark"/>
         <View style={styles.centerContent}>
-          <ActivityIndicator size="large" color="#0f7a5b" />
+          <ActivityIndicator size="large" color="#0f7a5b"/>
         </View>
       </SafeAreaView>
     );
@@ -389,14 +417,14 @@ export default function ProdutoFormView(): React.ReactNode {
 
   return (
     <SafeAreaView style={styles.modalContainer}>
-      <StatusBar style="dark" />
+      <StatusBar style="dark"/>
 
       <View style={styles.modalHeader}>
         <Pressable onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={28} color="#0b3d2e" />
+          <Ionicons name="arrow-back" size={28} color="#0b3d2e"/>
         </Pressable>
         <Text style={styles.modalTitle}>{editando ? 'Editar Produto' : 'Novo Produto'}</Text>
-        <View style={styles.modalSpacer} />
+        <View style={styles.modalSpacer}/>
       </View>
 
       <ScrollView style={styles.formContainer}>
@@ -429,71 +457,40 @@ export default function ProdutoFormView(): React.ReactNode {
           {renderSeletorUnidade(unidadeId, setUnidadeId, true)}
         </View>
 
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Categorias</Text>
-
-          {categoriasSelecionadas.length > 0 && (
-            <View style={styles.chipRow}>
-              {categoriasSelecionadas.map((categoriaId) => {
-                const nomeCategoria = categorias.find((c) => c.id === categoriaId)?.nome ?? '';
-                return (
-                  <Pressable
-                    key={categoriaId}
-                    style={styles.chip}
-                    onPress={(): void => toggleCategoriaSelecionada(categoriaId)}
-                  >
-                    <Text style={styles.chipText}>{nomeCategoria}</Text>
-                    <Ionicons name="close" size={14} color="#0f7a5b" />
-                  </Pressable>
-                );
-              })}
-            </View>
-          )}
-
-          <Pressable
-            style={styles.comboTrigger}
-            onPress={(): void => setComboCategoriaAberto((aberto) => !aberto)}
-          >
-            <Text style={styles.comboTriggerText}>Adicionar categoria</Text>
-            <Ionicons name={comboCategoriaAberto ? 'chevron-up' : 'chevron-down'} size={18} color="#0b3d2e" />
-          </Pressable>
-
-          {comboCategoriaAberto && (
-            <View style={styles.comboDropdown}>
+        <SeletorMultiplo
+          label="Categorias"
+          opcoes={categorias.map((categoria) => ({id: categoria.id, nome: categoria.nome}))}
+          selecionados={categoriasSelecionadas}
+          onToggle={toggleCategoriaSelecionada}
+          placeholderBusca="Buscar categoria"
+          textoTrigger="Adicionar categoria"
+          textoVazio="Nenhuma categoria cadastrada"
+          textoNenhumEncontrado="Nenhuma categoria encontrada"
+          add
+          textoAdicionar="Nova categoria"
+          formAdicionar={(fechar): React.ReactNode => (
+            <View>
               <TextInput
-                style={styles.comboBuscaInput}
-                placeholder="Buscar categoria"
-                value={categoriaBusca}
-                onChangeText={setCategoriaBusca}
-                placeholderTextColor="#8ba29a"
+                style={styles.input}
+                placeholder="Nome da categoria"
+                value={novaCategoriaNome}
+                onChangeText={setNovaCategoriaNome}
+                placeholderTextColor="#ccc"
               />
-              <ScrollView style={styles.comboLista} nestedScrollEnabled>
-                {categoriasFiltradas.map((categoria) => {
-                  const selecionada = categoriasSelecionadas.includes(categoria.id);
-                  return (
-                    <Pressable
-                      key={categoria.id}
-                      style={styles.comboItem}
-                      onPress={(): void => toggleCategoriaSelecionada(categoria.id)}
-                    >
-                      <Text style={[styles.comboItemText, selecionada && styles.comboItemTextAtivo]}>
-                        {selecionada ? '✓ ' : ''}
-                        {categoria.nome}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-                {categoriasFiltradas.length === 0 && (
-                  <Text style={styles.emptyCategoriasText}>Nenhuma categoria encontrada</Text>
-                )}
-              </ScrollView>
+              <View style={styles.varianteMiniFormActions}>
+                <Pressable
+                  style={styles.secondaryButton}
+                  onPress={() => void salvarNovaCategoria(fechar)}
+                >
+                  <Text style={styles.secondaryButtonText}>Salvar</Text>
+                </Pressable>
+                <Pressable style={styles.secondaryButton} onPress={fechar}>
+                  <Text style={styles.secondaryButtonText}>Cancelar</Text>
+                </Pressable>
+              </View>
             </View>
           )}
-
-          {categorias.length === 0 && (
-            <Text style={styles.emptyCategoriasText}>Nenhuma categoria cadastrada</Text>
-          )}
-        </View>
+        />
 
         <View style={styles.formGroup}>
           <Text style={styles.label}>Variantes</Text>
@@ -520,13 +517,13 @@ export default function ProdutoFormView(): React.ReactNode {
                   style={[styles.actionButton, styles.editButton]}
                   onPress={(): void => editarVariante(index)}
                 >
-                  <Ionicons name="pencil" size={18} color="#0f7a5b" />
+                  <Ionicons name="pencil" size={18} color="#0f7a5b"/>
                 </Pressable>
                 <Pressable
                   style={[styles.actionButton, styles.deleteButton]}
                   onPress={(): void => removerVariante(index)}
                 >
-                  <Ionicons name="trash" size={18} color="#dc2626" />
+                  <Ionicons name="trash" size={18} color="#dc2626"/>
                 </Pressable>
               </View>
             </View>
@@ -537,69 +534,40 @@ export default function ProdutoFormView(): React.ReactNode {
               {varianteEditIndex !== null ? 'Editar variante' : 'Nova variante'}
             </Text>
 
-            <Text style={styles.label}>Marca</Text>
-            <Pressable
-              style={styles.comboTrigger}
-              onPress={(): void => setComboVarianteMarcaAberto((aberto) => !aberto)}
-            >
-              <Text style={[styles.comboTriggerText, !nomeMarca(varianteMarcaId) && styles.comboHint]}>
-                {nomeMarca(varianteMarcaId) || 'Sem marca'}
-              </Text>
-              <Ionicons
-                name={comboVarianteMarcaAberto ? 'chevron-up' : 'chevron-down'}
-                size={18}
-                color="#0b3d2e"
-              />
-            </Pressable>
-
-            {comboVarianteMarcaAberto && (
-              <View style={styles.comboDropdown}>
-                <TextInput
-                  style={styles.comboBuscaInput}
-                  placeholder="Buscar marca"
-                  value={varianteMarcaBusca}
-                  onChangeText={setVarianteMarcaBusca}
-                  placeholderTextColor="#8ba29a"
-                />
-                <ScrollView style={styles.comboLista} nestedScrollEnabled>
-                  <Pressable
-                    style={styles.comboItem}
-                    onPress={(): void => {
-                      setVarianteMarcaId(null);
-                      setVarianteMarcaBusca('');
-                      setComboVarianteMarcaAberto(false);
-                    }}
-                  >
-                    <Text style={[styles.comboItemText, varianteMarcaId === null && styles.comboItemTextAtivo]}>
-                      Sem marca
-                    </Text>
-                  </Pressable>
-                  {marcasFiltradas.map((marca) => (
+            <SeletorMultiplo
+              label="Marca"
+              opcoes={marcas.map((marca) => ({ id: String(marca.id), nome: marca.nome }))}
+              selecionados={varianteMarcaId !== null ? [String(varianteMarcaId)] : []}
+              onToggle={toggleVarianteMarcaSelecionada}
+              placeholderBusca="Buscar marca"
+              textoTrigger="Selecionar marca"
+              textoVazio="Nenhuma marca cadastrada"
+              textoNenhumEncontrado="Nenhuma marca encontrada"
+              add
+              textoAdicionar="Nova marca"
+              formAdicionar={(fechar): React.ReactNode => (
+                <View>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Nome da marca"
+                    value={novaMarcaNome}
+                    onChangeText={setNovaMarcaNome}
+                    placeholderTextColor="#ccc"
+                  />
+                  <View style={styles.varianteMiniFormActions}>
                     <Pressable
-                      key={marca.id}
-                      style={styles.comboItem}
-                      onPress={(): void => {
-                        setVarianteMarcaId(marca.id);
-                        setVarianteMarcaBusca('');
-                        setComboVarianteMarcaAberto(false);
-                      }}
+                      style={styles.secondaryButton}
+                      onPress={() => void salvarNovaMarca(fechar)}
                     >
-                      <Text
-                        style={[
-                          styles.comboItemText,
-                          varianteMarcaId === marca.id && styles.comboItemTextAtivo,
-                        ]}
-                      >
-                        {marca.nome}
-                      </Text>
+                      <Text style={styles.secondaryButtonText}>Salvar</Text>
                     </Pressable>
-                  ))}
-                  {marcasFiltradas.length === 0 && (
-                    <Text style={styles.emptyCategoriasText}>Nenhuma marca encontrada</Text>
-                  )}
-                </ScrollView>
-              </View>
-            )}
+                    <Pressable style={styles.secondaryButton} onPress={fechar}>
+                      <Text style={styles.secondaryButtonText}>Cancelar</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              )}
+            />
 
             <Text style={styles.label}>Unidade</Text>
             {renderSeletorUnidade(varianteUnidadeId, setVarianteUnidadeId)}
@@ -625,7 +593,7 @@ export default function ProdutoFormView(): React.ReactNode {
                 placeholderTextColor="#ccc"
               />
               <Pressable style={styles.scanButton} onPress={() => void abrirScanner()}>
-                <Ionicons name="camera" size={20} color="#0f7a5b" />
+                <Ionicons name="camera" size={20} color="#0f7a5b"/>
               </Pressable>
             </View>
 
@@ -677,10 +645,10 @@ export default function ProdutoFormView(): React.ReactNode {
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Pressable onPress={fecharScanner}>
-              <Ionicons name="close" size={32} color="#0b3d2e" />
+              <Ionicons name="close" size={32} color="#0b3d2e"/>
             </Pressable>
             <Text style={styles.modalTitle}>Escanear Código de Barras</Text>
-            <View style={styles.modalSpacer} />
+            <View style={styles.modalSpacer}/>
           </View>
 
           {permission?.granted ? (
@@ -692,12 +660,12 @@ export default function ProdutoFormView(): React.ReactNode {
               }}
             >
               <View style={styles.scannerOverlay}>
-                <View style={styles.scannerFrame} />
+                <View style={styles.scannerFrame}/>
               </View>
             </CameraView>
           ) : (
             <View style={styles.centerContent}>
-              <Ionicons name="camera-outline" size={64} color="#8ba29a" />
+              <Ionicons name="camera-outline" size={64} color="#8ba29a"/>
               <Text style={styles.emptyText}>Permissão de câmera negada</Text>
             </View>
           )}
@@ -765,79 +733,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9fdfb',
     marginBottom: 16,
   },
-  comboTrigger: {
-    borderWidth: 1,
-    borderColor: '#deebe4',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: '#f9fdfb',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  comboTriggerText: {
-    fontSize: 14,
-    color: '#0b3d2e',
-  },
-  comboHint: {
-    color: '#8ba29a',
-  },
-  comboDropdown: {
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: '#deebe4',
-    borderRadius: 8,
-    backgroundColor: '#ffffff',
-  },
-  comboBuscaInput: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#deebe4',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 13,
-    color: '#0b3d2e',
-  },
-  comboLista: {
-    maxHeight: 170,
-  },
-  comboItem: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  comboItemText: {
-    fontSize: 14,
-    color: '#0b3d2e',
-  },
-  comboItemTextAtivo: {
-    color: '#0f7a5b',
-    fontWeight: '700',
-  },
   emptyCategoriasText: {
     fontSize: 13,
     color: '#8ba29a',
     paddingHorizontal: 12,
     paddingVertical: 10,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 8,
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#e6f4ed',
-    borderRadius: 16,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  chipText: {
-    fontSize: 12,
-    color: '#0f7a5b',
-    fontWeight: '600',
   },
   unidadeChipsRow: {
     flexDirection: 'row',

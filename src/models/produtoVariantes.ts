@@ -1,6 +1,6 @@
-import {v4 as uuidv4} from 'uuid';
-import {getConnection} from './database';
-import {type HistoricoPreco, insertHistoricoPreco} from './historicoPreco';
+import { v4 as uuidv4 } from 'uuid';
+import { getConnection } from './database';
+import { type HistoricoPreco, insertHistoricoPreco } from './historicoPreco';
 
 export type ProdutoVariantes = {
   id: string;
@@ -72,7 +72,7 @@ export const insertProdutoVariantes = async (produto: ProdutoVariantes): Promise
       produto.quantidade,
       produto.codigo_barras,
       produto.preco,
-      produto.created_at
+      produto.created_at,
     ],
   );
 };

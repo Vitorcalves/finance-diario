@@ -1,4 +1,4 @@
-import {getConnection} from './database';
+import { getConnection } from './database';
 
 export type Produto = {
   id: string;
@@ -32,13 +32,7 @@ export const insertProduto = async (produto: Produto): Promise<void> => {
         INSERT INTO produtos (id, nome, preco, unidade_id, created_at)
         VALUES (?, ?, ?, ?, ?)
     `,
-    [
-      produto.id,
-      produto.nome,
-      produto.preco,
-      produto.unidade_id,
-      produto.created_at,
-    ],
+    [produto.id, produto.nome, produto.preco, produto.unidade_id, produto.created_at],
   );
 };
 
@@ -86,12 +80,6 @@ export const updateProduto = async (produto: Produto): Promise<void> => {
             unidade_id = ?
         WHERE id = ?
     `,
-    [
-      produto.nome,
-      produto.preco,
-      produto.unidade_id ?? null,
-      produto.id,
-    ],
+    [produto.nome, produto.preco, produto.unidade_id ?? null, produto.id],
   );
-
 };

@@ -1,4 +1,4 @@
-import {getConnection} from './database';
+import { getConnection } from './database';
 
 const MONTHLY_INCOME_KEY = 'monthly_income';
 

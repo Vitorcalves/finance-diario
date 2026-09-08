@@ -1,8 +1,8 @@
-import {StyleSheet} from 'react-native';
-import {colors} from './colors';
-import {radius, spacing} from './spacing';
-import {shadows} from './shadows';
-import {fontSize, fontWeight, typography} from './typography';
+import { StyleSheet } from 'react-native';
+import { colors } from './colors';
+import { radius, spacing } from './spacing';
+import { shadows } from './shadows';
+import { fontSize, fontWeight, typography } from './typography';
 
 /**
  * Estilos compartilhados por todas as telas.

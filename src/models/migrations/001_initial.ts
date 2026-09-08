@@ -1,4 +1,4 @@
-import {Migration} from './types';
+import { Migration } from './types';
 
 export const migration001: Migration = {
   id: 1,

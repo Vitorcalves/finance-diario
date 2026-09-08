@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import {migrations} from './migrations';
+import { migrations } from './migrations';
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
@@ -36,7 +36,7 @@ export const getConnection = async (): Promise<SQLite.SQLiteDatabase> => {
     if (!isInvalidNativeConnectionError(error)) {
       throw error;
     }
-    
+
     dbPromise = openConnection();
     db = await dbPromise;
     await db.getFirstAsync<{ ok: number }>('SELECT 1 AS ok');

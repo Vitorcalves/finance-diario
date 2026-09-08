@@ -1,4 +1,4 @@
-import {getConnection} from './database';
+import { getConnection } from './database';
 
 export type HistoricoPreco = {
   id: string;
@@ -22,9 +22,7 @@ export const listHistoricoPreco = async (): Promise<HistoricoPreco[]> => {
   );
 };
 
-export const insertHistoricoPreco = async (
-  historico: HistoricoPreco,
-): Promise<void> => {
+export const insertHistoricoPreco = async (historico: HistoricoPreco): Promise<void> => {
   const db = await getConnection();
 
   await db.runAsync(
@@ -49,9 +47,7 @@ export const deleteHistoricoPrecoById = async (id: string): Promise<void> => {
   await db.runAsync('DELETE FROM historico_preco WHERE id = ?', [id]);
 };
 
-export const getHistoricoPrecoById = async (
-  id: string,
-): Promise<HistoricoPreco | null> => {
+export const getHistoricoPrecoById = async (id: string): Promise<HistoricoPreco | null> => {
   const db = await getConnection();
   const row = await db.getFirstAsync<HistoricoPreco>(
     `

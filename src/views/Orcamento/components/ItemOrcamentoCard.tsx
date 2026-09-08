@@ -1,0 +1,36 @@
+import { Text, View } from 'react-native';
+import { IconButton } from '../../../components/ui';
+import { iconSize, sharedStyles } from '../../../theme';
+import { toCurrency } from '../../../utils/format';
+import type { ItemOrcamento } from '../types';
+
+type ItemOrcamentoCardProps = {
+  item: ItemOrcamento;
+  onEditar: () => void;
+  onRemover: () => void;
+};
+
+/** Item ja adicionado ao orcamento. */
+export default function ItemOrcamentoCard({
+  item,
+  onEditar,
+  onRemover,
+}: ItemOrcamentoCardProps): React.ReactNode {
+  return (
+    <View style={sharedStyles.listCard}>
+      <View style={sharedStyles.listCardInfo}>
+        <Text style={sharedStyles.listCardTitle}>{item.descricao}</Text>
+        <Text style={sharedStyles.listCardDetail}>
+          {`${item.quantidade} x ${toCurrency(item.preco)} = ${toCurrency(
+            item.quantidade * item.preco,
+          )}`}
+        </Text>
+      </View>
+
+      <View style={sharedStyles.iconButtonRow}>
+        <IconButton icon="pencil" variant="primary" size={iconSize.sm} onPress={onEditar} />
+        <IconButton icon="trash" variant="danger" size={iconSize.sm} onPress={onRemover} />
+      </View>
+    </View>
+  );
+}

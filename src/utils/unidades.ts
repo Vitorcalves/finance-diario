@@ -11,7 +11,13 @@ export type UnidadeDefinicao = {
 export class Unidades {
   private static readonly definicoes: UnidadeDefinicao[] = [
     { id: 1, descricao: 'Metros', grupo: 'comprimento', fatorParaPrimaria: 1, primario: true },
-    { id: 5, descricao: 'Centímetros', grupo: 'comprimento', fatorParaPrimaria: 0.01, primario: false },
+    {
+      id: 5,
+      descricao: 'Centímetros',
+      grupo: 'comprimento',
+      fatorParaPrimaria: 0.01,
+      primario: false,
+    },
     { id: 2, descricao: 'Quilogramas', grupo: 'massa', fatorParaPrimaria: 1, primario: true },
     { id: 4, descricao: 'Gramas', grupo: 'massa', fatorParaPrimaria: 0.001, primario: false },
     { id: 3, descricao: 'Litros', grupo: 'volume', fatorParaPrimaria: 1, primario: true },

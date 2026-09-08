@@ -1,4 +1,4 @@
-import {getConnection} from './database';
+import { getConnection } from './database';
 
 export type CategoriaProduto = {
   id: string;
@@ -9,7 +9,6 @@ export type CategoriaProduto = {
 
 export const listCategorias = async (): Promise<CategoriaProduto[]> => {
   const db = await getConnection();
-
 
   return await db.getAllAsync<CategoriaProduto>(
     `

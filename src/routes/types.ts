@@ -7,6 +7,7 @@ export type MenuStackParamList = {
   Marcas: undefined;
   HistoricoPrecos: undefined;
   Orcamento: undefined;
+  Planos: undefined;
 };
 
 export type ProdutosStackParamList = {

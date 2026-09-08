@@ -1,18 +1,28 @@
-import React, {useMemo, useState} from 'react';
-import {Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View,} from 'react-native';
+import React, { useMemo, useState } from 'react';
+import {
+  Alert,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import dayjs from 'dayjs';
-import {v4 as uuidv4} from 'uuid';
+import { v4 as uuidv4 } from 'uuid';
 import BrazilianDateInput from '../../../components/BrazilianDateInput';
 import BrazilianIntegerInput from '../../../components/BrazilianIntegerInput';
 import SeletorMultiplo from '../../../components/SeletorMultiplo';
-import {Button} from '../../../components/ui';
-import {colors, radius, shadows, sharedStyles, spacing} from '../../../theme';
-import {toCurrency} from '../../../utils/format';
-import {useCatalogoLancamento} from '../useCatalogoLancamento';
-import type {ItemLancamento, NovoLancamento, TipoLancamento} from '../types';
+import { Button } from '../../../components/ui';
+import { colors, radius, shadows, sharedStyles, spacing } from '../../../theme';
+import { toCurrency } from '../../../utils/format';
+import { useCatalogoLancamento } from '../useCatalogoLancamento';
+import type { ItemLancamento, NovoLancamento, TipoLancamento } from '../types';
 import LancamentoItemCard from './LancamentoItemCard';
-import LancamentoItemForm, {type DadosItemLancamento} from './LancamentoItemForm';
+import LancamentoItemForm, { type DadosItemLancamento } from './LancamentoItemForm';
 import LancamentoTipoSelector from './LancamentoTipoSelector';
+import ParcelamentoSelector from './ParcelamentoSelector';
 
 const todayIso = (): string => dayjs().format('YYYY-MM-DD');
 
@@ -27,8 +37,8 @@ type NovoLancamentoFormProps = {
  * item fica em `LancamentoItemForm`.
  */
 export default function NovoLancamentoForm({
-                                             onAddLancamento,
-                                           }: NovoLancamentoFormProps): React.ReactNode {
+  onAddLancamento,
+}: NovoLancamentoFormProps): React.ReactNode {
   const catalogo = useCatalogoLancamento();
 
   const [modalVisible, setModalVisible] = useState(false);
@@ -39,6 +49,11 @@ export default function NovoLancamentoForm({
   const [data, setData] = useState(todayIso());
   const [dataInputKey, setDataInputKey] = useState(0);
   const [valorManual, setValorManual] = useState('');
+
+  const [parcelado, setParcelado] = useState(false);
+  const [parcelas, setParcelas] = useState(2);
+  const [primeiraParcela, setPrimeiraParcela] = useState(todayIso());
+  const [parcelaDataKey, setParcelaDataKey] = useState(0);
 
   const [itens, setItens] = useState<ItemLancamento[]>([]);
   const [itemEditIndex, setItemEditIndex] = useState<number | null>(null);
@@ -51,6 +66,19 @@ export default function NovoLancamentoForm({
   );
 
   const totalLancamento = itens.length > 0 ? totalItens : Number(valorManual) || 0;
+
+  /** Entrada parcelada nao faz sentido aqui: o parcelamento e do que se compra. */
+  const permiteParcelar = tipo === 'saida';
+
+  const alternarParcelamento = (ativo: boolean): void => {
+    setParcelado(ativo);
+
+    if (ativo) {
+      // Por padrao a 1a parcela vence no dia da compra; o usuario ajusta se quiser.
+      setPrimeiraParcela(data);
+      setParcelaDataKey((atual) => atual + 1);
+    }
+  };
 
   const abrirModal = (): void => {
     catalogo.carregar();
@@ -71,6 +99,10 @@ export default function NovoLancamentoForm({
     setData(todayIso());
     setDataInputKey((atual) => atual + 1);
     setValorManual('');
+    setParcelado(false);
+    setParcelas(2);
+    setPrimeiraParcela(todayIso());
+    setParcelaDataKey((atual) => atual + 1);
     setItens([]);
     reiniciarItemForm(null);
   };
@@ -78,11 +110,11 @@ export default function NovoLancamentoForm({
   const salvarItem = (dados: DadosItemLancamento): void => {
     setItens((prev) => {
       if (itemEditIndex === null) {
-        return [...prev, {...dados, localId: uuidv4()}];
+        return [...prev, { ...dados, localId: uuidv4() }];
       }
 
       const copia = [...prev];
-      copia[itemEditIndex] = {...dados, localId: prev[itemEditIndex].localId};
+      copia[itemEditIndex] = { ...dados, localId: prev[itemEditIndex].localId };
       return copia;
     });
 
@@ -116,6 +148,18 @@ export default function NovoLancamentoForm({
       return;
     }
 
+    const parcelandoAgora = permiteParcelar && parcelado;
+
+    if (parcelandoAgora && parcelas < 2) {
+      Alert.alert('Erro', 'Uma compra parcelada precisa de ao menos 2 parcelas');
+      return;
+    }
+
+    if (parcelandoAgora && !/^\d{4}-\d{2}-\d{2}$/.test(primeiraParcela)) {
+      Alert.alert('Erro', 'Informe uma data valida para a 1a parcela');
+      return;
+    }
+
     try {
       await onAddLancamento({
         tipo,
@@ -124,6 +168,7 @@ export default function NovoLancamentoForm({
         empresaId,
         valor: tipo === 'saida' ? -totalLancamento : totalLancamento,
         itens,
+        parcelamento: parcelandoAgora ? { parcelas, primeiraParcela } : null,
       });
 
       limparFormulario();
@@ -136,17 +181,17 @@ export default function NovoLancamentoForm({
 
   return (
     <>
-      <Button label="Novo lancamento" onPress={abrirModal}/>
+      <Button label="Novo lancamento" onPress={abrirModal} />
 
       <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={fecharModal}>
         <View style={styles.overlay}>
-          <Pressable style={styles.backdrop} onPress={fecharModal}/>
+          <Pressable style={styles.backdrop} onPress={fecharModal} />
 
           <View style={styles.card}>
             <Text style={sharedStyles.sectionTitle}>Novo lancamento</Text>
 
             <ScrollView style={styles.cardScroll} nestedScrollEnabled>
-              <LancamentoTipoSelector tipo={tipo} onChange={setTipo}/>
+              <LancamentoTipoSelector tipo={tipo} onChange={setTipo} />
 
               <SeletorMultiplo
                 label="Empresa"
@@ -222,6 +267,18 @@ export default function NovoLancamentoForm({
                   />
                 </>
               )}
+              {permiteParcelar && (
+                <ParcelamentoSelector
+                  ativo={parcelado}
+                  onAlternar={alternarParcelamento}
+                  parcelas={parcelas}
+                  onChangeParcelas={setParcelas}
+                  primeiraParcela={primeiraParcela}
+                  onChangePrimeiraParcela={setPrimeiraParcela}
+                  dataInputKey={parcelaDataKey}
+                  total={totalLancamento}
+                />
+              )}
             </ScrollView>
 
             <View style={styles.totalRow}>
@@ -237,9 +294,15 @@ export default function NovoLancamentoForm({
             </View>
 
             <View style={sharedStyles.actionsRow}>
-              <Button label="Cancelar" variant="secondary" flex onPress={fecharModal}/>
+              <Button label="Cancelar" variant="secondary" flex onPress={fecharModal} />
               <Button
-                label={tipo === 'saida' ? 'Adicionar saida' : 'Adicionar entrada'}
+                label={
+                  permiteParcelar && parcelado
+                    ? `Parcelar em ${parcelas}x`
+                    : tipo === 'saida'
+                      ? 'Adicionar saida'
+                      : 'Adicionar entrada'
+                }
                 flex
                 style={tipo === 'entrada' ? styles.buttonEntrada : undefined}
                 onPress={(): void => {

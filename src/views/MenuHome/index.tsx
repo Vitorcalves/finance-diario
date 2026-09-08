@@ -17,6 +17,7 @@ const TELAS_DO_MENU: { label: string; screen: keyof MenuStackParamList }[] = [
   { label: 'Ir para Marcas', screen: 'Marcas' },
   { label: 'Ir para Historico de Precos', screen: 'HistoricoPrecos' },
   { label: 'Ir para Orcamento', screen: 'Orcamento' },
+  { label: 'Ir para Assinaturas e Parcelas', screen: 'Planos' },
 ];
 
 /** Menu de navegacao com atalhos para as abas e os cadastros. */

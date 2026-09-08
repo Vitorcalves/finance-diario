@@ -1,10 +1,20 @@
-import {StyleSheet, Text, View} from 'react-native';
-import {type ItemTransacao, totalItemTransacao} from '../../../models/itensTransacao';
-import type {Transacoes} from '../../../models/transacoesModel';
-import {IconButton} from '../../../components/ui';
-import {colors, fontSize, fontWeight, sharedStyles, spacing} from '../../../theme';
-import {formatarData, toCurrency} from '../../../utils/format';
-import React from "react";
+import { StyleSheet, Text, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import dayjs from 'dayjs';
+import { type ItemTransacao, totalItemTransacao } from '../../../models/itensTransacao';
+import type { Transacoes } from '../../../models/transacoesModel';
+import { IconButton } from '../../../components/ui';
+import {
+  colors,
+  fontSize,
+  fontWeight,
+  iconSize,
+  radius,
+  sharedStyles,
+  spacing,
+} from '../../../theme';
+import { formatarData, toCurrency } from '../../../utils/format';
+import React from 'react';
 
 type TransacaoItemProps = {
   transacao: Transacoes;
@@ -15,11 +25,14 @@ type TransacaoItemProps = {
 
 /** Uma linha da lista de lancamentos, com os itens da compra abaixo. */
 export default function TransacaoItem({
-                                        transacao,
-                                        itens,
-                                        empresa,
-                                        onRemover,
-                                      }: TransacaoItemProps): React.ReactNode {
+  transacao,
+  itens,
+  empresa,
+  onRemover,
+}: TransacaoItemProps): React.ReactNode {
+  /** Parcela ou assinatura que ainda vai vencer: ja lancada, mas fora do caixa de hoje. */
+  const previsto = transacao.data > dayjs().format('YYYY-MM-DD');
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -29,6 +42,13 @@ export default function TransacaoItem({
             {formatarData(transacao.data)}
             {empresa ? ` • ${empresa}` : ''}
           </Text>
+
+          {previsto && (
+            <View style={styles.selo}>
+              <Ionicons name="time-outline" size={iconSize.sm} color={colors.info} />
+              <Text style={styles.seloTexto}>A vencer</Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.acoes}>
@@ -40,7 +60,7 @@ export default function TransacaoItem({
           >
             {toCurrency(transacao.valor)}
           </Text>
-          <IconButton icon="trash" variant="danger" onPress={(): void => onRemover(transacao.id)}/>
+          <IconButton icon="trash" variant="danger" onPress={(): void => onRemover(transacao.id)} />
         </View>
       </View>
 
@@ -89,6 +109,24 @@ const styles = StyleSheet.create({
   meta: {
     fontSize: fontSize.caption,
     color: colors.textMuted,
+  },
+  selo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 2,
+    marginTop: 2,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 1,
+    borderRadius: radius.pill,
+    backgroundColor: colors.infoSoft,
+    borderWidth: 1,
+    borderColor: colors.infoBorder,
+  },
+  seloTexto: {
+    fontSize: fontSize.micro,
+    fontWeight: fontWeight.bold,
+    color: colors.info,
   },
   valor: {
     fontSize: fontSize.body,

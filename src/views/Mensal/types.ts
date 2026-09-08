@@ -4,14 +4,16 @@ export type DiaDoMes = {
   /** Data no formato YYYY-MM-DD. */
   data: string;
   dia: number;
-  /** Total gasto no dia, sempre positivo (saidas). */
+  /** Total gasto no dia, sempre positivo (saidas ja realizadas). */
   gasto: number;
+  /** Saidas ja lancadas para um dia futuro: parcelas e assinaturas a vencer. */
+  comprometido: number;
   /** Total recebido no dia, sempre positivo (entradas). */
   entrada: number;
-  /** Gasto somado do dia 1 ate este dia. */
+  /** Gasto realizado somado do dia 1 ate este dia. */
   acumulado: number;
   fimDeSemana: boolean;
-  /** Dias ainda nao vividos no mes corrente: sem barra, so projecao. */
+  /** Dias ainda nao vividos no mes corrente: sem barra cheia, so projecao. */
   futuro: boolean;
   hoje: boolean;
 };
@@ -20,7 +22,14 @@ export type ResumoMes = {
   gastoTotal: number;
   entradaTotal: number;
   mediaDiaria: number;
-  /** No mes corrente, a media diaria projetada ate o fim do mes. */
+  /**
+   * Media diaria dos gastos avulsos (sem plano). E ela que projeta o resto do
+   * mes: parcelas e assinaturas ja entram pelo valor exato.
+   */
+  mediaDiariaVariavel: number;
+  /** Saidas do mes ja lancadas com vencimento futuro. */
+  comprometido: number;
+  /** Realizado + comprometido a vencer + media dos gastos avulsos restantes. */
   projecao: number;
   diasComGasto: number;
   maiorDia: DiaDoMes | null;

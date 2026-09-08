@@ -3,6 +3,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import dayjs from 'dayjs';
 import 'dayjs/locale/pt-br';
 import { type Empresa, listEmpresas } from '../../models/empresas';
+import { materializarPlanos } from '../../models/materializacaoPlanos';
 import { listTransacoes, type Transacoes } from '../../models/transacoesModel';
 import type { ComparativoMes, DetalheDoDia, DiaDoMes, ResumoMes } from './types';
 
@@ -13,6 +14,9 @@ const gastoDe = (transacao: Transacoes): number =>
   transacao.valor < 0 ? Math.abs(transacao.valor) : 0;
 
 const entradaDe = (transacao: Transacoes): number => (transacao.valor > 0 ? transacao.valor : 0);
+
+/** Uma cobranca com data futura ja esta lancada, mas ainda nao saiu do bolso. */
+const jaAconteceu = (transacao: Transacoes, hoje: string): boolean => transacao.data <= hoje;
 
 const somaGastos = (transacoes: Transacoes[]): number =>
   transacoes.reduce((soma, transacao) => soma + gastoDe(transacao), 0);
@@ -51,12 +55,14 @@ export function useMensal(): UseMensal {
 
   const carregarDados = useCallback(async (): Promise<void> => {
     const mesAnterior = mesSelecionado.subtract(1, 'month');
+    const fimDoMes = mesSelecionado.endOf('month').format('YYYY-MM-DD');
+
+    // Abrir um mes futuro materializa as assinaturas dele: a projecao nasce
+    // com os compromissos ja conhecidos dentro.
+    await materializarPlanos(fimDoMes);
 
     const [doMes, doMesAnterior, empresasDoBanco] = await Promise.all([
-      listTransacoes(
-        mesSelecionado.startOf('month').format('YYYY-MM-DD'),
-        mesSelecionado.endOf('month').format('YYYY-MM-DD'),
-      ),
+      listTransacoes(mesSelecionado.startOf('month').format('YYYY-MM-DD'), fimDoMes),
       listTransacoes(
         mesAnterior.startOf('month').format('YYYY-MM-DD'),
         mesAnterior.endOf('month').format('YYYY-MM-DD'),
@@ -109,6 +115,7 @@ export function useMensal(): UseMensal {
   );
 
   const hoje = dayjs();
+  const hojeIso = hoje.format('YYYY-MM-DD');
   const mesCorrente = mesSelecionado.isSame(hoje, 'month');
   const mesFuturo = mesSelecionado.isAfter(hoje, 'month');
   const diasNoMes = mesSelecionado.daysInMonth();
@@ -123,6 +130,7 @@ export function useMensal(): UseMensal {
         data: data.format('YYYY-MM-DD'),
         dia: index + 1,
         gasto: 0,
+        comprometido: 0,
         entrada: 0,
         acumulado: 0,
         fimDeSemana: diaDaSemana === 0 || diaDaSemana === 6,
@@ -134,9 +142,15 @@ export function useMensal(): UseMensal {
     for (const transacao of transacoesMes) {
       const indice = dayjs(transacao.data).date() - 1;
 
-      if (indice >= 0 && indice < base.length) {
+      if (indice < 0 || indice >= base.length) {
+        continue;
+      }
+
+      if (jaAconteceu(transacao, hojeIso)) {
         base[indice].gasto += gastoDe(transacao);
         base[indice].entrada += entradaDe(transacao);
+      } else {
+        base[indice].comprometido += gastoDe(transacao);
       }
     }
 
@@ -150,15 +164,33 @@ export function useMensal(): UseMensal {
     return base;
     // `hoje` muda a cada render, mas so importa a data: mesCorrente/diasDecorridos ja cobrem.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [transacoesMes, mesSelecionado, diasNoMes, diasDecorridos, mesCorrente]);
+  }, [transacoesMes, mesSelecionado, diasNoMes, diasDecorridos, mesCorrente, hojeIso]);
 
   const resumo = useMemo((): ResumoMes => {
-    const gastoTotal = somaGastos(transacoesMes);
-    const entradaTotal = transacoesMes.reduce((soma, transacao) => soma + entradaDe(transacao), 0);
+    const realizadas = transacoesMes.filter((transacao) => jaAconteceu(transacao, hojeIso));
+    const aVencer = transacoesMes.filter((transacao) => !jaAconteceu(transacao, hojeIso));
+
+    const gastoTotal = somaGastos(realizadas);
+    const entradaTotal = realizadas.reduce((soma, transacao) => soma + entradaDe(transacao), 0);
+    const comprometido = somaGastos(aVencer);
+
     const mediaDiaria = diasDecorridos > 0 ? gastoTotal / diasDecorridos : 0;
 
-    /** Mes fechado ja tem o total final; no mes corrente projetamos pela media. */
-    const projecao = mesCorrente ? mediaDiaria * diasNoMes : gastoTotal;
+    /**
+     * Parcelas e assinaturas ja realizadas saem da media: elas voltam na
+     * projecao pelo valor exato, e conta-las duas vezes inflaria o mes.
+     */
+    const gastoVariavel = somaGastos(realizadas.filter((transacao) => !transacao.plano_id));
+    const mediaDiariaVariavel = diasDecorridos > 0 ? gastoVariavel / diasDecorridos : 0;
+
+    const diasRestantes = Math.max(0, diasNoMes - diasDecorridos);
+
+    /** Mes fechado ja tem o total final; no mes corrente somamos o que falta. */
+    const projecao = mesFuturo
+      ? comprometido
+      : mesCorrente
+        ? gastoTotal + comprometido + mediaDiariaVariavel * diasRestantes
+        : gastoTotal;
 
     const diasComGasto = dias.filter((dia) => dia.gasto > 0).length;
     const maiorDia = dias.reduce<DiaDoMes | null>(
@@ -166,8 +198,17 @@ export function useMensal(): UseMensal {
       null,
     );
 
-    return { gastoTotal, entradaTotal, mediaDiaria, projecao, diasComGasto, maiorDia };
-  }, [transacoesMes, dias, diasDecorridos, diasNoMes, mesCorrente]);
+    return {
+      gastoTotal,
+      entradaTotal,
+      mediaDiaria,
+      mediaDiariaVariavel,
+      comprometido,
+      projecao,
+      diasComGasto,
+      maiorDia,
+    };
+  }, [transacoesMes, dias, diasDecorridos, diasNoMes, mesCorrente, mesFuturo, hojeIso]);
 
   const comparativo = useMemo((): ComparativoMes => {
     const totalAnterior = somaGastos(transacoesMesAnterior);
@@ -183,15 +224,26 @@ export function useMensal(): UseMensal {
     return { totalAnterior, ateMesmoDia, variacao };
   }, [transacoesMesAnterior, diasDecorridos, resumo.gastoTotal]);
 
+  /**
+   * Acumulado projetado dia a dia: parte do realizado e soma, em cada dia que
+   * falta, o que ja esta comprometido nele mais a media dos gastos avulsos.
+   */
   const projecaoPorDia = useMemo((): number[] => {
     if (!mesCorrente) {
       return [];
     }
 
-    return dias.map((dia) =>
-      dia.futuro ? resumo.gastoTotal + resumo.mediaDiaria * (dia.dia - diasDecorridos) : 0,
-    );
-  }, [dias, mesCorrente, resumo.gastoTotal, resumo.mediaDiaria, diasDecorridos]);
+    let acumulado = resumo.gastoTotal;
+
+    return dias.map((dia) => {
+      if (!dia.futuro) {
+        return 0;
+      }
+
+      acumulado += dia.comprometido + resumo.mediaDiariaVariavel;
+      return acumulado;
+    });
+  }, [dias, mesCorrente, resumo.gastoTotal, resumo.mediaDiariaVariavel]);
 
   const escalaAcumulado = Math.max(
     resumo.gastoTotal,
@@ -199,7 +251,7 @@ export function useMensal(): UseMensal {
     comparativo.totalAnterior,
     1,
   );
-  const escalaDiaria = Math.max(...dias.map((dia) => dia.gasto), 1);
+  const escalaDiaria = Math.max(...dias.map((dia) => Math.max(dia.gasto, dia.comprometido)), 1);
 
   const detalheDia = useMemo((): DetalheDoDia | null => {
     if (!diaSelecionado) {

@@ -1,38 +1,64 @@
-import {StyleSheet, Text, View} from 'react-native';
-import {colors, fontSize, fontWeight, radius, sharedStyles, spacing} from '../../../theme';
-import {toCurrency} from '../../../utils/format';
-import React from "react";
+import { StyleSheet, Text, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import {
+  colors,
+  fontSize,
+  fontWeight,
+  iconSize,
+  radius,
+  sharedStyles,
+  spacing,
+} from '../../../theme';
+import { toCurrency } from '../../../utils/format';
+import React from 'react';
 
 type ResumoTotaisProps = {
   totalSaidas: number;
   saldoAtual: number;
+  /** Parcelas e assinaturas ja lancadas que ainda vao vencer (valor negativo). */
+  comprometidoFuturo: number;
 };
 
-/** Par de caixas com o gasto total e o saldo atual. */
+/** Par de caixas com o gasto total e o saldo atual, mais o que ja esta comprometido. */
 export default function ResumoTotais({
-                                       totalSaidas,
-                                       saldoAtual,
-                                     }: ResumoTotaisProps): React.ReactNode {
+  totalSaidas,
+  saldoAtual,
+  comprometidoFuturo,
+}: ResumoTotaisProps): React.ReactNode {
   return (
-    <View style={styles.row}>
-      <View style={styles.box}>
-        <Text style={styles.label}>Gasto total</Text>
-        <Text style={styles.valor}>{toCurrency(totalSaidas)}</Text>
+    <View style={styles.container}>
+      <View style={styles.row}>
+        <View style={styles.box}>
+          <Text style={styles.label}>Gasto total</Text>
+          <Text style={styles.valor}>{toCurrency(totalSaidas)}</Text>
+        </View>
+
+        <View style={styles.box}>
+          <Text style={styles.label}>Saldo atual</Text>
+          <Text
+            style={[styles.valor, saldoAtual < 0 ? sharedStyles.negative : sharedStyles.positive]}
+          >
+            {toCurrency(saldoAtual)}
+          </Text>
+        </View>
       </View>
 
-      <View style={styles.box}>
-        <Text style={styles.label}>Saldo atual</Text>
-        <Text
-          style={[styles.valor, saldoAtual < 0 ? sharedStyles.negative : sharedStyles.positive]}
-        >
-          {toCurrency(saldoAtual)}
-        </Text>
-      </View>
+      {comprometidoFuturo < 0 && (
+        <View style={styles.comprometidoRow}>
+          <Ionicons name="calendar-outline" size={iconSize.sm} color={colors.textMuted} />
+          <Text style={styles.comprometidoTexto}>
+            {`${toCurrency(Math.abs(comprometidoFuturo))} ja comprometidos em parcelas e assinaturas a vencer`}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    gap: spacing.sm,
+  },
   row: {
     flexDirection: 'row',
     gap: spacing.md,
@@ -54,5 +80,16 @@ const styles = StyleSheet.create({
     fontSize: fontSize.section,
     fontWeight: fontWeight.heavy,
     color: colors.textStrong,
+  },
+  comprometidoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.xs,
+  },
+  comprometidoTexto: {
+    flex: 1,
+    fontSize: fontSize.caption,
+    color: colors.textMuted,
   },
 });

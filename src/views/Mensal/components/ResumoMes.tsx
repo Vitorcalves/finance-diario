@@ -62,15 +62,23 @@ export default function ResumoMes({
         </View>
       )}
 
+      {resumo.comprometido > 0 && (
+        <Text style={styles.comprometido}>
+          {`+ ${toCurrency(resumo.comprometido)} em parcelas e assinaturas a vencer neste mes`}
+        </Text>
+      )}
+
       <View style={styles.statsRow}>
         <View style={styles.statBox}>
           <Text style={styles.statLabel}>Media por dia</Text>
           <Text style={styles.statValue}>{toCurrency(resumo.mediaDiaria)}</Text>
         </View>
         <View style={styles.statBox}>
-          <Text style={styles.statLabel}>{mesCorrente ? 'Projecao do mes' : 'Entradas'}</Text>
+          <Text style={styles.statLabel}>
+            {mesCorrente || mesFuturo ? 'Projecao do mes' : 'Entradas'}
+          </Text>
           <Text style={styles.statValue}>
-            {toCurrency(mesCorrente ? resumo.projecao : resumo.entradaTotal)}
+            {toCurrency(mesCorrente || mesFuturo ? resumo.projecao : resumo.entradaTotal)}
           </Text>
         </View>
       </View>
@@ -91,6 +99,10 @@ const styles = StyleSheet.create({
   periodo: {
     fontSize: fontSize.caption,
     color: colors.textSubtle,
+  },
+  comprometido: {
+    fontSize: fontSize.caption,
+    color: colors.info,
   },
   variacaoRow: {
     flexDirection: 'row',

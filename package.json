@@ -10,7 +10,8 @@
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "format": "prettier --write \"**/*.{ts,tsx,json}\"",
-    "db:migrate": "tsx scripts/migrate.ts"
+    "db:migrate": "tsx scripts/migrate.ts",
+    "verify:planos": "tsx scripts/verifica-planos.ts"
   },
   "dependencies": {
     "@eslint/compat": "^2.0.5",

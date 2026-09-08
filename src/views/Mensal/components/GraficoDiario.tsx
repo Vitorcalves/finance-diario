@@ -41,6 +41,15 @@ export default function GraficoDiario({
             style={styles.chartColumn}
             onPress={(): void => onSelecionarDia(dia.data)}
           >
+            {dia.comprometido > 0 && (
+              <View
+                style={[
+                  styles.barra,
+                  styles.barraComprometida,
+                  alturaBarra(dia.comprometido, escala, ALTURA_POR_DIA),
+                ]}
+              />
+            )}
             <View
               style={[
                 styles.barra,
@@ -91,6 +100,12 @@ const styles = StyleSheet.create({
   barra: {
     borderRadius: radius.sm,
     backgroundColor: colors.primary,
+  },
+  /** Parcela/assinatura a vencer: mesma escala, peso visual menor. */
+  barraComprometida: {
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   barraFimDeSemana: {
     backgroundColor: colors.textSubtle,

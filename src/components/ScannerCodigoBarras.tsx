@@ -2,8 +2,8 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useEffect } from 'react';
 import { Modal, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { EmptyState, ScreenHeader } from '../../../components/ui';
-import { colors, radius, sharedStyles } from '../../../theme';
+import { EmptyState, ScreenHeader } from './ui';
+import { colors, radius, sharedStyles } from '../theme';
 
 type ScannerCodigoBarrasProps = {
   onLer: (codigo: string) => void;

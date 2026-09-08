@@ -1,12 +1,22 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMemo, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import BrazilianIntegerInput from '../../../components/BrazilianIntegerInput';
+import ScannerCodigoBarras from '../../../components/ScannerCodigoBarras';
 import SeletorMultiplo from '../../../components/SeletorMultiplo';
 import { Button, ChipSelector } from '../../../components/ui';
 import type { HistoricoPreco } from '../../../models/historicoPreco';
 import type { Produto } from '../../../models/produtos';
 import type { ProdutoVariantes } from '../../../models/produtoVariantes';
-import { colors, fontSize, radius, sharedStyles, spacing } from '../../../theme';
+import {
+  colors,
+  fontSize,
+  fontWeight,
+  iconSize,
+  radius,
+  sharedStyles,
+  spacing,
+} from '../../../theme';
 import { formatarData, toCurrency } from '../../../utils/format';
 import type { DadosItemOrcamento, ItemOrcamento } from '../types';
 
@@ -49,6 +59,7 @@ export default function ItemOrcamentoForm({
   const [varianteId, setVarianteId] = useState<string | null>(itemInicial?.varianteId ?? null);
   const [quantidade, setQuantidade] = useState(itemInicial ? String(itemInicial.quantidade) : '1');
   const [preco, setPreco] = useState(itemInicial ? itemInicial.preco.toFixed(2) : '');
+  const [scannerAberto, setScannerAberto] = useState(false);
 
   const editando = itemInicial !== null;
 
@@ -63,6 +74,17 @@ export default function ItemOrcamentoForm({
     setPreco('');
   };
 
+  const aplicarVariante = (variante: ProdutoVariantes): void => {
+    setProdutoId(variante.produto_id);
+    setVarianteId(variante.id);
+
+    // Sugere o ultimo preco visto neste mercado; se nao houver, o preco atual da variante.
+    const referencia = ultimoPreco(variante.id, empresaSelecionada);
+    const sugestao = referencia?.preco ?? precoBaseDaVariante(variante.id);
+
+    setPreco(sugestao !== null ? sugestao.toFixed(2) : '');
+  };
+
   const selecionarVariante = (id: string): void => {
     if (varianteId === id) {
       setVarianteId(null);
@@ -70,13 +92,36 @@ export default function ItemOrcamentoForm({
       return;
     }
 
-    setVarianteId(id);
+    const variante = variantes.find((item) => item.id === id);
 
-    // Sugere o ultimo preco visto neste mercado; se nao houver, o preco atual da variante.
-    const referencia = ultimoPreco(id, empresaSelecionada);
-    const sugestao = referencia?.preco ?? precoBaseDaVariante(id);
+    if (!variante) {
+      return;
+    }
 
-    setPreco(sugestao !== null ? sugestao.toFixed(2) : '');
+    aplicarVariante(variante);
+  };
+
+  /** Seleciona produto e variante a partir do codigo de barras lido pela camera. */
+  const lerCodigoBarras = (codigo: string): void => {
+    setScannerAberto(false);
+
+    const codigoLimpo = codigo.trim();
+
+    if (!codigoLimpo) {
+      return;
+    }
+
+    const variante = variantes.find((item) => (item.codigo_barras ?? '').trim() === codigoLimpo);
+
+    if (!variante) {
+      Alert.alert(
+        'Codigo nao encontrado',
+        `Nenhuma variante cadastrada com o codigo ${codigoLimpo}`,
+      );
+      return;
+    }
+
+    aplicarVariante(variante);
   };
 
   const salvar = (): void => {
@@ -112,6 +157,11 @@ export default function ItemOrcamentoForm({
   return (
     <View style={sharedStyles.subForm}>
       <Text style={sharedStyles.subFormTitle}>{editando ? 'Editar item' : 'Novo item'}</Text>
+
+      <Pressable style={styles.scanButton} onPress={(): void => setScannerAberto(true)}>
+        <Ionicons name="barcode-outline" size={iconSize.md} color={colors.primary} />
+        <Text style={styles.scanButtonText}>Ler codigo de barras</Text>
+      </Pressable>
 
       <SeletorMultiplo
         label="Produto"
@@ -196,11 +246,35 @@ export default function ItemOrcamentoForm({
         />
         {editando && <Button label="Cancelar" variant="secondary" flex onPress={onCancelar} />}
       </View>
+
+      {scannerAberto && (
+        <ScannerCodigoBarras
+          onLer={lerCodigoBarras}
+          onFechar={(): void => setScannerAberto(false)}
+        />
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  scanButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  scanButtonText: {
+    color: colors.textBody,
+    fontSize: fontSize.input,
+    fontWeight: fontWeight.bold,
+  },
   referenciaBox: {
     backgroundColor: colors.surface,
     borderRadius: radius.md,

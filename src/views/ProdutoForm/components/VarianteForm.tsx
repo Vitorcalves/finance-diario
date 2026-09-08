@@ -2,13 +2,13 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import BrazilianIntegerInput from '../../../components/BrazilianIntegerInput';
+import ScannerCodigoBarras from '../../../components/ScannerCodigoBarras';
 import SeletorMultiplo from '../../../components/SeletorMultiplo';
 import { Button } from '../../../components/ui';
 import type { Marca } from '../../../models/marcas';
 import { colors, iconSize, radius, sharedStyles, spacing } from '../../../theme';
 import type { DadosVariante, VarianteFormItem } from '../types';
 import NomeSimplesForm from './NomeSimplesForm';
-import ScannerCodigoBarras from './ScannerCodigoBarras';
 import SeletorUnidade from './SeletorUnidade';
 
 type VarianteFormProps = {

@@ -22,6 +22,10 @@ export default function HistoricoPrecosView(): React.ReactNode {
     melhorPreco,
     produtoFiltro,
     alternarProdutoFiltro,
+    varianteFiltro,
+    codigoFiltro,
+    filtrarPorCodigoBarras,
+    limparFiltroCodigo,
     agrupamento,
     trocarAgrupamento,
     ordenacao,
@@ -49,6 +53,11 @@ export default function HistoricoPrecosView(): React.ReactNode {
             produtos={produtos}
             produtoFiltro={produtoFiltro}
             onAlternarProduto={alternarProdutoFiltro}
+            varianteFiltro={varianteFiltro}
+            codigoFiltro={codigoFiltro}
+            onLerCodigo={filtrarPorCodigoBarras}
+            onLimparCodigo={limparFiltroCodigo}
+            rotuloVariante={rotuloVariante}
             agrupamento={agrupamento}
             onTrocarAgrupamento={trocarAgrupamento}
             ordenacao={ordenacao}
@@ -59,8 +68,8 @@ export default function HistoricoPrecosView(): React.ReactNode {
             <EmptyState
               icon="time-outline"
               message={
-                produtoFiltro
-                  ? 'Nenhum preco registrado para este produto'
+                produtoFiltro || varianteFiltro
+                  ? 'Nenhum preco registrado para este filtro'
                   : 'Nenhum preco registrado ainda'
               }
               hint="Os precos sao registrados ao lancar itens com variante na tela inicial."

@@ -1,12 +1,14 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import React, {useMemo, useState} from 'react';
-import {Alert, Text, TextInput, View} from 'react-native';
+import {Alert, Pressable, StyleSheet, Text, TextInput, View} from 'react-native';
 import BrazilianIntegerInput from '../../../components/BrazilianIntegerInput';
+import ScannerCodigoBarras from '../../../components/ScannerCodigoBarras';
 import SeletorMultiplo from '../../../components/SeletorMultiplo';
 import {Button, ChipSelector} from '../../../components/ui';
 import type {Marca} from '../../../models/marcas';
 import type {Produto} from '../../../models/produtos';
 import type {ProdutoVariantes} from '../../../models/produtoVariantes';
-import {colors, sharedStyles} from '../../../theme';
+import {colors, fontSize, fontWeight, iconSize, radius, sharedStyles, spacing} from '../../../theme';
 import {toCurrency} from '../../../utils/format';
 import {rotuloVariante} from '../../../utils/variantes';
 import type {ItemLancamento} from '../types';
@@ -42,6 +44,7 @@ export default function LancamentoItemForm({
   const [descricao, setDescricao] = useState(itemInicial?.descricao ?? '');
   const [quantidade, setQuantidade] = useState(itemInicial ? String(itemInicial.quantidade) : '1');
   const [preco, setPreco] = useState(itemInicial ? itemInicial.precoUnitario.toFixed(2) : '');
+  const [scannerAberto, setScannerAberto] = useState(false);
 
   const editando = itemInicial !== null;
 
@@ -65,6 +68,15 @@ export default function LancamentoItemForm({
     setPreco(produto ? produto.preco.toFixed(2) : '');
   };
 
+  const aplicarVariante = (variante: ProdutoVariantes): void => {
+    const produto = produtos.find((item) => item.id === variante.produto_id);
+
+    setProdutoId(variante.produto_id);
+    setVarianteId(variante.id);
+    setDescricao(`${produto?.nome ?? ''} - ${rotuloVariante(variante, marcas)}`.trim());
+    setPreco(variante.preco.toFixed(2));
+  };
+
   const selecionarVariante = (id: string): void => {
     if (varianteId === id) {
       setVarianteId(null);
@@ -77,11 +89,27 @@ export default function LancamentoItemForm({
       return;
     }
 
-    const produto = produtos.find((item) => item.id === variante.produto_id);
+    aplicarVariante(variante);
+  };
 
-    setVarianteId(id);
-    setDescricao(`${produto?.nome ?? ''} - ${rotuloVariante(variante, marcas)}`.trim());
-    setPreco(variante.preco.toFixed(2));
+  /** Seleciona produto e variante a partir do codigo de barras lido pela camera. */
+  const lerCodigoBarras = (codigo: string): void => {
+    setScannerAberto(false);
+
+    const codigoLimpo = codigo.trim();
+
+    if (!codigoLimpo) {
+      return;
+    }
+
+    const variante = variantes.find((item) => (item.codigo_barras ?? '').trim() === codigoLimpo);
+
+    if (!variante) {
+      Alert.alert('Codigo nao encontrado', `Nenhuma variante cadastrada com o codigo ${codigoLimpo}`);
+      return;
+    }
+
+    aplicarVariante(variante);
   };
 
   const salvar = (): void => {
@@ -116,6 +144,11 @@ export default function LancamentoItemForm({
   return (
     <View style={sharedStyles.subForm}>
       <Text style={sharedStyles.subFormTitle}>{editando ? 'Editar item' : 'Novo item'}</Text>
+
+      <Pressable style={styles.scanButton} onPress={(): void => setScannerAberto(true)}>
+        <Ionicons name="barcode-outline" size={iconSize.md} color={colors.primary}/>
+        <Text style={styles.scanButtonText}>Ler codigo de barras</Text>
+      </Pressable>
 
       <SeletorMultiplo
         label="Produto"
@@ -188,6 +221,33 @@ export default function LancamentoItemForm({
         />
         {editando && <Button label="Cancelar" variant="secondary" flex onPress={onCancelar}/>}
       </View>
+
+      {scannerAberto && (
+        <ScannerCodigoBarras
+          onLer={lerCodigoBarras}
+          onFechar={(): void => setScannerAberto(false)}
+        />
+      )}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  scanButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  scanButtonText: {
+    color: colors.textBody,
+    fontSize: fontSize.input,
+    fontWeight: fontWeight.bold,
+  },
+});

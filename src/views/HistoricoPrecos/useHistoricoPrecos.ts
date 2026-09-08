@@ -20,6 +20,12 @@ export type UseHistoricoPrecos = {
   melhorPreco: number | null;
   produtoFiltro: string | null;
   alternarProdutoFiltro: (id: string) => void;
+  /** Variante isolada pela leitura do codigo de barras; `null` quando sem filtro. */
+  varianteFiltro: string | null;
+  /** Codigo de barras lido, mantido apenas para exibir o filtro ativo. */
+  codigoFiltro: string | null;
+  filtrarPorCodigoBarras: (codigo: string) => void;
+  limparFiltroCodigo: () => void;
   agrupamento: Agrupamento;
   trocarAgrupamento: (valor: Agrupamento) => void;
   ordenacao: Ordenacao;
@@ -40,6 +46,8 @@ export function useHistoricoPrecos(): UseHistoricoPrecos {
   const [loading, setLoading] = useState(true);
 
   const [produtoFiltro, setProdutoFiltro] = useState<string | null>(null);
+  const [varianteFiltro, setVarianteFiltro] = useState<string | null>(null);
+  const [codigoFiltro, setCodigoFiltro] = useState<string | null>(null);
   const [agrupamento, setAgrupamento] = useState<Agrupamento>('variante');
   const [ordenacao, setOrdenacao] = useState<Ordenacao>('menorPreco');
   const [expandidos, setExpandidos] = useState<string[]>([]);
@@ -93,9 +101,13 @@ export function useHistoricoPrecos(): UseHistoricoPrecos {
   );
 
   const grupos = useMemo((): GrupoPreco[] => {
-    const filtrado = produtoFiltro
-      ? historico.filter((registro) => registro.produto_id === produtoFiltro)
-      : historico;
+    const filtrado = historico.filter((registro) => {
+      if (produtoFiltro && registro.produto_id !== produtoFiltro) {
+        return false;
+      }
+
+      return !varianteFiltro || registro.variante_id === varianteFiltro;
+    });
 
     const agrupado = new Map<string, HistoricoPreco[]>();
 
@@ -145,7 +157,15 @@ export function useHistoricoPrecos(): UseHistoricoPrecos {
 
       return a.titulo.localeCompare(b.titulo, 'pt-BR');
     });
-  }, [historico, nomeProduto, rotuloVariante, produtoFiltro, agrupamento, ordenacao]);
+  }, [
+    historico,
+    nomeProduto,
+    rotuloVariante,
+    produtoFiltro,
+    varianteFiltro,
+    agrupamento,
+    ordenacao,
+  ]);
 
   const melhorPreco = useMemo(
     () => (grupos.length > 1 ? Math.min(...grupos.map((grupo) => grupo.atual)) : null),
@@ -158,15 +178,55 @@ export function useHistoricoPrecos(): UseHistoricoPrecos {
     );
   }, []);
 
+  const limparFiltroCodigo = useCallback((): void => {
+    setVarianteFiltro(null);
+    setCodigoFiltro(null);
+    setExpandidos([]);
+  }, []);
+
   const alternarProdutoFiltro = useCallback((id: string): void => {
     setProdutoFiltro((atual) => (atual === id ? null : id));
+    setVarianteFiltro(null);
+    setCodigoFiltro(null);
     setExpandidos([]);
   }, []);
 
   const trocarAgrupamento = useCallback((valor: Agrupamento): void => {
     setAgrupamento(valor);
+    setVarianteFiltro(null);
+    setCodigoFiltro(null);
     setExpandidos([]);
   }, []);
+
+  /**
+   * Aplica o filtro a partir do codigo de barras da variante: comparando por
+   * produto usa o `produto_id` dela, comparando por variante isola a propria.
+   */
+  const filtrarPorCodigoBarras = useCallback(
+    (codigo: string): void => {
+      const codigoLimpo = codigo.trim();
+
+      if (!codigoLimpo) {
+        return;
+      }
+
+      const variante = variantes.find((item) => (item.codigo_barras ?? '').trim() === codigoLimpo);
+
+      if (!variante) {
+        Alert.alert(
+          'Codigo nao encontrado',
+          `Nenhuma variante cadastrada com o codigo ${codigoLimpo}`,
+        );
+        return;
+      }
+
+      setProdutoFiltro(variante.produto_id);
+      setVarianteFiltro(agrupamento === 'variante' ? variante.id : null);
+      setCodigoFiltro(codigoLimpo);
+      setExpandidos([]);
+    },
+    [variantes, agrupamento],
+  );
 
   return {
     loading,
@@ -175,6 +235,10 @@ export function useHistoricoPrecos(): UseHistoricoPrecos {
     melhorPreco,
     produtoFiltro,
     alternarProdutoFiltro,
+    varianteFiltro,
+    codigoFiltro,
+    filtrarPorCodigoBarras,
+    limparFiltroCodigo,
     agrupamento,
     trocarAgrupamento,
     ordenacao,

@@ -4,7 +4,7 @@ import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import TabIcon from '../components/TabIcon';
 import HomeView from '../views/HomeView';
 import MenuNavigationView from '../views/MenuNavigationView';
-import Option2View from '../views/MensalView';
+import MensalView from '../views/MensalView';
 import ProdutosListView from '../views/ProdutosListView';
 import ProdutoFormView from '../views/ProdutoFormView';
 import CategoriasView from '../views/CategoriasView';
@@ -72,7 +72,7 @@ export default function AppRoutes(): React.ReactNode {
         />
         <Tab.Screen
           name="GastosMensais"
-          component={Option2View}
+          component={MensalView}
           options={{title: 'Gastos Mensais', tabBarLabel: 'Mes'}}
         />
         <Tab.Screen

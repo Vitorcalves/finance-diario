@@ -1,4 +1,4 @@
-import { getConnection } from './database';
+import {getConnection} from './database';
 
 export type ItemTransacao = {
   id: string;
@@ -39,7 +39,7 @@ export const listItensTransacaoByTransacao = async (
         SELECT ${COLUNAS}
         FROM itens_transacao
         WHERE transacao_id = ?
-        ORDER BY created_at ASC
+        ORDER BY created_at
     `,
     [transacaoId],
   );

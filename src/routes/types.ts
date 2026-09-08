@@ -8,6 +8,7 @@ export type MenuStackParamList = {
   HistoricoPrecos: undefined;
   Orcamento: undefined;
   Planos: undefined;
+  Integracao: undefined;
 };
 
 export type ProdutosStackParamList = {

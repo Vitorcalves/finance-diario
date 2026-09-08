@@ -6,6 +6,7 @@ import CategoriasView from '../views/Categorias';
 import EmpresasView from '../views/Empresas';
 import HistoricoPrecosView from '../views/HistoricoPrecos';
 import HomeView from '../views/Home';
+import IntegracaoView from '../views/Integracao';
 import MarcasView from '../views/Marcas';
 import MensalView from '../views/Mensal';
 import MenuNavigationView from '../views/MenuHome';
@@ -31,6 +32,7 @@ function MenuStack(): React.ReactNode {
       <MenuStackNav.Screen name="HistoricoPrecos" component={HistoricoPrecosView} />
       <MenuStackNav.Screen name="Orcamento" component={OrcamentoView} />
       <MenuStackNav.Screen name="Planos" component={PlanosView} />
+      <MenuStackNav.Screen name="Integracao" component={IntegracaoView} />
     </MenuStackNav.Navigator>
   );
 }

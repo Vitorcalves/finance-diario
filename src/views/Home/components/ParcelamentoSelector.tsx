@@ -21,7 +21,7 @@ type ParcelamentoSelectorProps = {
   onChangePrimeiraParcela: (data: string) => void;
   /** Remonta o campo de data quando o formulario e limpo. */
   dataInputKey: number;
-  /** Total da compra, sempre positivo, usado na previa das parcelas. */
+  /** Total da compra, sempre positivo, usado na prévia das parcelas. */
   total: number;
 };
 

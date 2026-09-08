@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { colors, fontSize, fontWeight, radius, shadows, sharedStyles, spacing } from '../theme';
 
 export type OpcaoSeletorMultiplo = {
   id: string;
@@ -46,16 +47,20 @@ export default function SeletorMultiplo({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={sharedStyles.label}>{label}</Text>
 
       {selecionados.length > 0 && (
-        <View style={styles.chipRow}>
+        <View style={sharedStyles.chipRow}>
           {selecionados.map((id) => {
             const nome = opcoes.find((opcao) => opcao.id === id)?.nome ?? '';
             return (
-              <Pressable key={id} style={styles.chip} onPress={(): void => onToggle(id)}>
-                <Text style={styles.chipText}>{nome}</Text>
-                <Ionicons name="close" size={14} color="#0f7a5b" />
+              <Pressable
+                key={id}
+                style={[sharedStyles.chip, styles.chipSelecionado]}
+                onPress={(): void => onToggle(id)}
+              >
+                <Text style={styles.chipSelecionadoText}>{nome}</Text>
+                <Ionicons name="close" size={14} color={colors.primary} />
               </Pressable>
             );
           })}
@@ -64,7 +69,11 @@ export default function SeletorMultiplo({
 
       <Pressable style={styles.comboTrigger} onPress={(): void => setAberto((atual) => !atual)}>
         <Text style={styles.comboTriggerText}>{textoTrigger}</Text>
-        <Ionicons name={aberto ? 'chevron-up' : 'chevron-down'} size={18} color="#0b3d2e" />
+        <Ionicons
+          name={aberto ? 'chevron-up' : 'chevron-down'}
+          size={18}
+          color={colors.primaryDark}
+        />
       </Pressable>
 
       {aberto && (
@@ -74,7 +83,7 @@ export default function SeletorMultiplo({
             placeholder={placeholderBusca}
             value={busca}
             onChangeText={setBusca}
-            placeholderTextColor="#8ba29a"
+            placeholderTextColor={colors.placeholder}
           />
           <ScrollView style={styles.comboLista} nestedScrollEnabled>
             {opcoesFiltradas.map((opcao) => {
@@ -93,14 +102,14 @@ export default function SeletorMultiplo({
               );
             })}
             {opcoesFiltradas.length === 0 && (
-              <Text style={styles.emptyText}>{textoNenhumEncontrado}</Text>
+              <Text style={sharedStyles.inlineEmptyText}>{textoNenhumEncontrado}</Text>
             )}
             {add && (
               <Pressable
                 style={styles.comboItemAdicionar}
                 onPress={(): void => setMostrarFormAdicionar(true)}
               >
-                <Ionicons name="add-circle-outline" size={16} color="#0f7a5b" />
+                <Ionicons name="add-circle-outline" size={16} color={colors.primary} />
                 <Text style={styles.comboItemAdicionarText}>{textoAdicionar}</Text>
               </Pressable>
             )}
@@ -108,7 +117,7 @@ export default function SeletorMultiplo({
         </View>
       )}
 
-      {opcoes.length === 0 && <Text style={styles.emptyText}>{textoVazio}</Text>}
+      {opcoes.length === 0 && <Text style={sharedStyles.inlineEmptyText}>{textoVazio}</Text>}
 
       {add && mostrarFormAdicionar && (
         <View style={styles.formFlutuanteOverlay}>
@@ -116,7 +125,7 @@ export default function SeletorMultiplo({
             <View style={styles.formFlutuanteHeader}>
               <Text style={styles.formFlutuanteTitulo}>{textoAdicionar}</Text>
               <Pressable onPress={fecharFormAdicionar}>
-                <Ionicons name="close" size={22} color="#0b3d2e" />
+                <Ionicons name="close" size={22} color={colors.primaryDark} />
               </Pressable>
             </View>
             {formAdicionar?.(fecharFormAdicionar)}
@@ -129,99 +138,77 @@ export default function SeletorMultiplo({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 24,
+    marginBottom: spacing.lg,
     position: 'relative',
   },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#0b3d2e',
-    marginBottom: 8,
+  chipSelecionado: {
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primarySoft,
+    paddingVertical: spacing.xs + 2,
   },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 8,
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#e6f4ed',
-    borderRadius: 16,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  chipText: {
-    fontSize: 12,
-    color: '#0f7a5b',
-    fontWeight: '600',
+  chipSelecionadoText: {
+    fontSize: fontSize.caption,
+    color: colors.primary,
+    fontWeight: fontWeight.medium,
   },
   comboTrigger: {
     borderWidth: 1,
-    borderColor: '#deebe4',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: '#f9fdfb',
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.surfaceMuted,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   comboTriggerText: {
-    fontSize: 14,
-    color: '#0b3d2e',
+    fontSize: fontSize.body,
+    color: colors.primaryDark,
   },
   comboDropdown: {
-    marginTop: 8,
+    marginTop: spacing.sm,
     borderWidth: 1,
-    borderColor: '#deebe4',
-    borderRadius: 8,
-    backgroundColor: '#ffffff',
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
   },
   comboBuscaInput: {
     borderBottomWidth: 1,
-    borderBottomColor: '#deebe4',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 13,
-    color: '#0b3d2e',
+    borderBottomColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    fontSize: fontSize.small,
+    color: colors.primaryDark,
   },
   comboLista: {
     maxHeight: 170,
   },
   comboItem: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
   },
   comboItemText: {
-    fontSize: 14,
-    color: '#0b3d2e',
+    fontSize: fontSize.body,
+    color: colors.primaryDark,
   },
   comboItemTextAtivo: {
-    color: '#0f7a5b',
-    fontWeight: '700',
+    color: colors.primary,
+    fontWeight: fontWeight.bold,
   },
   comboItemAdicionar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#deebe4',
+    borderTopColor: colors.border,
   },
   comboItemAdicionarText: {
-    fontSize: 14,
-    color: '#0f7a5b',
-    fontWeight: '600',
-  },
-  emptyText: {
-    fontSize: 13,
-    color: '#8ba29a',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    fontSize: fontSize.body,
+    color: colors.primary,
+    fontWeight: fontWeight.medium,
   },
   formFlutuanteOverlay: {
     position: 'absolute',
@@ -232,26 +219,22 @@ const styles = StyleSheet.create({
     elevation: 20,
   },
   formFlutuante: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: '#deebe4',
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 6,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    ...shadows.floating,
   },
   formFlutuanteHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   formFlutuanteTitulo: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0b3d2e',
+    fontSize: fontSize.input,
+    fontWeight: fontWeight.bold,
+    color: colors.primaryDark,
   },
 });

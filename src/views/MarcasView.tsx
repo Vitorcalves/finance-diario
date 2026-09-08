@@ -1,20 +1,10 @@
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import Ionicons from '@expo/vector-icons/Ionicons';
-import {
-  ActivityIndicator,
-  Alert,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Alert, Modal, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { v4 as uuidv4 } from 'uuid';
+import { Button, EmptyState, IconButton, LoadingState, ScreenHeader } from '../components/ui';
+import { colors, sharedStyles } from '../theme';
 import {
   type Marca,
   deleteMarcaById,
@@ -151,49 +141,42 @@ export default function MarcasView(): React.ReactNode {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={sharedStyles.screen}>
       <StatusBar style="dark" />
 
-      <View style={styles.header}>
-        <Text style={styles.title}>Marcas</Text>
-        <Pressable style={styles.addButton} onPress={abrirFormularioNovo}>
-          <Ionicons name="add-circle" size={32} color="#0f7a5b" />
-        </Pressable>
-      </View>
+      <ScreenHeader title="Marcas" onAdd={abrirFormularioNovo} />
 
       {loading ? (
-        <View style={styles.centerContent}>
-          <ActivityIndicator size="large" color="#0f7a5b" />
-        </View>
+        <LoadingState />
       ) : marcas.length === 0 ? (
-        <View style={styles.centerContent}>
-          <Ionicons name="business-outline" size={64} color="#8ba29a" />
-          <Text style={styles.emptyText}>Nenhuma marca cadastrada</Text>
-          <Pressable style={styles.primaryButton} onPress={abrirFormularioNovo}>
-            <Text style={styles.buttonText}>Adicionar Marca</Text>
-          </Pressable>
-        </View>
+        <EmptyState
+          icon="business-outline"
+          message="Nenhuma marca cadastrada"
+          actionLabel="Adicionar Marca"
+          onAction={abrirFormularioNovo}
+        />
       ) : (
-        <ScrollView style={styles.listContainer}>
+        <ScrollView
+          style={sharedStyles.scrollArea}
+          contentContainerStyle={sharedStyles.listContent}
+        >
           {marcas.map((marca) => (
-            <View key={marca.id} style={styles.card}>
-              <View style={styles.info}>
-                <Text style={styles.nome}>{marca.nome}</Text>
+            <View key={marca.id} style={sharedStyles.listCard}>
+              <View style={sharedStyles.listCardInfo}>
+                <Text style={sharedStyles.listCardTitle}>{marca.nome}</Text>
               </View>
 
-              <View style={styles.actionsRow}>
-                <Pressable
-                  style={[styles.actionButton, styles.editButton]}
-                  onPress={() => abrirFormularioEdicao(marca)}
-                >
-                  <Ionicons name="create-outline" size={20} color="#1d4ed8" />
-                </Pressable>
-                <Pressable
-                  style={[styles.actionButton, styles.deleteButton]}
-                  onPress={() => deletarMarca(marca)}
-                >
-                  <Ionicons name="trash" size={20} color="#dc2626" />
-                </Pressable>
+              <View style={sharedStyles.iconButtonRow}>
+                <IconButton
+                  icon="pencil"
+                  variant="primary"
+                  onPress={(): void => abrirFormularioEdicao(marca)}
+                />
+                <IconButton
+                  icon="trash"
+                  variant="danger"
+                  onPress={(): void => deletarMarca(marca)}
+                />
               </View>
             </View>
           ))}
@@ -201,44 +184,37 @@ export default function MarcasView(): React.ReactNode {
       )}
 
       <Modal visible={showForm} animationType="slide" transparent={false}>
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Pressable onPress={fecharFormulario}>
-              <Ionicons name="close" size={32} color="#0b3d2e" />
-            </Pressable>
-            <Text style={styles.modalTitle}>{marcaEditando ? 'Editar Marca' : 'Nova Marca'}</Text>
-            <View style={styles.modalSpacer} />
-          </View>
+        <SafeAreaView style={sharedStyles.screen}>
+          <ScreenHeader
+            title={marcaEditando ? 'Editar Marca' : 'Nova Marca'}
+            backIcon="close"
+            onBack={fecharFormulario}
+          />
 
-          <ScrollView style={styles.formContainer}>
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Nome da Marca *</Text>
+          <ScrollView
+            style={sharedStyles.scrollArea}
+            contentContainerStyle={sharedStyles.formContent}
+          >
+            <View style={sharedStyles.formGroup}>
+              <Text style={sharedStyles.label}>Nome da Marca *</Text>
               <TextInput
-                style={styles.input}
+                style={sharedStyles.input}
                 placeholder="Ex: Mercado Central"
                 value={nome}
                 onChangeText={setNome}
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={colors.placeholder}
               />
             </View>
 
-            <View style={styles.formActions}>
-              <Pressable
-                style={[styles.primaryButton, styles.actionPrimary]}
-                onPress={() => {
+            <View style={sharedStyles.actionsRow}>
+              <Button
+                label={marcaEditando ? 'Salvar Alteracoes' : 'Salvar Marca'}
+                flex
+                onPress={(): void => {
                   void salvarMarca();
                 }}
-              >
-                <Text style={styles.buttonText}>
-                  {marcaEditando ? 'Salvar Alteracoes' : 'Salvar Marca'}
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[styles.secondaryButton, styles.actionSecondary]}
-                onPress={fecharFormulario}
-              >
-                <Text style={styles.secondaryButtonText}>Cancelar</Text>
-              </Pressable>
+              />
+              <Button label="Cancelar" variant="secondary" flex onPress={fecharFormulario} />
             </View>
           </ScrollView>
         </SafeAreaView>
@@ -246,169 +222,3 @@ export default function MarcasView(): React.ReactNode {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#deebe4',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#0b3d2e',
-  },
-  addButton: {
-    padding: 8,
-  },
-  centerContent: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 20,
-    gap: 12,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#3e4b46',
-  },
-  listContainer: {
-    flex: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#f0f7f4',
-    borderRadius: 8,
-    padding: 12,
-    marginVertical: 6,
-    borderLeftWidth: 4,
-    borderLeftColor: '#0f7a5b',
-  },
-  info: {
-    flex: 1,
-    paddingRight: 8,
-  },
-  nome: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#0b3d2e',
-    marginBottom: 4,
-  },
-  extraInfo: {
-    fontSize: 13,
-    color: '#3e4b46',
-    marginTop: 2,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  actionButton: {
-    padding: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  editButton: {
-    borderColor: '#bfdbfe',
-    backgroundColor: '#eff6ff',
-  },
-  deleteButton: {
-    borderColor: '#fecaca',
-    backgroundColor: '#fff5f5',
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#deebe4',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#0b3d2e',
-  },
-  modalSpacer: {
-    width: 32,
-  },
-  formContainer: {
-    flex: 1,
-    padding: 16,
-  },
-  formGroup: {
-    marginBottom: 18,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#17342b',
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#d6dfdb',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: '#17342b',
-    backgroundColor: '#ffffff',
-  },
-  inputMultiline: {
-    minHeight: 100,
-    textAlignVertical: 'top',
-  },
-  formActions: {
-    flexDirection: 'row',
-    marginTop: 10,
-  },
-  actionPrimary: {
-    flex: 1,
-  },
-  actionSecondary: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  primaryButton: {
-    backgroundColor: '#0f7a5b',
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#ffffff',
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  secondaryButton: {
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#d6dfdb',
-    backgroundColor: '#ffffff',
-  },
-  secondaryButtonText: {
-    color: '#17342b',
-    fontWeight: '700',
-    fontSize: 15,
-  },
-});

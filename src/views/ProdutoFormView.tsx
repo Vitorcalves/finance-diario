@@ -1,15 +1,25 @@
-import React, {useEffect, useState} from 'react';
-import {StatusBar} from 'expo-status-bar';
-import {CameraView, useCameraPermissions} from 'expo-camera';
+import React, { useEffect, useState } from 'react';
+import { StatusBar } from 'expo-status-bar';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import {ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View,} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
-import {type RouteProp, useNavigation, useRoute} from '@react-navigation/native';
-import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import {v4 as uuidv4} from 'uuid';
+import {
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  Alert,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { type RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { v4 as uuidv4 } from 'uuid';
 import BrazilianIntegerInput from '../components/BrazilianIntegerInput';
 import SeletorMultiplo from '../components/SeletorMultiplo';
-import {getProdutoById, insertProduto, updateProduto} from '../models/produtos';
+import { Button, EmptyState, IconButton, LoadingState, ScreenHeader } from '../components/ui';
+import { getProdutoById, insertProduto, updateProduto } from '../models/produtos';
 import {
   deleteProdutoVariantesById,
   insertProdutoVariantes,
@@ -17,16 +27,17 @@ import {
   type ProdutoVariantes,
   updateProdutoVariantes,
 } from '../models/produtoVariantes';
-import {type Categoria, insertCategoria, listCategorias} from '../models/categorias';
+import { type Categoria, insertCategoria, listCategorias } from '../models/categorias';
 import {
   type CategoriaProduto,
   deleteCategoriaById as deleteCategoriaVinculo,
   insertCategoria as insertCategoriaVinculo,
   listCategorias as listCategoriaVinculos,
 } from '../models/categoriasProduto';
-import {insertMarca, listMarcas, type Marca} from '../models/marcas';
-import {Unidades} from '../utils/unidades';
-import type {ProdutosStackParamList} from '../routes/types';
+import { insertMarca, listMarcas, type Marca } from '../models/marcas';
+import { Unidades } from '../utils/unidades';
+import type { ProdutosStackParamList } from '../routes/types';
+import { colors, iconSize, radius, sharedStyles, spacing } from '../theme';
 
 type ProdutoFormNavigation = NativeStackNavigationProp<ProdutosStackParamList, 'ProdutoForm'>;
 type ProdutoFormRoute = RouteProp<ProdutosStackParamList, 'ProdutoForm'>;
@@ -84,7 +95,8 @@ export default function ProdutoFormView(): React.ReactNode {
   const nomeUnidade = (id: number | null): string =>
     unidades.find((unidade) => unidade.id === id)?.descricao ?? '';
 
-  const nomeMarca = (id: number | null): string => marcas.find((marca) => marca.id === id)?.nome ?? '';
+  const nomeMarca = (id: number | null): string =>
+    marcas.find((marca) => marca.id === id)?.nome ?? '';
 
   const filterUnidades = (primitivo: boolean = false) => {
     if (primitivo) {
@@ -379,23 +391,40 @@ export default function ProdutoFormView(): React.ReactNode {
     onSelecionar: (id: number | null) => void,
     primitivo: boolean = false,
   ): React.ReactNode => (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.unidadeChipsRow}>
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={sharedStyles.chipScrollRow}
+    >
       <Pressable
-        style={[styles.unidadeChip, valorSelecionado === null && styles.unidadeChipAtivo]}
+        style={[
+          sharedStyles.chip,
+          sharedStyles.chipSpaced,
+          valorSelecionado === null && sharedStyles.chipActive,
+        ]}
         onPress={(): void => onSelecionar(null)}
       >
-        <Text style={[styles.unidadeChipText, valorSelecionado === null && styles.unidadeChipTextAtivo]}>
+        <Text
+          style={[sharedStyles.chipText, valorSelecionado === null && sharedStyles.chipTextActive]}
+        >
           Nenhuma
         </Text>
       </Pressable>
       {filterUnidades(primitivo).map((unidade) => (
         <Pressable
           key={unidade.id}
-          style={[styles.unidadeChip, valorSelecionado === unidade.id && styles.unidadeChipAtivo]}
+          style={[
+            sharedStyles.chip,
+            sharedStyles.chipSpaced,
+            valorSelecionado === unidade.id && sharedStyles.chipActive,
+          ]}
           onPress={(): void => onSelecionar(unidade.id)}
         >
           <Text
-            style={[styles.unidadeChipText, valorSelecionado === unidade.id && styles.unidadeChipTextAtivo]}
+            style={[
+              sharedStyles.chipText,
+              valorSelecionado === unidade.id && sharedStyles.chipTextActive,
+            ]}
           >
             {unidade.descricao}
           </Text>
@@ -406,60 +435,55 @@ export default function ProdutoFormView(): React.ReactNode {
 
   if (carregandoProduto) {
     return (
-      <SafeAreaView style={styles.modalContainer}>
-        <StatusBar style="dark"/>
-        <View style={styles.centerContent}>
-          <ActivityIndicator size="large" color="#0f7a5b"/>
-        </View>
+      <SafeAreaView style={sharedStyles.screen}>
+        <StatusBar style="dark" />
+        <LoadingState />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.modalContainer}>
-      <StatusBar style="dark"/>
+    <SafeAreaView style={sharedStyles.screen}>
+      <StatusBar style="dark" />
 
-      <View style={styles.modalHeader}>
-        <Pressable onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={28} color="#0b3d2e"/>
-        </Pressable>
-        <Text style={styles.modalTitle}>{editando ? 'Editar Produto' : 'Novo Produto'}</Text>
-        <View style={styles.modalSpacer}/>
-      </View>
+      <ScreenHeader
+        title={editando ? 'Editar Produto' : 'Novo Produto'}
+        onBack={() => navigation.goBack()}
+      />
 
-      <ScrollView style={styles.formContainer}>
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Nome do Produto *</Text>
+      <ScrollView style={sharedStyles.scrollArea} contentContainerStyle={sharedStyles.formContent}>
+        <View style={sharedStyles.formGroup}>
+          <Text style={sharedStyles.label}>Nome do Produto *</Text>
           <TextInput
-            style={styles.input}
+            style={sharedStyles.input}
             placeholder="Ex: Arroz"
             value={nome}
             onChangeText={setNome}
-            placeholderTextColor="#ccc"
+            placeholderTextColor={colors.placeholder}
           />
         </View>
 
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Preço Base *</Text>
+        <View style={sharedStyles.formGroup}>
+          <Text style={sharedStyles.label}>Preço Base *</Text>
           <BrazilianIntegerInput
-            style={styles.input}
+            style={sharedStyles.input}
             placeholder="Ex: 10,50"
             value={preco}
             onChangeValue={setPreco}
             decimalScale={2}
             fixedDecimalScale
-            placeholderTextColor="#ccc"
+            placeholderTextColor={colors.placeholder}
           />
         </View>
 
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Unidade</Text>
+        <View style={sharedStyles.formGroup}>
+          <Text style={sharedStyles.label}>Unidade</Text>
           {renderSeletorUnidade(unidadeId, setUnidadeId, true)}
         </View>
 
         <SeletorMultiplo
           label="Categorias"
-          opcoes={categorias.map((categoria) => ({id: categoria.id, nome: categoria.nome}))}
+          opcoes={categorias.map((categoria) => ({ id: categoria.id, nome: categoria.nome }))}
           selecionados={categoriasSelecionadas}
           onToggle={toggleCategoriaSelecionada}
           placeholderBusca="Buscar categoria"
@@ -471,66 +495,66 @@ export default function ProdutoFormView(): React.ReactNode {
           formAdicionar={(fechar): React.ReactNode => (
             <View>
               <TextInput
-                style={styles.input}
+                style={[sharedStyles.input, sharedStyles.inputSpaced]}
                 placeholder="Nome da categoria"
                 value={novaCategoriaNome}
                 onChangeText={setNovaCategoriaNome}
-                placeholderTextColor="#ccc"
+                placeholderTextColor={colors.placeholder}
               />
-              <View style={styles.varianteMiniFormActions}>
-                <Pressable
-                  style={styles.secondaryButton}
+              <View style={sharedStyles.actionsRow}>
+                <Button
+                  label="Salvar"
+                  variant="secondary"
+                  flex
                   onPress={() => void salvarNovaCategoria(fechar)}
-                >
-                  <Text style={styles.secondaryButtonText}>Salvar</Text>
-                </Pressable>
-                <Pressable style={styles.secondaryButton} onPress={fechar}>
-                  <Text style={styles.secondaryButtonText}>Cancelar</Text>
-                </Pressable>
+                />
+                <Button label="Cancelar" variant="secondary" flex onPress={fechar} />
               </View>
             </View>
           )}
         />
 
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Variantes</Text>
+        <View style={sharedStyles.formGroup}>
+          <Text style={sharedStyles.label}>Variantes</Text>
 
           {variantesForm.length === 0 && (
-            <Text style={styles.emptyCategoriasText}>Nenhuma variante adicionada</Text>
+            <Text style={sharedStyles.inlineEmptyText}>Nenhuma variante adicionada</Text>
           )}
 
           {variantesForm.map((item, index) => (
-            <View key={item.localId} style={styles.varianteCard}>
-              <View style={styles.varianteCardInfo}>
-                <Text style={styles.varianteCardTitulo}>{nomeMarca(item.marcaId) || 'Sem marca'}</Text>
-                <Text style={styles.varianteCardDetalhe}>
+            <View key={item.localId} style={sharedStyles.listCard}>
+              <View style={sharedStyles.listCardInfo}>
+                <Text style={sharedStyles.listCardTitle}>
+                  {nomeMarca(item.marcaId) || 'Sem marca'}
+                </Text>
+                <Text style={sharedStyles.listCardDetail}>
                   {toCurrency(Number(item.preco) || 0)}
                   {item.unidadeId !== null ? ` • ${nomeUnidade(item.unidadeId)}` : ''}
                   {item.quantidade ? ` • Qtd: ${item.quantidade}` : ''}
                 </Text>
                 {item.codigoBarras && (
-                  <Text style={styles.varianteCardDetalhe}>Código: {item.codigoBarras}</Text>
+                  <Text style={sharedStyles.listCardDetail}>Código: {item.codigoBarras}</Text>
                 )}
               </View>
-              <View style={styles.varianteCardActions}>
-                <Pressable
-                  style={[styles.actionButton, styles.editButton]}
+              <View style={sharedStyles.iconButtonRow}>
+                <IconButton
+                  icon="pencil"
+                  variant="primary"
+                  size={iconSize.sm}
                   onPress={(): void => editarVariante(index)}
-                >
-                  <Ionicons name="pencil" size={18} color="#0f7a5b"/>
-                </Pressable>
-                <Pressable
-                  style={[styles.actionButton, styles.deleteButton]}
+                />
+                <IconButton
+                  icon="trash"
+                  variant="danger"
+                  size={iconSize.sm}
                   onPress={(): void => removerVariante(index)}
-                >
-                  <Ionicons name="trash" size={18} color="#dc2626"/>
-                </Pressable>
+                />
               </View>
             </View>
           ))}
 
-          <View style={styles.varianteMiniForm}>
-            <Text style={styles.varianteMiniFormTitulo}>
+          <View style={sharedStyles.subForm}>
+            <Text style={sharedStyles.subFormTitle}>
               {varianteEditIndex !== null ? 'Editar variante' : 'Nova variante'}
             </Text>
 
@@ -548,108 +572,98 @@ export default function ProdutoFormView(): React.ReactNode {
               formAdicionar={(fechar): React.ReactNode => (
                 <View>
                   <TextInput
-                    style={styles.input}
+                    style={[sharedStyles.input, sharedStyles.inputSpaced]}
                     placeholder="Nome da marca"
                     value={novaMarcaNome}
                     onChangeText={setNovaMarcaNome}
-                    placeholderTextColor="#ccc"
+                    placeholderTextColor={colors.placeholder}
                   />
-                  <View style={styles.varianteMiniFormActions}>
-                    <Pressable
-                      style={styles.secondaryButton}
+                  <View style={sharedStyles.actionsRow}>
+                    <Button
+                      label="Salvar"
+                      variant="secondary"
+                      flex
                       onPress={() => void salvarNovaMarca(fechar)}
-                    >
-                      <Text style={styles.secondaryButtonText}>Salvar</Text>
-                    </Pressable>
-                    <Pressable style={styles.secondaryButton} onPress={fechar}>
-                      <Text style={styles.secondaryButtonText}>Cancelar</Text>
-                    </Pressable>
+                    />
+                    <Button label="Cancelar" variant="secondary" flex onPress={fechar} />
                   </View>
                 </View>
               )}
             />
 
-            <Text style={styles.label}>Unidade</Text>
+            <Text style={sharedStyles.label}>Unidade</Text>
             {renderSeletorUnidade(varianteUnidadeId, setVarianteUnidadeId)}
 
-            <Text style={styles.label}>Quantidade</Text>
+            <Text style={sharedStyles.label}>Quantidade</Text>
             <BrazilianIntegerInput
-              style={styles.input}
+              style={[sharedStyles.input, sharedStyles.inputSpaced]}
               placeholder="Ex: 500"
               value={varianteQuantidade}
               onChangeValue={setVarianteQuantidade}
               decimalScale={0}
-              placeholderTextColor="#ccc"
+              placeholderTextColor={colors.placeholder}
             />
 
-            <Text style={styles.label}>Código de Barras</Text>
+            <Text style={sharedStyles.label}>Código de Barras</Text>
             <View style={styles.codigoBarrasContainer}>
               <TextInput
-                style={[styles.input, styles.codigoBarrasInput]}
+                style={[sharedStyles.input, styles.codigoBarrasInput]}
                 placeholder="Ex: 1234567890"
                 value={varianteCodigoBarras}
                 onChangeText={setVarianteCodigoBarras}
                 keyboardType="number-pad"
-                placeholderTextColor="#ccc"
+                placeholderTextColor={colors.placeholder}
               />
               <Pressable style={styles.scanButton} onPress={() => void abrirScanner()}>
-                <Ionicons name="camera" size={20} color="#0f7a5b"/>
+                <Ionicons name="camera" size={iconSize.md} color={colors.primary} />
               </Pressable>
             </View>
 
-            <Text style={styles.label}>Preço *</Text>
+            <Text style={sharedStyles.label}>Preço *</Text>
             <BrazilianIntegerInput
-              style={styles.input}
+              style={[sharedStyles.input, sharedStyles.inputSpaced]}
               placeholder="Ex: 10,50"
               value={variantePreco}
               onChangeValue={setVariantePreco}
               decimalScale={2}
               fixedDecimalScale
-              placeholderTextColor="#ccc"
+              placeholderTextColor={colors.placeholder}
             />
 
-            <View style={styles.varianteMiniFormActions}>
-              <Pressable style={styles.secondaryButton} onPress={adicionarOuAtualizarVariante}>
-                <Text style={styles.secondaryButtonText}>
-                  {varianteEditIndex !== null ? 'Salvar Variante' : 'Adicionar Variante'}
-                </Text>
-              </Pressable>
+            <View style={sharedStyles.actionsRow}>
+              <Button
+                label={varianteEditIndex !== null ? 'Salvar Variante' : 'Adicionar Variante'}
+                variant="secondary"
+                flex
+                onPress={adicionarOuAtualizarVariante}
+              />
               {varianteEditIndex !== null && (
-                <Pressable style={styles.secondaryButton} onPress={limparVarianteMiniFormulario}>
-                  <Text style={styles.secondaryButtonText}>Cancelar</Text>
-                </Pressable>
+                <Button
+                  label="Cancelar"
+                  variant="secondary"
+                  flex
+                  onPress={limparVarianteMiniFormulario}
+                />
               )}
             </View>
           </View>
         </View>
 
-        <View style={styles.formActions}>
-          <Pressable
-            style={[styles.primaryButton, styles.formActionPrimary]}
+        <View style={sharedStyles.actionsRow}>
+          <Button
+            label="Salvar Produto"
+            flex
             onPress={(): void => {
               void salvarProduto();
             }}
-          >
-            <Text style={styles.buttonText}>Salvar Produto</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.secondaryButton, styles.formActionSecondary]}
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={styles.secondaryButtonText}>Cancelar</Text>
-          </Pressable>
+          />
+          <Button label="Cancelar" variant="secondary" flex onPress={() => navigation.goBack()} />
         </View>
       </ScrollView>
 
       <Modal visible={showScannerModal} animationType="slide" transparent={false}>
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Pressable onPress={fecharScanner}>
-              <Ionicons name="close" size={32} color="#0b3d2e"/>
-            </Pressable>
-            <Text style={styles.modalTitle}>Escanear Código de Barras</Text>
-            <View style={styles.modalSpacer}/>
-          </View>
+        <SafeAreaView style={sharedStyles.screen}>
+          <ScreenHeader title="Escanear Código de Barras" backIcon="close" onBack={fecharScanner} />
 
           {permission?.granted ? (
             <CameraView
@@ -660,14 +674,11 @@ export default function ProdutoFormView(): React.ReactNode {
               }}
             >
               <View style={styles.scannerOverlay}>
-                <View style={styles.scannerFrame}/>
+                <View style={styles.scannerFrame} />
               </View>
             </CameraView>
           ) : (
-            <View style={styles.centerContent}>
-              <Ionicons name="camera-outline" size={64} color="#8ba29a"/>
-              <Text style={styles.emptyText}>Permissão de câmera negada</Text>
-            </View>
+            <EmptyState icon="camera-outline" message="Permissão de câmera negada" />
           )}
         </SafeAreaView>
       </Modal>
@@ -676,204 +687,21 @@ export default function ProdutoFormView(): React.ReactNode {
 }
 
 const styles = StyleSheet.create({
-  centerContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 16,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#8ba29a',
-    marginTop: 12,
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#deebe4',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#0b3d2e',
-  },
-  modalSpacer: {
-    width: 28,
-  },
-  formContainer: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-  },
-  formGroup: {
-    marginBottom: 24,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#0b3d2e',
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#deebe4',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: '#0b3d2e',
-    backgroundColor: '#f9fdfb',
-    marginBottom: 16,
-  },
-  emptyCategoriasText: {
-    fontSize: 13,
-    color: '#8ba29a',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  unidadeChipsRow: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  unidadeChip: {
-    borderWidth: 1,
-    borderColor: '#deebe4',
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginRight: 8,
-    backgroundColor: '#f9fdfb',
-  },
-  unidadeChipAtivo: {
-    backgroundColor: '#0f7a5b',
-    borderColor: '#0f7a5b',
-  },
-  unidadeChipText: {
-    fontSize: 13,
-    color: '#0b3d2e',
-  },
-  unidadeChipTextAtivo: {
-    color: '#ffffff',
-    fontWeight: '700',
-  },
-  varianteCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#f9fdfb',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#deebe4',
-  },
-  varianteCardInfo: {
-    flex: 1,
-  },
-  varianteCardTitulo: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#0b3d2e',
-    marginBottom: 2,
-  },
-  varianteCardDetalhe: {
-    fontSize: 12,
-    color: '#8ba29a',
-  },
-  varianteCardActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  actionButton: {
-    padding: 8,
-    borderRadius: 6,
-  },
-  editButton: {
-    backgroundColor: '#e6f4ed',
-  },
-  deleteButton: {
-    backgroundColor: '#fee2e2',
-  },
-  varianteMiniForm: {
-    marginTop: 8,
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: '#f0f7f4',
-  },
-  varianteMiniFormTitulo: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0b3d2e',
-    marginBottom: 12,
-  },
-  varianteMiniFormActions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 4,
-  },
-  formActions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 32,
-    marginBottom: 20,
-  },
-  formActionPrimary: {
-    flex: 1,
-  },
-  formActionSecondary: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  primaryButton: {
-    backgroundColor: '#0f7a5b',
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  secondaryButton: {
-    flex: 1,
-    backgroundColor: '#f0f7f4',
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#deebe4',
-  },
-  buttonText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  secondaryButtonText: {
-    color: '#0b3d2e',
-    fontSize: 14,
-    fontWeight: '600',
-  },
   codigoBarrasContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   codigoBarrasInput: {
     flex: 1,
-    marginBottom: 0,
   },
   scanButton: {
-    backgroundColor: '#e6f4ed',
-    borderRadius: 8,
-    padding: 10,
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.md,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -884,14 +712,14 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: colors.overlayStrong,
   },
   scannerFrame: {
     width: 250,
     height: 250,
     borderWidth: 2,
-    borderColor: '#0f7a5b',
+    borderColor: colors.primary,
     backgroundColor: 'transparent',
-    borderRadius: 12,
+    borderRadius: radius.xl,
   },
 });

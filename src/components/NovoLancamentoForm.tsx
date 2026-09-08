@@ -10,16 +10,26 @@ import {
   View,
 } from 'react-native';
 import dayjs from 'dayjs';
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { v4 as uuidv4 } from 'uuid';
 import BrazilianDateInput from './BrazilianDateInput';
 import BrazilianIntegerInput from './BrazilianIntegerInput';
 import SeletorMultiplo from './SeletorMultiplo';
+import { Button, IconButton } from './ui';
 import { type Empresa, listEmpresas } from '../models/empresas';
 import { listProdutos, type Produto } from '../models/produtos';
 import { listProdutoVariantes, type ProdutoVariantes } from '../models/produtoVariantes';
 import { listMarcas, type Marca } from '../models/marcas';
 import { Unidades } from '../utils/unidades';
+import {
+  colors,
+  fontSize,
+  fontWeight,
+  iconSize,
+  radius,
+  shadows,
+  sharedStyles,
+  spacing,
+} from '../theme';
 
 const todayIso = (): string => dayjs().format('YYYY-MM-DD');
 
@@ -277,16 +287,14 @@ export default function NovoLancamentoForm({
 
   return (
     <>
-      <Pressable style={styles.openButton} onPress={abrirModal}>
-        <Text style={styles.openButtonText}>Novo lancamento</Text>
-      </Pressable>
+      <Button label="Novo lancamento" onPress={abrirModal} />
 
       <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={closeModal}>
         <View style={styles.overlay}>
           <Pressable style={styles.backdrop} onPress={closeModal} />
 
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Novo lancamento</Text>
+            <Text style={sharedStyles.sectionTitle}>Novo lancamento</Text>
 
             <ScrollView style={styles.cardScroll} nestedScrollEnabled>
               <View style={styles.tipoRow}>
@@ -335,65 +343,65 @@ export default function NovoLancamentoForm({
                 textoNenhumEncontrado="Nenhuma empresa encontrada"
               />
 
-              <Text style={styles.label}>Descricao</Text>
+              <Text style={sharedStyles.label}>Descricao</Text>
               <TextInput
                 value={descricao}
                 onChangeText={setDescricao}
                 placeholder="Ex.: Mercado"
-                placeholderTextColor="#7b8a8e"
-                style={styles.input}
+                placeholderTextColor={colors.placeholder}
+                style={[sharedStyles.input, sharedStyles.inputSpaced]}
               />
 
-              <Text style={styles.label}>Data (DD/MM/AAAA)</Text>
+              <Text style={sharedStyles.label}>Data (DD/MM/AAAA)</Text>
               <BrazilianDateInput
                 key={dataInputKey}
                 defaultValue={dataInput}
                 onChangeValue={setDataInput}
                 placeholder={dayjs().format('DD/MM/YYYY')}
-                placeholderTextColor="#7b8a8e"
-                style={styles.input}
+                placeholderTextColor={colors.placeholder}
+                style={[sharedStyles.input, sharedStyles.inputSpaced]}
               />
 
-              <Text style={styles.label}>Itens</Text>
+              <Text style={sharedStyles.label}>Itens</Text>
 
               {itens.length === 0 ? (
-                <Text style={styles.emptyText}>
+                <Text style={sharedStyles.inlineEmptyText}>
                   Nenhum item adicionado. Use o valor abaixo para um lancamento sem produtos.
                 </Text>
               ) : (
                 itens.map((item, index) => (
-                  <View key={item.localId} style={styles.itemCard}>
-                    <View style={styles.itemCardInfo}>
-                      <Text style={styles.itemCardTitulo}>{item.descricao}</Text>
-                      <Text style={styles.itemCardDetalhe}>
+                  <View key={item.localId} style={sharedStyles.listCard}>
+                    <View style={sharedStyles.listCardInfo}>
+                      <Text style={sharedStyles.listCardTitle}>{item.descricao}</Text>
+                      <Text style={sharedStyles.listCardDetail}>
                         {`${item.quantidade} x ${toCurrency(item.precoUnitario)} = ${toCurrency(
                           item.quantidade * item.precoUnitario,
                         )}`}
                       </Text>
                       {item.varianteId === null && item.produtoId !== null && (
-                        <Text style={styles.itemCardDetalhe}>Sem variante selecionada</Text>
+                        <Text style={sharedStyles.listCardDetail}>Sem variante selecionada</Text>
                       )}
                     </View>
-                    <View style={styles.itemCardActions}>
-                      <Pressable
-                        style={[styles.actionButton, styles.editButton]}
+                    <View style={sharedStyles.iconButtonRow}>
+                      <IconButton
+                        icon="pencil"
+                        variant="primary"
+                        size={iconSize.sm}
                         onPress={(): void => editarItem(index)}
-                      >
-                        <Ionicons name="pencil" size={18} color="#0f7a5b" />
-                      </Pressable>
-                      <Pressable
-                        style={[styles.actionButton, styles.deleteButton]}
+                      />
+                      <IconButton
+                        icon="trash"
+                        variant="danger"
+                        size={iconSize.sm}
                         onPress={(): void => removerItem(index)}
-                      >
-                        <Ionicons name="trash" size={18} color="#dc2626" />
-                      </Pressable>
+                      />
                     </View>
                   </View>
                 ))
               )}
 
-              <View style={styles.itemMiniForm}>
-                <Text style={styles.itemMiniFormTitulo}>
+              <View style={sharedStyles.subForm}>
+                <Text style={sharedStyles.subFormTitle}>
                   {itemEditIndex !== null ? 'Editar item' : 'Novo item'}
                 </Text>
 
@@ -410,30 +418,31 @@ export default function NovoLancamentoForm({
 
                 {itemProdutoId !== null && (
                   <>
-                    <Text style={styles.label}>Variante</Text>
+                    <Text style={sharedStyles.label}>Variante</Text>
                     {variantesDoItem.length === 0 ? (
-                      <Text style={styles.emptyText}>
+                      <Text style={sharedStyles.inlineEmptyText}>
                         Este produto ainda nao possui variantes cadastradas
                       </Text>
                     ) : (
                       <ScrollView
                         horizontal
                         showsHorizontalScrollIndicator={false}
-                        style={styles.varianteChipsRow}
+                        style={sharedStyles.chipScrollRow}
                       >
                         {variantesDoItem.map((variante) => (
                           <Pressable
                             key={variante.id}
                             style={[
-                              styles.varianteChip,
-                              itemVarianteId === variante.id && styles.varianteChipAtivo,
+                              sharedStyles.chip,
+                              sharedStyles.chipSpaced,
+                              itemVarianteId === variante.id && sharedStyles.chipActive,
                             ]}
                             onPress={(): void => selecionarVariante(variante.id)}
                           >
                             <Text
                               style={[
-                                styles.varianteChipText,
-                                itemVarianteId === variante.id && styles.varianteChipTextAtivo,
+                                sharedStyles.chipText,
+                                itemVarianteId === variante.id && sharedStyles.chipTextActive,
                               ]}
                             >
                               {`${rotuloVariante(variante)} • ${toCurrency(variante.preco)}`}
@@ -445,93 +454,88 @@ export default function NovoLancamentoForm({
                   </>
                 )}
 
-                <Text style={styles.label}>Descricao do item</Text>
+                <Text style={sharedStyles.label}>Descricao do item</Text>
                 <TextInput
                   value={itemDescricao}
                   onChangeText={setItemDescricao}
                   placeholder="Ex.: Arroz 5kg"
-                  placeholderTextColor="#7b8a8e"
-                  style={styles.input}
+                  placeholderTextColor={colors.placeholder}
+                  style={[sharedStyles.input, sharedStyles.inputSpaced]}
                 />
 
-                <Text style={styles.label}>Quantidade</Text>
+                <Text style={sharedStyles.label}>Quantidade</Text>
                 <BrazilianIntegerInput
                   value={itemQuantidade}
                   onChangeValue={setItemQuantidade}
                   decimalScale={0}
                   placeholder="Ex.: 2"
-                  placeholderTextColor="#7b8a8e"
-                  style={styles.input}
+                  placeholderTextColor={colors.placeholder}
+                  style={[sharedStyles.input, sharedStyles.inputSpaced]}
                 />
 
-                <Text style={styles.label}>Preco unitario (R$)</Text>
+                <Text style={sharedStyles.label}>Preco unitario (R$)</Text>
                 <BrazilianIntegerInput
                   value={itemPreco}
                   onChangeValue={setItemPreco}
                   decimalScale={2}
                   fixedDecimalScale
                   placeholder="Ex.: 43,90"
-                  placeholderTextColor="#7b8a8e"
-                  style={styles.input}
+                  placeholderTextColor={colors.placeholder}
+                  style={[sharedStyles.input, sharedStyles.inputSpaced]}
                 />
 
-                <View style={styles.itemMiniFormActions}>
-                  <Pressable style={styles.secondaryButton} onPress={adicionarOuAtualizarItem}>
-                    <Text style={styles.secondaryButtonText}>
-                      {itemEditIndex !== null ? 'Salvar item' : 'Adicionar item'}
-                    </Text>
-                  </Pressable>
+                <View style={sharedStyles.actionsRow}>
+                  <Button
+                    label={itemEditIndex !== null ? 'Salvar item' : 'Adicionar item'}
+                    variant="secondary"
+                    flex
+                    onPress={adicionarOuAtualizarItem}
+                  />
                   {itemEditIndex !== null && (
-                    <Pressable style={styles.secondaryButton} onPress={limparItemForm}>
-                      <Text style={styles.secondaryButtonText}>Cancelar</Text>
-                    </Pressable>
+                    <Button label="Cancelar" variant="secondary" flex onPress={limparItemForm} />
                   )}
                 </View>
               </View>
 
               {itens.length === 0 && (
                 <>
-                  <Text style={styles.label}>Valor (R$)</Text>
+                  <Text style={sharedStyles.label}>Valor (R$)</Text>
                   <BrazilianIntegerInput
                     value={valorManual}
                     onChangeValue={setValorManual}
                     decimalScale={2}
                     fixedDecimalScale
                     placeholder="Ex.: 43,90"
-                    placeholderTextColor="#7b8a8e"
-                    style={styles.input}
+                    placeholderTextColor={colors.placeholder}
+                    style={[sharedStyles.input, sharedStyles.inputSpaced]}
                   />
                 </>
               )}
             </ScrollView>
 
             <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Total</Text>
+              <Text style={sharedStyles.totalLabel}>Total</Text>
               <Text
                 style={[
-                  styles.totalValue,
-                  tipoTransacao === 'saida' ? styles.negative : styles.positive,
+                  sharedStyles.totalValue,
+                  tipoTransacao === 'saida' ? sharedStyles.negative : sharedStyles.positive,
                 ]}
               >
                 {toCurrency(tipoTransacao === 'saida' ? -totalLancamento : totalLancamento)}
               </Text>
             </View>
 
-            <View style={styles.actionsRow}>
-              <Pressable style={styles.cancelButton} onPress={closeModal}>
-                <Text style={styles.cancelButtonText}>Cancelar</Text>
-              </Pressable>
+            <View style={sharedStyles.actionsRow}>
+              <Button label="Cancelar" variant="secondary" flex onPress={closeModal} />
 
-              <Pressable
-                style={[styles.button, tipoTransacao === 'entrada' && styles.buttonEntrada]}
+              <Button
+                label={tipoTransacao === 'saida' ? 'Adicionar saida' : 'Adicionar entrada'}
+                flex
+                style={tipoTransacao === 'entrada' ? styles.buttonEntrada : undefined}
                 onPress={(): void => {
                   void salvarLancamento();
                 }}
-              >
-                <Text style={styles.buttonText}>
-                  {tipoTransacao === 'saida' ? 'Adicionar saida' : 'Adicionar entrada'}
-                </Text>
-              </Pressable>
+              />
             </View>
           </View>
         </View>
@@ -541,250 +545,67 @@ export default function NovoLancamentoForm({
 }
 
 const styles = StyleSheet.create({
-  openButton: {
-    borderRadius: 12,
-    backgroundColor: '#0f7a5b',
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  openButtonText: {
-    color: '#ffffff',
-    fontWeight: '700',
-    fontSize: 15,
-  },
   overlay: {
     flex: 1,
     justifyContent: 'center',
-    padding: 16,
+    padding: spacing.lg,
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: colors.overlay,
   },
   card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 14,
-    gap: 10,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xxl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    gap: spacing.md,
     maxHeight: '90%',
-    shadowColor: '#000000',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
+    ...shadows.floating,
   },
   cardScroll: {
     flexGrow: 0,
   },
-  label: {
-    fontSize: 13,
-    color: '#2d3e38',
-    fontWeight: '600',
-    marginBottom: 6,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#d6dfdb',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-    color: '#17211d',
-    backgroundColor: '#f8fbfa',
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#123a2d',
-  },
   tipoRow: {
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 14,
+    gap: spacing.md,
+    marginBottom: spacing.lg,
   },
   tipoButton: {
     flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingVertical: spacing.md,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: '#d6dfdb',
+    borderColor: colors.borderStrong,
     alignItems: 'center',
-    backgroundColor: '#f8fbfa',
+    backgroundColor: colors.surfaceAlt,
   },
   tipoButtonActiveSaida: {
-    backgroundColor: '#c0352b',
-    borderColor: '#c0352b',
+    backgroundColor: colors.danger,
+    borderColor: colors.danger,
   },
   tipoButtonActiveEntrada: {
-    backgroundColor: '#0d8f50',
-    borderColor: '#0d8f50',
+    backgroundColor: colors.success,
+    borderColor: colors.success,
   },
   tipoButtonText: {
-    fontWeight: '700',
-    fontSize: 14,
-    color: '#334640',
+    fontWeight: fontWeight.bold,
+    fontSize: fontSize.body,
+    color: colors.textBody,
   },
   tipoButtonTextActive: {
-    color: '#ffffff',
-  },
-  itemCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#f9fdfb',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#deebe4',
-  },
-  itemCardInfo: {
-    flex: 1,
-  },
-  itemCardTitulo: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#0b3d2e',
-    marginBottom: 2,
-  },
-  itemCardDetalhe: {
-    fontSize: 12,
-    color: '#8ba29a',
-  },
-  itemCardActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  actionButton: {
-    padding: 8,
-    borderRadius: 6,
-  },
-  editButton: {
-    backgroundColor: '#e6f4ed',
-  },
-  deleteButton: {
-    backgroundColor: '#fee2e2',
-  },
-  itemMiniForm: {
-    marginTop: 8,
-    marginBottom: 12,
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: '#f0f7f4',
-  },
-  itemMiniFormTitulo: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0b3d2e',
-    marginBottom: 12,
-  },
-  itemMiniFormActions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 4,
-  },
-  varianteChipsRow: {
-    flexDirection: 'row',
-    marginBottom: 12,
-  },
-  varianteChip: {
-    borderWidth: 1,
-    borderColor: '#deebe4',
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginRight: 8,
-    backgroundColor: '#f9fdfb',
-  },
-  varianteChipAtivo: {
-    backgroundColor: '#0f7a5b',
-    borderColor: '#0f7a5b',
-  },
-  varianteChipText: {
-    fontSize: 13,
-    color: '#0b3d2e',
-  },
-  varianteChipTextAtivo: {
-    color: '#ffffff',
-    fontWeight: '700',
+    color: colors.textInverse,
   },
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: '#edf2ef',
-    paddingTop: 10,
-  },
-  totalLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#123a2d',
-  },
-  totalValue: {
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  positive: {
-    color: '#0d8f50',
-  },
-  negative: {
-    color: '#c0352b',
-  },
-  button: {
-    flex: 1,
-    borderRadius: 12,
-    backgroundColor: '#0f7a5b',
-    paddingVertical: 12,
-    alignItems: 'center',
+    borderTopColor: colors.divider,
+    paddingTop: spacing.md,
   },
   buttonEntrada: {
-    backgroundColor: '#0d8f50',
-  },
-  cancelButton: {
-    flex: 1,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#d6dfdb',
-    paddingVertical: 12,
-    alignItems: 'center',
-    backgroundColor: '#f8fbfa',
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  cancelButtonText: {
-    color: '#334640',
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  buttonText: {
-    color: '#ffffff',
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  secondaryButton: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#deebe4',
-  },
-  secondaryButtonText: {
-    color: '#0b3d2e',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  emptyText: {
-    fontSize: 13,
-    color: '#8ba29a',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    backgroundColor: colors.success,
   },
 });

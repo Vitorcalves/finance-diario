@@ -1,20 +1,13 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import dayjs from 'dayjs';
 import SeletorMultiplo from '../components/SeletorMultiplo';
+import { EmptyState, LoadingState, ScreenHeader } from '../components/ui';
 import { type HistoricoPreco, listHistoricoPreco } from '../models/historicoPreco';
 import { listProdutos, type Produto } from '../models/produtos';
 import { listProdutoVariantes, type ProdutoVariantes } from '../models/produtoVariantes';
@@ -22,6 +15,7 @@ import { listMarcas, type Marca } from '../models/marcas';
 import { type Empresa, listEmpresas } from '../models/empresas';
 import { Unidades } from '../utils/unidades';
 import type { MenuStackParamList } from '../routes/types';
+import { colors, fontSize, fontWeight, iconSize, radius, sharedStyles, spacing } from '../theme';
 
 type HistoricoPrecosNavigation = NativeStackNavigationProp<MenuStackParamList, 'HistoricoPrecos'>;
 
@@ -205,14 +199,19 @@ export default function HistoricoPrecosView(): React.ReactNode {
     selecionado: T,
     onSelecionar: (valor: T) => void,
   ): React.ReactNode => (
-    <View style={styles.chipsRow}>
+    <View style={sharedStyles.chipRow}>
       {opcoes.map((opcao) => (
         <Pressable
           key={opcao.valor}
-          style={[styles.chip, selecionado === opcao.valor && styles.chipAtivo]}
+          style={[sharedStyles.chip, selecionado === opcao.valor && sharedStyles.chipActive]}
           onPress={(): void => onSelecionar(opcao.valor)}
         >
-          <Text style={[styles.chipText, selecionado === opcao.valor && styles.chipTextAtivo]}>
+          <Text
+            style={[
+              sharedStyles.chipText,
+              selecionado === opcao.valor && sharedStyles.chipTextActive,
+            ]}
+          >
             {opcao.rotulo}
           </Text>
         </Pressable>
@@ -221,24 +220,19 @@ export default function HistoricoPrecosView(): React.ReactNode {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={sharedStyles.screen}>
       <StatusBar style="dark" />
 
-      <View style={styles.header}>
-        <Pressable onPress={(): void => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={28} color="#0b3d2e" />
-        </Pressable>
-        <Text style={styles.title}>Historico de Precos</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <ScreenHeader title="Historico de Precos" onBack={(): void => navigation.goBack()} />
 
       {loading ? (
-        <View style={styles.centerContent}>
-          <ActivityIndicator size="large" color="#0f7a5b" />
-        </View>
+        <LoadingState />
       ) : (
-        <ScrollView style={styles.listContainer} contentContainerStyle={styles.listContent}>
-          <View style={styles.filtrosCard}>
+        <ScrollView
+          style={sharedStyles.scrollArea}
+          contentContainerStyle={sharedStyles.scrollContent}
+        >
+          <View style={sharedStyles.card}>
             <SeletorMultiplo
               label="Produto"
               opcoes={produtos.map((produto) => ({ id: produto.id, nome: produto.nome }))}
@@ -250,7 +244,7 @@ export default function HistoricoPrecosView(): React.ReactNode {
               textoNenhumEncontrado="Nenhum produto encontrado"
             />
 
-            <Text style={styles.label}>Comparar por</Text>
+            <Text style={sharedStyles.label}>Comparar por</Text>
             {renderChips(
               [
                 { valor: 'variante' as Agrupamento, rotulo: 'Variante' },
@@ -263,7 +257,7 @@ export default function HistoricoPrecosView(): React.ReactNode {
               },
             )}
 
-            <Text style={styles.label}>Ordenar por</Text>
+            <Text style={sharedStyles.label}>Ordenar por</Text>
             {renderChips(
               [
                 { valor: 'menorPreco' as Ordenacao, rotulo: 'Menor preco atual' },
@@ -276,17 +270,15 @@ export default function HistoricoPrecosView(): React.ReactNode {
           </View>
 
           {grupos.length === 0 ? (
-            <View style={styles.centerContent}>
-              <Ionicons name="time-outline" size={64} color="#8ba29a" />
-              <Text style={styles.emptyText}>
-                {produtoFiltro
+            <EmptyState
+              icon="time-outline"
+              message={
+                produtoFiltro
                   ? 'Nenhum preco registrado para este produto'
-                  : 'Nenhum preco registrado ainda'}
-              </Text>
-              <Text style={styles.emptyHint}>
-                Os precos sao registrados ao lancar itens com variante na tela inicial.
-              </Text>
-            </View>
+                  : 'Nenhum preco registrado ainda'
+              }
+              hint="Os precos sao registrados ao lancar itens com variante na tela inicial."
+            />
           ) : (
             grupos.map((grupo) => {
               const expandido = expandidos.includes(grupo.chave);
@@ -297,7 +289,7 @@ export default function HistoricoPrecosView(): React.ReactNode {
               return (
                 <View
                   key={grupo.chave}
-                  style={[styles.grupoCard, isMelhor && styles.grupoCardMelhor]}
+                  style={[sharedStyles.card, isMelhor && sharedStyles.cardHighlight]}
                 >
                   <Pressable
                     style={styles.grupoHeader}
@@ -307,8 +299,8 @@ export default function HistoricoPrecosView(): React.ReactNode {
                       <View style={styles.grupoTituloRow}>
                         <Text style={styles.grupoTitulo}>{grupo.titulo}</Text>
                         {isMelhor && (
-                          <View style={styles.badgeMelhor}>
-                            <Text style={styles.badgeMelhorText}>Melhor preco</Text>
+                          <View style={[sharedStyles.badge, sharedStyles.badgeSuccess]}>
+                            <Text style={sharedStyles.badgeText}>Melhor preco</Text>
                           </View>
                         )}
                       </View>
@@ -316,8 +308,8 @@ export default function HistoricoPrecosView(): React.ReactNode {
                     </View>
                     <Ionicons
                       name={expandido ? 'chevron-up' : 'chevron-down'}
-                      size={20}
-                      color="#0b3d2e"
+                      size={iconSize.md}
+                      color={colors.primaryDark}
                     />
                   </Pressable>
 
@@ -347,7 +339,7 @@ export default function HistoricoPrecosView(): React.ReactNode {
                     <Text
                       style={[
                         styles.variacaoText,
-                        variacao > 0 ? styles.variacaoAlta : styles.variacaoBaixa,
+                        variacao > 0 ? sharedStyles.negative : sharedStyles.positive,
                       ]}
                     >
                       {variacao > 0
@@ -372,7 +364,7 @@ export default function HistoricoPrecosView(): React.ReactNode {
                           <Text
                             style={[
                               styles.registroPreco,
-                              registro.preco === grupo.menor && styles.registroPrecoMenor,
+                              registro.preco === grupo.menor && sharedStyles.positive,
                             ]}
                           >
                             {toCurrency(registro.preco)}
@@ -392,109 +384,11 @@ export default function HistoricoPrecosView(): React.ReactNode {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#deebe4',
-  },
-  headerSpacer: {
-    width: 28,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#0b3d2e',
-  },
-  centerContent: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 48,
-    paddingHorizontal: 20,
-    gap: 10,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#3e4b46',
-    textAlign: 'center',
-  },
-  emptyHint: {
-    fontSize: 13,
-    color: '#8ba29a',
-    textAlign: 'center',
-  },
-  listContainer: {
-    flex: 1,
-  },
-  listContent: {
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    paddingBottom: 32,
-  },
-  filtrosCard: {
-    backgroundColor: '#f9fdfb',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#deebe4',
-    padding: 12,
-    marginBottom: 12,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#0b3d2e',
-    marginBottom: 8,
-  },
-  chipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 16,
-  },
-  chip: {
-    borderWidth: 1,
-    borderColor: '#deebe4',
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: '#ffffff',
-  },
-  chipAtivo: {
-    backgroundColor: '#0f7a5b',
-    borderColor: '#0f7a5b',
-  },
-  chipText: {
-    fontSize: 13,
-    color: '#0b3d2e',
-  },
-  chipTextAtivo: {
-    color: '#ffffff',
-    fontWeight: '700',
-  },
-  grupoCard: {
-    backgroundColor: '#f0f7f4',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 10,
-    borderLeftWidth: 4,
-    borderLeftColor: '#0f7a5b',
-  },
-  grupoCardMelhor: {
-    backgroundColor: '#e6f4ed',
-    borderLeftColor: '#0d8f50',
-  },
   grupoHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: spacing.sm,
   },
   grupoInfo: {
     flex: 1,
@@ -503,103 +397,82 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: spacing.sm,
   },
   grupoTitulo: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0b3d2e',
+    fontSize: fontSize.input,
+    fontWeight: fontWeight.bold,
+    color: colors.primaryDark,
   },
   grupoSubtitulo: {
-    fontSize: 12,
-    color: '#5b6f67',
+    fontSize: fontSize.caption,
+    color: colors.textMuted,
     marginTop: 2,
-  },
-  badgeMelhor: {
-    backgroundColor: '#0d8f50',
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  badgeMelhorText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#ffffff',
   },
   metricasRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 10,
+    gap: spacing.sm,
   },
   metrica: {
     flex: 1,
-    backgroundColor: '#ffffff',
-    borderRadius: 8,
-    padding: 8,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.sm,
   },
   metricaLabel: {
-    fontSize: 11,
-    color: '#5b6f67',
+    fontSize: fontSize.micro,
+    color: colors.textMuted,
   },
   metricaValor: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0b3d2e',
+    fontSize: fontSize.input,
+    fontWeight: fontWeight.bold,
+    color: colors.primaryDark,
     marginTop: 2,
   },
   metricaValorDestaque: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#0f7a5b',
+    fontSize: fontSize.input,
+    fontWeight: fontWeight.heavy,
+    color: colors.primary,
     marginTop: 2,
   },
   metricaDetalhe: {
-    fontSize: 11,
-    color: '#8ba29a',
+    fontSize: fontSize.micro,
+    color: colors.textSubtle,
     marginTop: 2,
   },
   variacaoText: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 8,
-  },
-  variacaoAlta: {
-    color: '#c0352b',
-  },
-  variacaoBaixa: {
-    color: '#0d8f50',
+    fontSize: fontSize.caption,
+    fontWeight: fontWeight.medium,
   },
   registrosLista: {
-    marginTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#deebe4',
-    paddingTop: 8,
-    gap: 6,
+    borderTopColor: colors.border,
+    paddingTop: spacing.sm,
+    gap: spacing.sm,
   },
   registroRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 10,
+    gap: spacing.md,
   },
   registroInfo: {
     flex: 1,
   },
   registroData: {
-    fontSize: 13,
-    color: '#0b3d2e',
-    fontWeight: '600',
+    fontSize: fontSize.small,
+    color: colors.primaryDark,
+    fontWeight: fontWeight.medium,
   },
   registroEmpresa: {
-    fontSize: 12,
-    color: '#8ba29a',
+    fontSize: fontSize.caption,
+    color: colors.textSubtle,
   },
   registroPreco: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0b3d2e',
-  },
-  registroPrecoMenor: {
-    color: '#0d8f50',
+    fontSize: fontSize.body,
+    fontWeight: fontWeight.bold,
+    color: colors.primaryDark,
   },
 });

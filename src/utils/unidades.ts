@@ -1,4 +1,4 @@
-export type GrupoUnidade = 'comprimento' | 'massa' | 'volume';
+export type GrupoUnidade = 'comprimento' | 'massa' | 'volume' | 'unidade';
 
 export type UnidadeDefinicao = {
   id: number;
@@ -10,7 +10,7 @@ export type UnidadeDefinicao = {
 
 export class Unidades {
   private static readonly definicoes: UnidadeDefinicao[] = [
-    { id: 1, descricao: 'Metros', grupo: 'comprimento', fatorParaPrimaria: 1, primario: true },
+    {id: 1, descricao: 'Metros', grupo: 'comprimento', fatorParaPrimaria: 1, primario: true},
     {
       id: 5,
       descricao: 'Centímetros',
@@ -18,10 +18,11 @@ export class Unidades {
       fatorParaPrimaria: 0.01,
       primario: false,
     },
-    { id: 2, descricao: 'Quilogramas', grupo: 'massa', fatorParaPrimaria: 1, primario: true },
-    { id: 4, descricao: 'Gramas', grupo: 'massa', fatorParaPrimaria: 0.001, primario: false },
-    { id: 3, descricao: 'Litros', grupo: 'volume', fatorParaPrimaria: 1, primario: true },
-    { id: 6, descricao: 'Mililitros', grupo: 'volume', fatorParaPrimaria: 0.001, primario: false },
+    {id: 2, descricao: 'Quilogramas', grupo: 'massa', fatorParaPrimaria: 1, primario: true},
+    {id: 4, descricao: 'Gramas', grupo: 'massa', fatorParaPrimaria: 0.001, primario: false},
+    {id: 3, descricao: 'Litros', grupo: 'volume', fatorParaPrimaria: 1, primario: true},
+    {id: 6, descricao: 'Mililitros', grupo: 'volume', fatorParaPrimaria: 0.001, primario: false},
+    {id: 7, descricao: 'Unidade', grupo: 'unidade', fatorParaPrimaria: 1, primario: true},
   ];
 
   static listar(): UnidadeDefinicao[] {

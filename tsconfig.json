@@ -3,5 +3,8 @@
   "compilerOptions": {
     "strict": true,
     "types": ["react-native"]
-  }
+  },
+  // Os testes rodam no Node, com outros globais e o alias de `expo-sqlite`:
+  // sao verificados por `tsconfig.test.json` (`npm run typecheck:tests`).
+  "exclude": ["tests", "**/*.test.ts", ".claude"]
 }

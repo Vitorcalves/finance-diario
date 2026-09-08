@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "baseUrl": ".",
+    // `database.ts` importa `expo-sqlite`, que nao existe fora do app. O alias
+    // troca o modulo pelo banco em memoria sem que o codigo de producao saiba.
+    "paths": {
+      "expo-sqlite": ["./tests/setup/expo-sqlite.ts"]
+    }
+  },
+  // `exclude` do tsconfig base tira os testes; aqui eles sao justamente o alvo.
+  "exclude": [".claude", "node_modules"],
+  "include": ["tests/**/*.ts", "src/**/*.test.ts"]
+}

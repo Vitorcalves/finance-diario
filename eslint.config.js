@@ -32,7 +32,10 @@ module.exports = defineConfig([{
                 jsx: true,
             },
 
-            project: "./tsconfig.json",
+            // Os testes ficam fora do tsconfig do app (rodam no Node, com o
+            // alias de `expo-sqlite`): sem o segundo projeto o parser nao acha
+            // esses arquivos e nao consegue aplicar as regras com tipo.
+            project: ["./tsconfig.json", "./tsconfig.test.json"],
         },
     },
 
@@ -67,5 +70,17 @@ module.exports = defineConfig([{
         "@typescript-eslint/explicit-function-return-type": "warn",
         "@typescript-eslint/no-unsafe-assignment": "warn",
         "@typescript-eslint/no-unsafe-member-access": "warn",
+    },
+}, {
+    files: ["**/*.test.ts", "tests/**/*.ts"],
+
+    rules: {
+        // `test()` e `describe()` do node:test devolvem Promise. Aguardar cada
+        // chamada nao muda o comportamento e encheria os arquivos de `void`.
+        "@typescript-eslint/no-floating-promises": "off",
+
+        // O substituto de `expo-sqlite` precisa ser async para casar com a
+        // interface real, mesmo com `node:sqlite` sendo sincrono.
+        "@typescript-eslint/require-await": "off",
     },
 }]);

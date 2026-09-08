@@ -1,14 +1,14 @@
 import React from 'react';
-import { StyleSheet, Switch, Text, View } from 'react-native';
+import {StyleSheet, Switch, Text, View} from 'react-native';
 import dayjs from 'dayjs';
 import BrazilianDateInput from '../../../components/BrazilianDateInput';
-import { ChipSelector } from '../../../components/ui';
-import { colors, fontSize, sharedStyles, spacing } from '../../../theme';
-import { dividirEmParcelas } from '../../../utils/parcelas';
-import { toCurrency } from '../../../utils/format';
+import {ChipSelector} from '../../../components/ui';
+import {colors, fontSize, sharedStyles, spacing} from '../../../theme';
+import {dividirEmParcelas} from '../../../utils/parcelas';
+import {toCurrency} from '../../../utils/format';
 
 /** Atalhos de parcelamento; o valor exato pode ser digitado no campo de parcelas. */
-const OPCOES_PARCELAS = [2, 3, 4, 6, 10, 12, 18, 24];
+const OPCOES_PARCELAS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 18, 24];
 
 type ParcelamentoSelectorProps = {
   /** `false` mantem o lancamento a vista. */
@@ -27,15 +27,15 @@ type ParcelamentoSelectorProps = {
 
 /** Liga o parcelamento e mostra a previa de quanto cai por mes. */
 export default function ParcelamentoSelector({
-  ativo,
-  onAlternar,
-  parcelas,
-  onChangeParcelas,
-  primeiraParcela,
-  onChangePrimeiraParcela,
-  dataInputKey,
-  total,
-}: ParcelamentoSelectorProps): React.ReactNode {
+                                               ativo,
+                                               onAlternar,
+                                               parcelas,
+                                               onChangeParcelas,
+                                               primeiraParcela,
+                                               onChangePrimeiraParcela,
+                                               dataInputKey,
+                                               total,
+                                             }: ParcelamentoSelectorProps): React.ReactNode {
   const valores = dividirEmParcelas(total, parcelas);
   const primeira = valores[0] ?? 0;
   const ultima = valores[valores.length - 1] ?? 0;
@@ -47,7 +47,7 @@ export default function ParcelamentoSelector({
         <Switch
           value={ativo}
           onValueChange={onAlternar}
-          trackColor={{ false: colors.borderStrong, true: colors.primary }}
+          trackColor={{false: colors.borderStrong, true: colors.primary}}
           thumbColor={colors.surface}
         />
       </View>

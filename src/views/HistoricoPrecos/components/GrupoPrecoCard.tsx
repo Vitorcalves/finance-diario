@@ -9,8 +9,8 @@ import {
   sharedStyles,
   spacing,
 } from '../../../theme';
-import { formatarData, toCurrency, toPercent } from '../../../utils/format';
-import type { Agrupamento, GrupoPreco } from '../types';
+import { formatarData, toCurrency, toCurrencyPorUnidade, toPercent } from '../../../utils/format';
+import type { Agrupamento, BaseComparacao, GrupoPreco } from '../types';
 
 type GrupoPrecoCardProps = {
   grupo: GrupoPreco;
@@ -19,6 +19,7 @@ type GrupoPrecoCardProps = {
   onAlternar: () => void;
   /** Grupo com o menor preco atual entre todos. */
   melhor: boolean;
+  baseComparacao: BaseComparacao;
   nomeEmpresa: (id: string | null) => string;
   rotuloVariante: (varianteId: string) => string;
 };
@@ -30,10 +31,85 @@ export default function GrupoPrecoCard({
   expandido,
   onAlternar,
   melhor,
+  baseComparacao,
   nomeEmpresa,
   rotuloVariante,
 }: GrupoPrecoCardProps): React.ReactNode {
-  const variacao = grupo.menor > 0 ? ((grupo.atual - grupo.menor) / grupo.menor) * 100 : 0;
+  const normalizado = grupo.normalizado;
+
+  /**
+   * Agrupado por produto, o mesmo grupo junta embalagens de tamanhos
+   * diferentes: o preco pago nao compara, o preco por unidade primaria sim.
+   */
+  const porUnidade = agrupamento === 'produto' && normalizado.status === 'ok';
+
+  const metricas =
+    porUnidade && normalizado.status === 'ok'
+      ? {
+          atual: toCurrencyPorUnidade(normalizado.atual, normalizado.sigla),
+          menor: toCurrencyPorUnidade(normalizado.menor, normalizado.sigla),
+          maior: toCurrencyPorUnidade(normalizado.maior, normalizado.sigla),
+          media: toCurrencyPorUnidade(normalizado.media, normalizado.sigla),
+          dataAtual: normalizado.registroAtual.data,
+          empresaMenor: normalizado.registroMenor.empresa_id,
+          valorAtual: normalizado.atual,
+          valorMenor: normalizado.menor,
+        }
+      : {
+          atual: toCurrency(grupo.atual),
+          menor: toCurrency(grupo.menor),
+          maior: toCurrency(grupo.maior),
+          media: toCurrency(grupo.media),
+          dataAtual: grupo.registroAtual.data,
+          empresaMenor: grupo.registroMenor.empresa_id,
+          valorAtual: grupo.atual,
+          valorMenor: grupo.menor,
+        };
+
+  const variacao =
+    metricas.valorMenor > 0
+      ? ((metricas.valorAtual - metricas.valorMenor) / metricas.valorMenor) * 100
+      : 0;
+
+  const sufixo = porUnidade && normalizado.status === 'ok' ? ` (por ${normalizado.sigla})` : '';
+
+  const rotuloMelhor =
+    baseComparacao === 'unitario' && normalizado.status === 'ok'
+      ? `Melhor por ${normalizado.sigla}`
+      : 'Melhor preco';
+
+  const renderAviso = (): React.ReactNode => {
+    if (agrupamento !== 'produto') {
+      return null;
+    }
+
+    if (normalizado.status === 'semMedida') {
+      return (
+        <Text style={styles.aviso}>
+          Sem comparacao por unidade: as variantes deste produto nao tem quantidade e unidade
+          cadastradas.
+        </Text>
+      );
+    }
+
+    if (normalizado.status === 'unidadesIncompativeis') {
+      return (
+        <Text style={styles.aviso}>
+          Sem comparacao por unidade: este produto mistura variantes de medidas diferentes.
+        </Text>
+      );
+    }
+
+    if (normalizado.semMedida > 0) {
+      return (
+        <Text style={styles.aviso}>
+          {normalizado.semMedida} registro(s) fora da comparacao por nao terem medida cadastrada.
+        </Text>
+      );
+    }
+
+    return null;
+  };
 
   return (
     <View style={[sharedStyles.card, melhor && sharedStyles.cardHighlight]}>
@@ -43,7 +119,7 @@ export default function GrupoPrecoCard({
             <Text style={styles.titulo}>{grupo.titulo}</Text>
             {melhor && (
               <View style={[sharedStyles.badge, sharedStyles.badgeSuccess]}>
-                <Text style={sharedStyles.badgeText}>Melhor preco</Text>
+                <Text style={sharedStyles.badgeText}>{rotuloMelhor}</Text>
               </View>
             )}
           </View>
@@ -58,23 +134,36 @@ export default function GrupoPrecoCard({
 
       <View style={styles.metricasRow}>
         <View style={styles.metrica}>
-          <Text style={styles.metricaLabel}>Atual</Text>
-          <Text style={styles.metricaValorDestaque}>{toCurrency(grupo.atual)}</Text>
-          <Text style={styles.metricaDetalhe}>{formatarData(grupo.registroAtual.data)}</Text>
+          <Text style={styles.metricaLabel}>Atual{sufixo}</Text>
+          <Text style={styles.metricaValorDestaque}>{metricas.atual}</Text>
+          <Text style={styles.metricaDetalhe}>{formatarData(metricas.dataAtual)}</Text>
         </View>
         <View style={styles.metrica}>
-          <Text style={styles.metricaLabel}>Menor</Text>
-          <Text style={styles.metricaValor}>{toCurrency(grupo.menor)}</Text>
+          <Text style={styles.metricaLabel}>Menor{sufixo}</Text>
+          <Text style={styles.metricaValor}>{metricas.menor}</Text>
           <Text style={styles.metricaDetalhe} numberOfLines={1}>
-            {nomeEmpresa(grupo.registroMenor.empresa_id)}
+            {nomeEmpresa(metricas.empresaMenor)}
           </Text>
         </View>
         <View style={styles.metrica}>
-          <Text style={styles.metricaLabel}>Maior</Text>
-          <Text style={styles.metricaValor}>{toCurrency(grupo.maior)}</Text>
-          <Text style={styles.metricaDetalhe}>Media {toCurrency(grupo.media)}</Text>
+          <Text style={styles.metricaLabel}>Maior{sufixo}</Text>
+          <Text style={styles.metricaValor}>{metricas.maior}</Text>
+          <Text style={styles.metricaDetalhe}>Media {metricas.media}</Text>
         </View>
       </View>
+
+      {/* Comparando por variante o preco pago ja e comparavel, mas so o preco
+          por unidade permite escolher entre embalagens de tamanhos diferentes. */}
+      {agrupamento === 'variante' && normalizado.status === 'ok' && (
+        <Text style={styles.porUnidade}>
+          {toCurrencyPorUnidade(normalizado.atual, normalizado.sigla)} no preco atual
+          {normalizado.menor < normalizado.atual
+            ? ` • menor ja pago ${toCurrencyPorUnidade(normalizado.menor, normalizado.sigla)}`
+            : ''}
+        </Text>
+      )}
+
+      {renderAviso()}
 
       {grupo.registros.length > 1 && (
         <Text
@@ -91,7 +180,7 @@ export default function GrupoPrecoCard({
 
       {expandido && (
         <View style={styles.registrosLista}>
-          {grupo.registros.map((registro) => (
+          {grupo.registros.map(({ registro, unitario }) => (
             <View key={registro.id} style={styles.registroRow}>
               <View style={styles.registroInfo}>
                 <Text style={styles.registroData}>{formatarData(registro.data)}</Text>
@@ -100,14 +189,21 @@ export default function GrupoPrecoCard({
                   {agrupamento === 'produto' ? ` • ${rotuloVariante(registro.variante_id)}` : ''}
                 </Text>
               </View>
-              <Text
-                style={[
-                  styles.registroPreco,
-                  registro.preco === grupo.menor && sharedStyles.positive,
-                ]}
-              >
-                {toCurrency(registro.preco)}
-              </Text>
+              <View style={styles.registroValores}>
+                <Text
+                  style={[
+                    styles.registroPreco,
+                    registro.preco === grupo.menor && sharedStyles.positive,
+                  ]}
+                >
+                  {toCurrency(registro.preco)}
+                </Text>
+                {unitario !== null && (
+                  <Text style={styles.registroUnitario}>
+                    {toCurrencyPorUnidade(unitario.valor, unitario.sigla)}
+                  </Text>
+                )}
+              </View>
             </View>
           ))}
         </View>
@@ -175,6 +271,15 @@ const styles = StyleSheet.create({
     color: colors.textSubtle,
     marginTop: 2,
   },
+  porUnidade: {
+    fontSize: fontSize.caption,
+    fontWeight: fontWeight.medium,
+    color: colors.primaryDeep,
+  },
+  aviso: {
+    fontSize: fontSize.micro,
+    color: colors.textSubtle,
+  },
   variacaoText: {
     fontSize: fontSize.caption,
     fontWeight: fontWeight.medium,
@@ -203,9 +308,17 @@ const styles = StyleSheet.create({
     fontSize: fontSize.caption,
     color: colors.textSubtle,
   },
+  registroValores: {
+    alignItems: 'flex-end',
+  },
   registroPreco: {
     fontSize: fontSize.body,
     fontWeight: fontWeight.bold,
     color: colors.primaryDark,
+  },
+  registroUnitario: {
+    fontSize: fontSize.micro,
+    color: colors.textSubtle,
+    marginTop: 2,
   },
 });

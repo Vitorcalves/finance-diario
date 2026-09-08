@@ -7,8 +7,9 @@ import { type HistoricoPreco, listHistoricoPreco } from '../../models/historicoP
 import { listMarcas, type Marca } from '../../models/marcas';
 import { listProdutos, type Produto } from '../../models/produtos';
 import { listProdutoVariantes, type ProdutoVariantes } from '../../models/produtoVariantes';
-import { rotuloVariantePorId } from '../../utils/variantes';
-import type { Agrupamento, GrupoPreco, Ordenacao } from './types';
+import { precoPorUnidadePrimaria, rotuloVariantePorId } from '../../utils/variantes';
+import { definirBaseComparacao, normalizarGrupo, valorComparavel } from './normalizacao';
+import type { Agrupamento, BaseComparacao, GrupoPreco, Ordenacao, RegistroPreco } from './types';
 
 const toTimestamp = (data: string): number => dayjs(data).valueOf();
 
@@ -16,8 +17,10 @@ export type UseHistoricoPrecos = {
   loading: boolean;
   produtos: Produto[];
   grupos: GrupoPreco[];
-  /** Menor preco atual entre os grupos; `null` quando ha menos de dois. */
-  melhorPreco: number | null;
+  /** Escala em que os grupos estao sendo comparados entre si. */
+  baseComparacao: BaseComparacao;
+  /** `true` no grupo com o menor preco atual; sempre `false` com menos de dois grupos. */
+  ehMelhorPreco: (grupo: GrupoPreco) => boolean;
   produtoFiltro: string | null;
   alternarProdutoFiltro: (id: string) => void;
   /** Variante isolada pela leitura do codigo de barras; `null` quando sem filtro. */
@@ -100,7 +103,12 @@ export function useHistoricoPrecos(): UseHistoricoPrecos {
     [variantes, marcas],
   );
 
-  const grupos = useMemo((): GrupoPreco[] => {
+  const { grupos, baseComparacao } = useMemo((): {
+    grupos: GrupoPreco[];
+    baseComparacao: BaseComparacao;
+  } => {
+    const variantePorId = new Map(variantes.map((variante) => [variante.id, variante]));
+
     const filtrado = historico.filter((registro) => {
       if (produtoFiltro && registro.produto_id !== produtoFiltro) {
         return false;
@@ -121,13 +129,18 @@ export function useHistoricoPrecos(): UseHistoricoPrecos {
     const resultado: GrupoPreco[] = [];
 
     for (const [chave, registrosDoGrupo] of agrupado) {
-      const registros = [...registrosDoGrupo].sort(
+      const ordenados = [...registrosDoGrupo].sort(
         (a, b) => toTimestamp(b.data) - toTimestamp(a.data),
       );
-      const precos = registros.map((registro) => registro.preco);
+      const registros: RegistroPreco[] = ordenados.map((registro) => ({
+        registro,
+        unitario: precoPorUnidadePrimaria(registro.preco, variantePorId.get(registro.variante_id)),
+      }));
+
+      const precos = ordenados.map((registro) => registro.preco);
       const menor = Math.min(...precos);
-      const registroMenor = registros.find((registro) => registro.preco === menor) ?? registros[0];
-      const produtoDoGrupo = registros[0].produto_id;
+      const registroMenor = ordenados.find((registro) => registro.preco === menor) ?? ordenados[0];
+      const produtoDoGrupo = ordenados[0].produto_id;
 
       resultado.push({
         chave,
@@ -137,18 +150,21 @@ export function useHistoricoPrecos(): UseHistoricoPrecos {
             ? nomeProduto(produtoDoGrupo)
             : `${registros.length} registro(s) de preco`,
         registros,
-        atual: registros[0].preco,
+        atual: ordenados[0].preco,
         menor,
         maior: Math.max(...precos),
         media: precos.reduce((soma, preco) => soma + preco, 0) / precos.length,
         registroMenor,
-        registroAtual: registros[0],
+        registroAtual: ordenados[0],
+        normalizado: normalizarGrupo(registros),
       });
     }
 
-    return resultado.sort((a, b) => {
+    const base = definirBaseComparacao(resultado);
+
+    resultado.sort((a, b) => {
       if (ordenacao === 'menorPreco') {
-        return a.atual - b.atual;
+        return valorComparavel(a, base) - valorComparavel(b, base);
       }
 
       if (ordenacao === 'recente') {
@@ -157,8 +173,11 @@ export function useHistoricoPrecos(): UseHistoricoPrecos {
 
       return a.titulo.localeCompare(b.titulo, 'pt-BR');
     });
+
+    return { grupos: resultado, baseComparacao: base };
   }, [
     historico,
+    variantes,
     nomeProduto,
     rotuloVariante,
     produtoFiltro,
@@ -168,8 +187,17 @@ export function useHistoricoPrecos(): UseHistoricoPrecos {
   ]);
 
   const melhorPreco = useMemo(
-    () => (grupos.length > 1 ? Math.min(...grupos.map((grupo) => grupo.atual)) : null),
-    [grupos],
+    () =>
+      grupos.length > 1
+        ? Math.min(...grupos.map((grupo) => valorComparavel(grupo, baseComparacao)))
+        : null,
+    [grupos, baseComparacao],
+  );
+
+  const ehMelhorPreco = useCallback(
+    (grupo: GrupoPreco): boolean =>
+      melhorPreco !== null && valorComparavel(grupo, baseComparacao) === melhorPreco,
+    [melhorPreco, baseComparacao],
   );
 
   const alternarExpandido = useCallback((chave: string): void => {
@@ -232,7 +260,8 @@ export function useHistoricoPrecos(): UseHistoricoPrecos {
     loading,
     produtos,
     grupos,
-    melhorPreco,
+    baseComparacao,
+    ehMelhorPreco,
     produtoFiltro,
     alternarProdutoFiltro,
     varianteFiltro,

@@ -19,7 +19,8 @@ export default function HistoricoPrecosView(): React.ReactNode {
     loading,
     produtos,
     grupos,
-    melhorPreco,
+    baseComparacao,
+    ehMelhorPreco,
     produtoFiltro,
     alternarProdutoFiltro,
     varianteFiltro,
@@ -82,7 +83,8 @@ export default function HistoricoPrecosView(): React.ReactNode {
                 agrupamento={agrupamento}
                 expandido={expandidos.includes(grupo.chave)}
                 onAlternar={(): void => alternarExpandido(grupo.chave)}
-                melhor={melhorPreco !== null && grupo.atual === melhorPreco}
+                melhor={ehMelhorPreco(grupo)}
+                baseComparacao={baseComparacao}
                 nomeEmpresa={nomeEmpresa}
                 rotuloVariante={rotuloVariante}
               />

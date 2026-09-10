@@ -4,7 +4,7 @@ import { Alert, ScrollView, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { LoadingState, ScreenHeader } from '../../components/ui';
+import { KeyboardAvoidingScreen, LoadingState, ScreenHeader } from '../../components/ui';
 import type { MenuStackParamList } from '../../routes/types';
 import { sharedStyles } from '../../theme';
 import AvisoOrcamento from './components/AvisoOrcamento';
@@ -76,10 +76,11 @@ export default function OrcamentoView(): React.ReactNode {
       {orcamento.loading ? (
         <LoadingState />
       ) : (
-        <>
+        <KeyboardAvoidingScreen>
           <ScrollView
             style={sharedStyles.scrollArea}
             contentContainerStyle={sharedStyles.scrollContent}
+            keyboardShouldPersistTaps="handled"
           >
             <AvisoOrcamento />
 
@@ -145,7 +146,7 @@ export default function OrcamentoView(): React.ReactNode {
               void orcamento.registrarPrecos();
             }}
           />
-        </>
+        </KeyboardAvoidingScreen>
       )}
     </SafeAreaView>
   );

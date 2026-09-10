@@ -5,7 +5,7 @@ import dayjs from 'dayjs';
 import BrazilianDateInput from '../../../components/BrazilianDateInput';
 import BrazilianIntegerInput from '../../../components/BrazilianIntegerInput';
 import SeletorMultiplo from '../../../components/SeletorMultiplo';
-import { Button, ChipSelector, ScreenHeader } from '../../../components/ui';
+import { Button, ChipSelector, KeyboardAvoidingScreen, ScreenHeader } from '../../../components/ui';
 import type { Empresa } from '../../../models/empresas';
 import { colors, sharedStyles } from '../../../theme';
 import { type FrequenciaPlano, ROTULO_FREQUENCIA } from '../../../utils/parcelas';
@@ -56,83 +56,86 @@ export default function AssinaturaFormModal({
       <SafeAreaView style={sharedStyles.screen}>
         <ScreenHeader title="Nova assinatura" backIcon="close" onBack={onFechar} />
 
-        <ScrollView
-          style={sharedStyles.scrollArea}
-          contentContainerStyle={sharedStyles.formContent}
-        >
-          <View style={sharedStyles.formGroup}>
-            <Text style={sharedStyles.label}>Descricao *</Text>
-            <TextInput
-              style={sharedStyles.input}
-              placeholder="Ex.: Streaming, academia, plano do celular"
-              value={descricao}
-              onChangeText={setDescricao}
-              placeholderTextColor={colors.placeholder}
-            />
-          </View>
+        <KeyboardAvoidingScreen>
+          <ScrollView
+            style={sharedStyles.scrollArea}
+            contentContainerStyle={sharedStyles.formContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={sharedStyles.formGroup}>
+              <Text style={sharedStyles.label}>Descricao *</Text>
+              <TextInput
+                style={sharedStyles.input}
+                placeholder="Ex.: Streaming, academia, plano do celular"
+                value={descricao}
+                onChangeText={setDescricao}
+                placeholderTextColor={colors.placeholder}
+              />
+            </View>
 
-          <View style={sharedStyles.formGroup}>
-            <SeletorMultiplo
-              label="Empresa"
-              opcoes={empresas.map((empresa) => ({ id: empresa.id, nome: empresa.nome }))}
-              selecionados={empresaId ? [empresaId] : []}
-              onToggle={(id): void => setEmpresaId((atual) => (atual === id ? null : id))}
-              placeholderBusca="Buscar empresa"
-              textoTrigger="Selecionar empresa"
-              textoVazio="Nenhuma empresa cadastrada"
-              textoNenhumEncontrado="Nenhuma empresa encontrada"
-            />
-          </View>
+            <View style={sharedStyles.formGroup}>
+              <SeletorMultiplo
+                label="Empresa"
+                opcoes={empresas.map((empresa) => ({ id: empresa.id, nome: empresa.nome }))}
+                selecionados={empresaId ? [empresaId] : []}
+                onToggle={(id): void => setEmpresaId((atual) => (atual === id ? null : id))}
+                placeholderBusca="Buscar empresa"
+                textoTrigger="Selecionar empresa"
+                textoVazio="Nenhuma empresa cadastrada"
+                textoNenhumEncontrado="Nenhuma empresa encontrada"
+              />
+            </View>
 
-          <View style={sharedStyles.formGroup}>
-            <Text style={sharedStyles.label}>Valor da cobranca (R$) *</Text>
-            <BrazilianIntegerInput
-              value={valor}
-              onChangeValue={setValor}
-              decimalScale={2}
-              fixedDecimalScale
-              placeholder="Ex.: 39,90"
-              placeholderTextColor={colors.placeholder}
-              style={sharedStyles.input}
-            />
-          </View>
+            <View style={sharedStyles.formGroup}>
+              <Text style={sharedStyles.label}>Valor da cobranca (R$) *</Text>
+              <BrazilianIntegerInput
+                value={valor}
+                onChangeValue={setValor}
+                decimalScale={2}
+                fixedDecimalScale
+                placeholder="Ex.: 39,90"
+                placeholderTextColor={colors.placeholder}
+                style={sharedStyles.input}
+              />
+            </View>
 
-          <View style={sharedStyles.formGroup}>
-            <Text style={sharedStyles.label}>Frequencia</Text>
-            <ChipSelector
-              opcoes={FREQUENCIAS.map((opcao) => ({
-                valor: opcao,
-                rotulo: ROTULO_FREQUENCIA[opcao],
-              }))}
-              selecionado={frequencia}
-              onSelecionar={setFrequencia}
-            />
-          </View>
+            <View style={sharedStyles.formGroup}>
+              <Text style={sharedStyles.label}>Frequencia</Text>
+              <ChipSelector
+                opcoes={FREQUENCIAS.map((opcao) => ({
+                  valor: opcao,
+                  rotulo: ROTULO_FREQUENCIA[opcao],
+                }))}
+                selecionado={frequencia}
+                onSelecionar={setFrequencia}
+              />
+            </View>
 
-          <View style={sharedStyles.formGroup}>
-            <Text style={sharedStyles.label}>1a cobranca (DD/MM/AAAA) *</Text>
-            <BrazilianDateInput
-              defaultValue={dataInicio}
-              onChangeValue={setDataInicio}
-              placeholder={dayjs().format('DD/MM/YYYY')}
-              placeholderTextColor={colors.placeholder}
-              style={sharedStyles.input}
-            />
-            <Text style={sharedStyles.sectionHint}>
-              O dia desta data vira o dia da cobranca em todos os meses seguintes.
-            </Text>
-          </View>
+            <View style={sharedStyles.formGroup}>
+              <Text style={sharedStyles.label}>1a cobranca (DD/MM/AAAA) *</Text>
+              <BrazilianDateInput
+                defaultValue={dataInicio}
+                onChangeValue={setDataInicio}
+                placeholder={dayjs().format('DD/MM/YYYY')}
+                placeholderTextColor={colors.placeholder}
+                style={sharedStyles.input}
+              />
+              <Text style={sharedStyles.sectionHint}>
+                O dia desta data vira o dia da cobranca em todos os meses seguintes.
+              </Text>
+            </View>
 
-          <View style={sharedStyles.actionsRow}>
-            <Button
-              label={salvando ? 'Salvando...' : 'Salvar assinatura'}
-              flex
-              disabled={salvando}
-              onPress={salvar}
-            />
-            <Button label="Cancelar" variant="secondary" flex onPress={onFechar} />
-          </View>
-        </ScrollView>
+            <View style={sharedStyles.actionsRow}>
+              <Button
+                label={salvando ? 'Salvando...' : 'Salvar assinatura'}
+                flex
+                disabled={salvando}
+                onPress={salvar}
+              />
+              <Button label="Cancelar" variant="secondary" flex onPress={onFechar} />
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingScreen>
       </SafeAreaView>
     </Modal>
   );

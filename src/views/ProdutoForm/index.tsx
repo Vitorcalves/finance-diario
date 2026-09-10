@@ -6,7 +6,7 @@ import { type RouteProp, useNavigation, useRoute } from '@react-navigation/nativ
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import BrazilianIntegerInput from '../../components/BrazilianIntegerInput';
 import SeletorMultiplo from '../../components/SeletorMultiplo';
-import { Button, LoadingState, ScreenHeader } from '../../components/ui';
+import { Button, KeyboardAvoidingScreen, LoadingState, ScreenHeader } from '../../components/ui';
 import type { ProdutosStackParamList } from '../../routes/types';
 import { colors, sharedStyles } from '../../theme';
 import NomeSimplesForm from './components/NomeSimplesForm';
@@ -73,96 +73,108 @@ export default function ProdutoFormView(): React.ReactNode {
         onBack={(): void => navigation.goBack()}
       />
 
-      <ScrollView style={sharedStyles.scrollArea} contentContainerStyle={sharedStyles.formContent}>
-        <View style={sharedStyles.formGroup}>
-          <Text style={sharedStyles.label}>Nome do Produto *</Text>
-          <TextInput
-            style={sharedStyles.input}
-            placeholder="Ex: Arroz"
-            value={form.nome}
-            onChangeText={form.setNome}
-            placeholderTextColor={colors.placeholder}
-          />
-        </View>
-
-        <View style={sharedStyles.formGroup}>
-          <Text style={sharedStyles.label}>Preço Base *</Text>
-          <BrazilianIntegerInput
-            style={sharedStyles.input}
-            placeholder="Ex: 10,50"
-            value={form.preco}
-            onChangeValue={form.setPreco}
-            decimalScale={2}
-            fixedDecimalScale
-            placeholderTextColor={colors.placeholder}
-          />
-        </View>
-
-        <View style={sharedStyles.formGroup}>
-          <Text style={sharedStyles.label}>Unidade</Text>
-          <SeletorUnidade valor={form.unidadeId} onSelecionar={form.setUnidadeId} apenasPrimarias />
-        </View>
-
-        <SeletorMultiplo
-          label="Categorias"
-          opcoes={form.categorias.map((categoria) => ({
-            id: categoria.id,
-            nome: categoria.nome,
-          }))}
-          selecionados={form.categoriasSelecionadas}
-          onToggle={form.alternarCategoria}
-          placeholderBusca="Buscar categoria"
-          textoTrigger="Adicionar categoria"
-          textoVazio="Nenhuma categoria cadastrada"
-          textoNenhumEncontrado="Nenhuma categoria encontrada"
-          add
-          textoAdicionar="Nova categoria"
-          formAdicionar={(fechar): React.ReactNode => (
-            <NomeSimplesForm
-              placeholder="Nome da categoria"
-              onSalvar={form.criarCategoria}
-              onCancelar={fechar}
+      <KeyboardAvoidingScreen>
+        <ScrollView
+          style={sharedStyles.scrollArea}
+          contentContainerStyle={sharedStyles.formContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={sharedStyles.formGroup}>
+            <Text style={sharedStyles.label}>Nome do Produto *</Text>
+            <TextInput
+              style={sharedStyles.input}
+              placeholder="Ex: Arroz"
+              value={form.nome}
+              onChangeText={form.setNome}
+              placeholderTextColor={colors.placeholder}
             />
-          )}
-        />
+          </View>
 
-        <View style={sharedStyles.formGroup}>
-          <Text style={sharedStyles.label}>Variantes</Text>
-
-          {form.variantes.length === 0 && (
-            <Text style={sharedStyles.inlineEmptyText}>Nenhuma variante adicionada</Text>
-          )}
-
-          {form.variantes.map((variante, index) => (
-            <VarianteCard
-              key={variante.localId}
-              variante={variante}
-              nomeMarca={form.nomeMarca}
-              onEditar={(): void => reiniciarVarianteForm(index)}
-              onRemover={(): void => removerVariante(index)}
+          <View style={sharedStyles.formGroup}>
+            <Text style={sharedStyles.label}>Preço Base *</Text>
+            <BrazilianIntegerInput
+              style={sharedStyles.input}
+              placeholder="Ex: 10,50"
+              value={form.preco}
+              onChangeValue={form.setPreco}
+              decimalScale={2}
+              fixedDecimalScale
+              placeholderTextColor={colors.placeholder}
             />
-          ))}
+          </View>
 
-          <VarianteForm
-            key={`variante-${varianteFormKey}`}
-            marcas={form.marcas}
-            varianteInicial={varianteEditIndex !== null ? form.variantes[varianteEditIndex] : null}
-            onSalvar={salvarVariante}
-            onCancelar={(): void => reiniciarVarianteForm(null)}
-            onCriarMarca={form.criarMarca}
-          />
-        </View>
+          <View style={sharedStyles.formGroup}>
+            <Text style={sharedStyles.label}>Unidade</Text>
+            <SeletorUnidade
+              valor={form.unidadeId}
+              onSelecionar={form.setUnidadeId}
+              apenasPrimarias
+            />
+          </View>
 
-        <View style={sharedStyles.actionsRow}>
-          <Button label="Salvar Produto" flex onPress={salvarProduto} />
-          <Button
-            label="Cancelar"
-            variant="secondary"
-            flex
-            onPress={(): void => navigation.goBack()}
+          <SeletorMultiplo
+            label="Categorias"
+            opcoes={form.categorias.map((categoria) => ({
+              id: categoria.id,
+              nome: categoria.nome,
+            }))}
+            selecionados={form.categoriasSelecionadas}
+            onToggle={form.alternarCategoria}
+            placeholderBusca="Buscar categoria"
+            textoTrigger="Adicionar categoria"
+            textoVazio="Nenhuma categoria cadastrada"
+            textoNenhumEncontrado="Nenhuma categoria encontrada"
+            add
+            textoAdicionar="Nova categoria"
+            formAdicionar={(fechar): React.ReactNode => (
+              <NomeSimplesForm
+                placeholder="Nome da categoria"
+                onSalvar={form.criarCategoria}
+                onCancelar={fechar}
+              />
+            )}
           />
-        </View>
-      </ScrollView>
+
+          <View style={sharedStyles.formGroup}>
+            <Text style={sharedStyles.label}>Variantes</Text>
+
+            {form.variantes.length === 0 && (
+              <Text style={sharedStyles.inlineEmptyText}>Nenhuma variante adicionada</Text>
+            )}
+
+            {form.variantes.map((variante, index) => (
+              <VarianteCard
+                key={variante.localId}
+                variante={variante}
+                nomeMarca={form.nomeMarca}
+                onEditar={(): void => reiniciarVarianteForm(index)}
+                onRemover={(): void => removerVariante(index)}
+              />
+            ))}
+
+            <VarianteForm
+              key={`variante-${varianteFormKey}`}
+              marcas={form.marcas}
+              varianteInicial={
+                varianteEditIndex !== null ? form.variantes[varianteEditIndex] : null
+              }
+              onSalvar={salvarVariante}
+              onCancelar={(): void => reiniciarVarianteForm(null)}
+              onCriarMarca={form.criarMarca}
+            />
+          </View>
+
+          <View style={sharedStyles.actionsRow}>
+            <Button label="Salvar Produto" flex onPress={salvarProduto} />
+            <Button
+              label="Cancelar"
+              variant="secondary"
+              flex
+              onPress={(): void => navigation.goBack()}
+            />
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingScreen>
     </SafeAreaView>
   );
 }

@@ -1,9 +1,14 @@
 import { useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChipSelector, ScreenHeader, type ChipOpcao } from '../../components/ui';
+import {
+  ChipSelector,
+  KeyboardAvoidingScreen,
+  ScreenHeader,
+  type ChipOpcao,
+} from '../../components/ui';
 import { sharedStyles } from '../../theme';
 import ExportarPainel from './components/ExportarPainel';
 import ImportarPainel from './components/ImportarPainel';
@@ -43,10 +48,7 @@ export default function IntegracaoView(): React.ReactNode {
         onBack={(): void => navigation.goBack()}
       />
 
-      <KeyboardAvoidingView
-        style={sharedStyles.scrollArea}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <KeyboardAvoidingScreen>
         <ScrollView
           style={sharedStyles.scrollArea}
           contentContainerStyle={sharedStyles.scrollContent}
@@ -73,7 +75,7 @@ export default function IntegracaoView(): React.ReactNode {
             />
           )}
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingScreen>
     </SafeAreaView>
   );
 }

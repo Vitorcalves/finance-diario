@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Modal, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button, ScreenHeader } from '../../../components/ui';
+import { Button, KeyboardAvoidingScreen, ScreenHeader } from '../../../components/ui';
 import { colors, sharedStyles } from '../../../theme';
 
 type CategoriaFormModalProps = {
@@ -34,26 +34,29 @@ export default function CategoriaFormModal({
       <SafeAreaView style={sharedStyles.screen}>
         <ScreenHeader title="Nova Categoria" backIcon="close" onBack={onFechar} />
 
-        <ScrollView
-          style={sharedStyles.scrollArea}
-          contentContainerStyle={sharedStyles.formContent}
-        >
-          <View style={sharedStyles.formGroup}>
-            <Text style={sharedStyles.label}>Nome da Categoria *</Text>
-            <TextInput
-              style={sharedStyles.input}
-              placeholder="Ex: Alimentacao"
-              value={nome}
-              onChangeText={setNome}
-              placeholderTextColor={colors.placeholder}
-            />
-          </View>
+        <KeyboardAvoidingScreen>
+          <ScrollView
+            style={sharedStyles.scrollArea}
+            contentContainerStyle={sharedStyles.formContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={sharedStyles.formGroup}>
+              <Text style={sharedStyles.label}>Nome da Categoria *</Text>
+              <TextInput
+                style={sharedStyles.input}
+                placeholder="Ex: Alimentacao"
+                value={nome}
+                onChangeText={setNome}
+                placeholderTextColor={colors.placeholder}
+              />
+            </View>
 
-          <View style={sharedStyles.actionsRow}>
-            <Button label="Salvar Categoria" flex onPress={salvar} />
-            <Button label="Cancelar" variant="secondary" flex onPress={onFechar} />
-          </View>
-        </ScrollView>
+            <View style={sharedStyles.actionsRow}>
+              <Button label="Salvar Categoria" flex onPress={salvar} />
+              <Button label="Cancelar" variant="secondary" flex onPress={onFechar} />
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingScreen>
       </SafeAreaView>
     </Modal>
   );

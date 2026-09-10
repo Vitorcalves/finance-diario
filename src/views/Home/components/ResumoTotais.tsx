@@ -13,15 +13,19 @@ import { toCurrency } from '../../../utils/format';
 import React from 'react';
 
 type ResumoTotaisProps = {
-  totalSaidas: number;
+  /** Media diaria de gastos do mes corrente, com base nos dias ja decorridos. */
+  mediaDiariaGastos: number;
+  /** Projecao do gasto do mes inteiro, mantido o ritmo diario atual. */
+  projecaoGastoMes: number;
   saldoAtual: number;
   /** Parcelas e assinaturas ja lancadas que ainda vao vencer (valor negativo). */
   comprometidoFuturo: number;
 };
 
-/** Par de caixas com o gasto total e o saldo atual, mais o que ja esta comprometido. */
+/** Par de caixas com a media diaria do mes e o saldo atual, mais projecao e comprometido. */
 export default function ResumoTotais({
-  totalSaidas,
+  mediaDiariaGastos,
+  projecaoGastoMes,
   saldoAtual,
   comprometidoFuturo,
 }: ResumoTotaisProps): React.ReactNode {
@@ -29,8 +33,8 @@ export default function ResumoTotais({
     <View style={styles.container}>
       <View style={styles.row}>
         <View style={styles.box}>
-          <Text style={styles.label}>Gasto total</Text>
-          <Text style={styles.valor}>{toCurrency(totalSaidas)}</Text>
+          <Text style={styles.label}>Media diaria (mes)</Text>
+          <Text style={styles.valor}>{toCurrency(mediaDiariaGastos)}</Text>
         </View>
 
         <View style={styles.box}>
@@ -42,6 +46,15 @@ export default function ResumoTotais({
           </Text>
         </View>
       </View>
+
+      {projecaoGastoMes < 0 && (
+        <View style={styles.comprometidoRow}>
+          <Ionicons name="trending-up-outline" size={iconSize.sm} color={colors.textMuted} />
+          <Text style={styles.comprometidoTexto}>
+            {`Nesse ritmo, o mes fecha com ${toCurrency(Math.abs(projecaoGastoMes))} em gastos`}
+          </Text>
+        </View>
+      )}
 
       {comprometidoFuturo < 0 && (
         <View style={styles.comprometidoRow}>

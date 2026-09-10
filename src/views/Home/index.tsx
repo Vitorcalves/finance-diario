@@ -14,7 +14,8 @@ export default function HomeView(): React.ReactNode {
   const {
     loading,
     transacoes,
-    totalSaidas,
+    mediaDiariaGastos,
+    projecaoGastoMes,
     saldoAtual,
     comprometidoFuturo,
     itensPorTransacao,
@@ -48,7 +49,8 @@ export default function HomeView(): React.ReactNode {
           keyboardShouldPersistTaps="handled"
         >
           <ResumoTotais
-            totalSaidas={totalSaidas}
+            mediaDiariaGastos={mediaDiariaGastos}
+            projecaoGastoMes={projecaoGastoMes}
             saldoAtual={saldoAtual}
             comprometidoFuturo={comprometidoFuturo}
           />

@@ -30,8 +30,10 @@ const realizada = (transacao: Transacoes, hoje: string): boolean => transacao.da
 export type UseHome = {
   loading: boolean;
   transacoes: Transacoes[];
-  /** Total das saidas ja realizadas (valor negativo somado). */
-  totalSaidas: number;
+  /** Media diaria de gastos do mes corrente, com base nos dias ja decorridos. */
+  mediaDiariaGastos: number;
+  /** Projecao do gasto do mes inteiro, mantido o ritmo diario atual. */
+  projecaoGastoMes: number;
   /** Entradas menos saidas, contando so o que ja aconteceu. */
   saldoAtual: number;
   /** Saidas ja lancadas com data futura: parcelas e assinaturas a vencer. */
@@ -50,6 +52,8 @@ export type UseHome = {
  */
 export function useHome(): UseHome {
   const [transacoes, setTransacoes] = useState<Transacoes[]>([]);
+  /** Transacoes do mes corrente, sem o limite de 50 linhas do feed recente. */
+  const [transacoesMes, setTransacoesMes] = useState<Transacoes[]>([]);
   const [itens, setItens] = useState<ItemTransacao[]>([]);
   const [compras, setCompras] = useState<Transacoes[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
@@ -61,16 +65,22 @@ export function useHome(): UseHome {
 
     // So ate o fim do mes: as parcelas dos meses seguintes ja aparecem no
     // total comprometido e na tela de assinaturas.
+    const inicioMes = dayjs().startOf('month').format('YYYY-MM-DD');
     const ateData = dayjs().endOf('month').format('YYYY-MM-DD');
 
-    const [transacoesDoBanco, itensDoBanco, comprasDoBanco, empresasDoBanco] = await Promise.all([
-      listTransacoes(null, null, { ateData }),
-      listItensTransacao(),
-      listTransacoesCompra(),
-      listEmpresas(),
-    ]);
+    const [transacoesDoBanco, transacoesMesDoBanco, itensDoBanco, comprasDoBanco, empresasDoBanco] =
+      await Promise.all([
+        listTransacoes(null, null, { ateData }),
+        // Com inicio e fim informados a busca nao tem o limite de 50 linhas do
+        // feed recente, entao a media diaria e a projecao saem do mes inteiro.
+        listTransacoes(inicioMes, ateData),
+        listItensTransacao(),
+        listTransacoesCompra(),
+        listEmpresas(),
+      ]);
 
     setTransacoes(transacoesDoBanco);
+    setTransacoesMes(transacoesMesDoBanco);
     setItens(itensDoBanco);
     setCompras(comprasDoBanco);
     setEmpresas(empresasDoBanco);
@@ -98,14 +108,25 @@ export function useHome(): UseHome {
     };
   }, [carregarDados]);
 
-  const totalSaidas = useMemo(() => {
+  /** Soma so o que ja aconteceu no mes: parcelas futuras ainda nao contam como gasto. */
+  const gastoMesAtual = useMemo(() => {
     const hoje = hojeIso();
 
-    return transacoes.reduce(
+    return transacoesMes.reduce(
       (soma, item) => (item.valor < 0 && realizada(item, hoje) ? soma + item.valor : soma),
       0,
     );
-  }, [transacoes]);
+  }, [transacoesMes]);
+
+  const mediaDiariaGastos = useMemo(() => {
+    const diasDecorridos = dayjs().date();
+    return diasDecorridos > 0 ? gastoMesAtual / diasDecorridos : 0;
+  }, [gastoMesAtual]);
+
+  const projecaoGastoMes = useMemo(
+    () => mediaDiariaGastos * dayjs().daysInMonth(),
+    [mediaDiariaGastos],
+  );
 
   const saldoAtual = useMemo(() => {
     const hoje = hojeIso();
@@ -256,7 +277,8 @@ export function useHome(): UseHome {
   return {
     loading,
     transacoes,
-    totalSaidas,
+    mediaDiariaGastos,
+    projecaoGastoMes,
     saldoAtual,
     comprometidoFuturo,
     totaisPorDia,

@@ -9,6 +9,7 @@ import type { MenuStackParamList } from '../../routes/types';
 import { sharedStyles } from '../../theme';
 import AvisoOrcamento from './components/AvisoOrcamento';
 import ComparativoMercados from './components/ComparativoMercados';
+import ComparativoVariantes from './components/ComparativoVariantes';
 import DadosPesquisa from './components/DadosPesquisa';
 import ItemOrcamentoCard from './components/ItemOrcamentoCard';
 import ItemOrcamentoForm from './components/ItemOrcamentoForm';
@@ -98,10 +99,11 @@ export default function OrcamentoView(): React.ReactNode {
                 Nenhum item adicionado. Escolha produto, variante e o preco visto na gondola.
               </Text>
             ) : (
-              orcamento.itens.map((item, index) => (
+              orcamento.itensComUnitario.map(({ item, unitario }, index) => (
                 <ItemOrcamentoCard
                   key={item.localId}
                   item={item}
+                  unitario={unitario}
                   onEditar={(): void => reiniciarItemForm(index)}
                   onRemover={(): void => removerItem(index)}
                 />
@@ -121,6 +123,11 @@ export default function OrcamentoView(): React.ReactNode {
               rotuloVariante={orcamento.rotuloVariante}
               onSalvar={salvarItem}
               onCancelar={(): void => reiniciarItemForm(null)}
+            />
+
+            <ComparativoVariantes
+              grupos={orcamento.comparativoVariantes}
+              rotuloVariante={orcamento.rotuloVariante}
             />
 
             <ComparativoMercados

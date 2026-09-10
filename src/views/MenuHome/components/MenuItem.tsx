@@ -9,6 +9,8 @@ type MenuItemProps = {
   icone?: ComponentProps<typeof Ionicons>['name'];
   /** Destaca a acao como destrutiva (ex.: recriar o banco). */
   perigo?: boolean;
+  /** Estilo mais enxuto, usado dentro de um MenuGrupo ja expandido. */
+  compact?: boolean;
 };
 
 /** Linha clicavel do menu de navegacao. */
@@ -17,10 +19,20 @@ export default function MenuItem({
   onPress,
   icone = 'chevron-forward',
   perigo = false,
+  compact = false,
 }: MenuItemProps): React.ReactNode {
   return (
-    <Pressable style={[styles.item, perigo && styles.itemPerigo]} onPress={onPress}>
-      <Text style={[styles.texto, perigo && styles.textoPerigo]}>{label}</Text>
+    <Pressable
+      style={[
+        styles.item,
+        compact && styles.itemCompact,
+        perigo && (compact ? styles.itemCompactPerigo : styles.itemPerigo),
+      ]}
+      onPress={onPress}
+    >
+      <Text style={[styles.texto, compact && styles.textoCompact, perigo && styles.textoPerigo]}>
+        {label}
+      </Text>
       <Ionicons
         name={icone}
         size={iconSize.sm}
@@ -48,10 +60,25 @@ const styles = StyleSheet.create({
     backgroundColor: colors.dangerSurface,
     borderColor: colors.dangerBorder,
   },
+  itemCompact: {
+    borderWidth: 0,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.surfaceMuted,
+  },
+  itemCompactPerigo: {
+    marginTop: 0,
+    backgroundColor: colors.dangerSurface,
+  },
   texto: {
     fontSize: fontSize.input,
     fontWeight: fontWeight.bold,
     color: colors.textBody,
+  },
+  textoCompact: {
+    fontSize: fontSize.body,
+    fontWeight: fontWeight.medium,
   },
   textoPerigo: {
     color: colors.danger,

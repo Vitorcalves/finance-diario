@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { EmptyState, IconButton, LoadingState, ScreenHeader } from '../../components/ui';
-import { sharedStyles } from '../../theme';
+import { EmptyState, LoadingState, ScreenHeader } from '../../components/ui';
+import { sharedStyles, spacing } from '../../theme';
+import CategoriaCard from './components/CategoriaCard';
 import CategoriaFormModal from './components/CategoriaFormModal';
 import { useCategorias } from './useCategorias';
 
@@ -16,7 +17,15 @@ export default function CategoriasView(): React.ReactNode {
     <SafeAreaView style={sharedStyles.screen}>
       <StatusBar style="dark" />
 
-      <ScreenHeader title="Categorias" onAdd={(): void => setShowForm(true)} />
+      <ScreenHeader
+        title="Categorias"
+        subtitle={
+          categorias.length > 0
+            ? `${categorias.length} ${categorias.length === 1 ? 'categoria cadastrada' : 'categorias cadastradas'}`
+            : undefined
+        }
+        onAdd={(): void => setShowForm(true)}
+      />
 
       {loading ? (
         <LoadingState />
@@ -30,22 +39,14 @@ export default function CategoriasView(): React.ReactNode {
       ) : (
         <ScrollView
           style={sharedStyles.scrollArea}
-          contentContainerStyle={sharedStyles.listContent}
+          contentContainerStyle={[sharedStyles.listContent, styles.listContent]}
         >
           {categorias.map((categoria) => (
-            <View key={categoria.id} style={sharedStyles.listCard}>
-              <View style={sharedStyles.listCardInfo}>
-                <Text style={sharedStyles.listCardTitle}>{categoria.nome}</Text>
-              </View>
-
-              <View style={sharedStyles.iconButtonRow}>
-                <IconButton
-                  icon="trash"
-                  variant="danger"
-                  onPress={(): void => deletar(categoria)}
-                />
-              </View>
-            </View>
+            <CategoriaCard
+              key={categoria.id}
+              categoria={categoria}
+              onDeletar={(): void => deletar(categoria)}
+            />
           ))}
         </ScrollView>
       )}
@@ -56,3 +57,9 @@ export default function CategoriasView(): React.ReactNode {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  listContent: {
+    gap: spacing.sm,
+  },
+});

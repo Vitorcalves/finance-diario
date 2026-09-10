@@ -1,29 +1,21 @@
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenHeader } from '../../components/ui';
 import { recriarDatabase } from '../../models/database';
 import type { MenuStackParamList, RootTabParamList } from '../../routes/types';
 import { sharedStyles, spacing } from '../../theme';
-import MenuItem from './components/MenuItem';
+import MenuGrupo from './components/MenuGrupo';
 
 type MenuNavigation = BottomTabNavigationProp<RootTabParamList, 'Menu'>;
 
-/** Telas do MenuStack alcancadas por esta tela. */
-const TELAS_DO_MENU: { label: string; screen: keyof MenuStackParamList }[] = [
-  { label: 'Ir para Categorias', screen: 'Categorias' },
-  { label: 'Ir para Empresas', screen: 'Empresas' },
-  { label: 'Ir para Marcas', screen: 'Marcas' },
-  { label: 'Ir para Historico de Precos', screen: 'HistoricoPrecos' },
-  { label: 'Ir para Orcamento', screen: 'Orcamento' },
-  { label: 'Ir para Assinaturas e Parcelas', screen: 'Planos' },
-  { label: 'Ir para Integracao (backup JSON)', screen: 'Integracao' },
-];
-
-/** Menu de navegacao com atalhos para as abas e os cadastros. */
+/** Menu de navegacao com atalhos para as abas e os cadastros, agrupados em sanfona. */
 export default function MenuNavigationView(): React.ReactNode {
   const navigation = useNavigation<MenuNavigation>();
+
+  const irPara = (screen: keyof MenuStackParamList): void =>
+    navigation.navigate('Menu', { screen });
 
   const confirmarRecriacaoDoBanco = (): void => {
     Alert.alert(
@@ -45,29 +37,58 @@ export default function MenuNavigationView(): React.ReactNode {
       <ScreenHeader title="Menu de navegacao" subtitle="Acesse rapidamente cada aba do app." />
 
       <ScrollView style={sharedStyles.scrollArea} contentContainerStyle={styles.content}>
-        <MenuItem label="Ir para Home" onPress={(): void => navigation.navigate('Home')} />
-        <MenuItem
-          label="Ir para Gastos Mensais"
-          onPress={(): void => navigation.navigate('GastosMensais')}
-        />
-        <MenuItem label="Ir para Produtos" onPress={(): void => navigation.navigate('Produtos')} />
-
-        {TELAS_DO_MENU.map((item) => (
-          <MenuItem
-            key={item.screen}
-            label={item.label}
-            onPress={(): void => navigation.navigate('Menu', { screen: item.screen })}
-          />
-        ))}
-
-        <MenuItem
-          label="Recriar Banco de Dados"
-          icone="trash"
-          perigo
-          onPress={confirmarRecriacaoDoBanco}
+        <MenuGrupo
+          titulo="Principal"
+          icone="home-outline"
+          aberturaInicial
+          itens={[
+            { label: 'Home', onPress: (): void => navigation.navigate('Home') },
+            {
+              label: 'Gastos Mensais',
+              onPress: (): void => navigation.navigate('GastosMensais'),
+            },
+            { label: 'Produtos', onPress: (): void => navigation.navigate('Produtos') },
+          ]}
         />
 
-        <View style={styles.spacer} />
+        <MenuGrupo
+          titulo="Cadastros"
+          icone="pricetags-outline"
+          itens={[
+            { label: 'Categorias', onPress: (): void => irPara('Categorias') },
+            { label: 'Marcas', onPress: (): void => irPara('Marcas') },
+            { label: 'Empresas', onPress: (): void => irPara('Empresas') },
+          ]}
+        />
+
+        <MenuGrupo
+          titulo="Analises"
+          icone="stats-chart-outline"
+          itens={[
+            { label: 'Historico de Precos', onPress: (): void => irPara('HistoricoPrecos') },
+            { label: 'Orcamento', onPress: (): void => irPara('Orcamento') },
+          ]}
+        />
+
+        <MenuGrupo
+          titulo="Financeiro"
+          icone="card-outline"
+          itens={[{ label: 'Assinaturas e Parcelas', onPress: (): void => irPara('Planos') }]}
+        />
+
+        <MenuGrupo
+          titulo="Sistema"
+          icone="settings-outline"
+          itens={[
+            { label: 'Integracao (backup JSON)', onPress: (): void => irPara('Integracao') },
+            {
+              label: 'Recriar Banco de Dados',
+              icone: 'trash',
+              perigo: true,
+              onPress: confirmarRecriacaoDoBanco,
+            },
+          ]}
+        />
       </ScrollView>
     </SafeAreaView>
   );
@@ -77,9 +98,6 @@ const styles = StyleSheet.create({
   content: {
     padding: spacing.lg,
     paddingBottom: spacing.xxxl,
-    gap: spacing.sm,
-  },
-  spacer: {
-    height: spacing.sm,
+    gap: spacing.md,
   },
 });

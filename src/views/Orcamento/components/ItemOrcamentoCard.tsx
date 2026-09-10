@@ -1,11 +1,14 @@
-import { Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { IconButton } from '../../../components/ui';
-import { iconSize, sharedStyles } from '../../../theme';
-import { toCurrency } from '../../../utils/format';
+import { colors, fontSize, fontWeight, iconSize, sharedStyles } from '../../../theme';
+import { toCurrency, toCurrencyPorUnidade } from '../../../utils/format';
+import type { PrecoPorUnidade } from '../../../utils/variantes';
 import type { ItemOrcamento } from '../types';
 
 type ItemOrcamentoCardProps = {
   item: ItemOrcamento;
+  /** Preco reduzido a unidade primaria; `null` quando a variante nao tem medida cadastrada. */
+  unitario: PrecoPorUnidade | null;
   onEditar: () => void;
   onRemover: () => void;
 };
@@ -13,6 +16,7 @@ type ItemOrcamentoCardProps = {
 /** Item ja adicionado ao orcamento. */
 export default function ItemOrcamentoCard({
   item,
+  unitario,
   onEditar,
   onRemover,
 }: ItemOrcamentoCardProps): React.ReactNode {
@@ -25,6 +29,11 @@ export default function ItemOrcamentoCard({
             item.quantidade * item.preco,
           )}`}
         </Text>
+        {unitario && (
+          <Text style={styles.unitario}>
+            {toCurrencyPorUnidade(unitario.valor, unitario.sigla)}
+          </Text>
+        )}
       </View>
 
       <View style={sharedStyles.iconButtonRow}>
@@ -34,3 +43,11 @@ export default function ItemOrcamentoCard({
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  unitario: {
+    fontSize: fontSize.caption,
+    fontWeight: fontWeight.medium,
+    color: colors.primary,
+  },
+});

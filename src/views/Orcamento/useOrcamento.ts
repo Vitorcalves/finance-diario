@@ -12,8 +12,14 @@ import {
   type ProdutoVariantes,
   registrarPrecoVariante,
 } from '../../models/produtoVariantes';
-import { rotuloVariantePorId } from '../../utils/variantes';
-import type { ComparativoMercado, DadosItemOrcamento, ItemOrcamento } from './types';
+import { precoPorUnidadePrimaria, rotuloVariantePorId } from '../../utils/variantes';
+import type {
+  ComparativoMercado,
+  ComparativoProduto,
+  DadosItemOrcamento,
+  ItemComUnitario,
+  ItemOrcamento,
+} from './types';
 
 const todayIso = (): string => dayjs().format('YYYY-MM-DD');
 
@@ -44,6 +50,14 @@ export type UseOrcamento = {
   salvarItem: (dados: DadosItemOrcamento, index: number | null) => boolean;
   removerItem: (index: number) => void;
   totalOrcamento: number;
+
+  /** Cada item do orcamento com o preco reduzido a unidade primaria. */
+  itensComUnitario: ItemComUnitario[];
+  /**
+   * Compara, dentro do orcamento atual, variantes de um mesmo produto pelo
+   * preco por unidade primaria (ex.: leite de 500 ml x leite de 1 L).
+   */
+  comparativoVariantes: ComparativoProduto[];
 
   comparativo: ComparativoMercado[];
   /** Menor total entre os mercados que cobrem todos os itens. */
@@ -162,6 +176,69 @@ export function useOrcamento(): UseOrcamento {
     () => itens.reduce((soma, item) => soma + item.quantidade * item.preco, 0),
     [itens],
   );
+
+  const itensComUnitario = useMemo(
+    (): ItemComUnitario[] =>
+      itens.map((item) => ({
+        item,
+        unitario: precoPorUnidadePrimaria(
+          item.preco,
+          variantes.find((variante) => variante.id === item.varianteId),
+        ),
+      })),
+    [itens, variantes],
+  );
+
+  /**
+   * Agrupa por produto os itens do orcamento e, quando ha mais de uma variante
+   * do mesmo produto, aponta a mais barata por unidade primaria: o preco pago
+   * sozinho nao diz nada quando as embalagens tem tamanhos diferentes.
+   */
+  const comparativoVariantes = useMemo((): ComparativoProduto[] => {
+    const porProduto = new Map<string, ItemComUnitario[]>();
+
+    for (const entrada of itensComUnitario) {
+      const grupo = porProduto.get(entrada.item.produtoId) ?? [];
+      grupo.push(entrada);
+      porProduto.set(entrada.item.produtoId, grupo);
+    }
+
+    const resultado: ComparativoProduto[] = [];
+
+    for (const [produtoId, entradas] of porProduto) {
+      if (entradas.length < 2) {
+        continue;
+      }
+
+      const comMedida = entradas.filter(
+        (
+          entrada,
+        ): entrada is ItemComUnitario & { unitario: NonNullable<ItemComUnitario['unitario']> } =>
+          entrada.unitario !== null,
+      );
+      const unidadeBase = comMedida[0]?.unitario.unidadeId ?? null;
+      const comparavel =
+        comMedida.length === entradas.length &&
+        unidadeBase !== null &&
+        comMedida.every((entrada) => entrada.unitario.unidadeId === unidadeBase);
+
+      const menor = comparavel
+        ? Math.min(...comMedida.map((entrada) => entrada.unitario.valor))
+        : null;
+
+      resultado.push({
+        produtoId,
+        nomeProduto: nomeProduto(produtoId),
+        comparavel,
+        itens: entradas.map((entrada) => ({
+          ...entrada,
+          maisBarato: comparavel && entrada.unitario !== null && entrada.unitario.valor === menor,
+        })),
+      });
+    }
+
+    return resultado;
+  }, [itensComUnitario, nomeProduto]);
 
   /**
    * Simula o total do orcamento em cada mercado: no mercado selecionado usa os precos
@@ -343,6 +420,8 @@ export function useOrcamento(): UseOrcamento {
     salvarItem,
     removerItem,
     totalOrcamento,
+    itensComUnitario,
+    comparativoVariantes,
     comparativo,
     menorTotalCompleto,
     ultimoPreco,

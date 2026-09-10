@@ -1,13 +1,12 @@
-import { StatusBar } from 'expo-status-bar';
-import { ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { LoadingState, ScreenHeader } from '../../components/ui';
-import { sharedStyles } from '../../theme';
+import {StatusBar} from 'expo-status-bar';
+import {ScrollView} from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
+import {LoadingState, ScreenHeader} from '../../components/ui';
+import {sharedStyles} from '../../theme';
 import ListaTransacoes from './components/ListaTransacoes';
 import NovoLancamentoForm from './components/NovoLancamentoForm';
-import ResumoPorDia from './components/ResumoPorDia';
 import ResumoTotais from './components/ResumoTotais';
-import { useHome } from './useHome';
+import {useHome} from './useHome';
 import React from 'react';
 
 /** Tela inicial: totais, novo lancamento e historico do dia a dia. */
@@ -18,7 +17,6 @@ export default function HomeView(): React.ReactNode {
     totalSaidas,
     saldoAtual,
     comprometidoFuturo,
-    totaisPorDia,
     itensPorTransacao,
     nomeEmpresa,
     adicionarLancamento,
@@ -28,15 +26,15 @@ export default function HomeView(): React.ReactNode {
   if (loading) {
     return (
       <SafeAreaView style={sharedStyles.screen}>
-        <StatusBar style="dark" />
-        <LoadingState message="Carregando dados..." />
+        <StatusBar style="dark"/>
+        <LoadingState message="Carregando dados..."/>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={sharedStyles.screen}>
-      <StatusBar style="dark" />
+      <StatusBar style="dark"/>
 
       <ScreenHeader
         title="Finance Diario"
@@ -53,9 +51,7 @@ export default function HomeView(): React.ReactNode {
           comprometidoFuturo={comprometidoFuturo}
         />
 
-        <NovoLancamentoForm onAddLancamento={adicionarLancamento} />
-
-        <ResumoPorDia totaisPorDia={totaisPorDia} />
+        <NovoLancamentoForm onAddLancamento={adicionarLancamento}/>
 
         <ListaTransacoes
           transacoes={transacoes}

@@ -1,22 +1,13 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 import BrazilianIntegerInput from '../../../components/BrazilianIntegerInput';
 import ScannerCodigoBarras from '../../../components/ScannerCodigoBarras';
 import SeletorMultiplo from '../../../components/SeletorMultiplo';
-import { Button, ChipSelector } from '../../../components/ui';
+import { Button, ChipSelector, IconButton } from '../../../components/ui';
 import type { HistoricoPreco } from '../../../models/historicoPreco';
 import type { Produto } from '../../../models/produtos';
 import type { ProdutoVariantes } from '../../../models/produtoVariantes';
-import {
-  colors,
-  fontSize,
-  fontWeight,
-  iconSize,
-  radius,
-  sharedStyles,
-  spacing,
-} from '../../../theme';
+import { colors, fontSize, radius, sharedStyles, spacing } from '../../../theme';
 import { formatarData, toCurrency } from '../../../utils/format';
 import type { DadosItemOrcamento, ItemOrcamento } from '../types';
 
@@ -158,11 +149,6 @@ export default function ItemOrcamentoForm({
     <View style={sharedStyles.subForm}>
       <Text style={sharedStyles.subFormTitle}>{editando ? 'Editar item' : 'Novo item'}</Text>
 
-      <Pressable style={styles.scanButton} onPress={(): void => setScannerAberto(true)}>
-        <Ionicons name="barcode-outline" size={iconSize.md} color={colors.primary} />
-        <Text style={styles.scanButtonText}>Ler codigo de barras</Text>
-      </Pressable>
-
       <SeletorMultiplo
         label="Produto"
         opcoes={produtos.map((produto) => ({ id: produto.id, nome: produto.nome }))}
@@ -172,6 +158,7 @@ export default function ItemOrcamentoForm({
         textoTrigger="Selecionar produto"
         textoVazio="Nenhum produto cadastrado"
         textoNenhumEncontrado="Nenhum produto encontrado"
+        extra={<IconButton icon="barcode-outline" onPress={(): void => setScannerAberto(true)} />}
       />
 
       {produtoId !== null && (
@@ -258,23 +245,6 @@ export default function ItemOrcamentoForm({
 }
 
 const styles = StyleSheet.create({
-  scanButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.primarySoft,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  scanButtonText: {
-    color: colors.textBody,
-    fontSize: fontSize.input,
-    fontWeight: fontWeight.bold,
-  },
   referenciaBox: {
     backgroundColor: colors.surface,
     borderRadius: radius.md,

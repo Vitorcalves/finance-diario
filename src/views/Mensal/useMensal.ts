@@ -5,7 +5,8 @@ import 'dayjs/locale/pt-br';
 import { type Empresa, listEmpresas } from '../../models/empresas';
 import { materializarPlanos } from '../../models/materializacaoPlanos';
 import { listTransacoes, type Transacoes } from '../../models/transacoesModel';
-import type { ComparativoMes, DetalheDoDia, DiaDoMes, ResumoMes } from './types';
+import { Locais } from '../../utils/local';
+import type { ComparativoMes, DetalheDoDia, DiaDoMes, GastoPorLocal, ResumoMes } from './types';
 
 dayjs.locale('pt-br');
 
@@ -32,6 +33,8 @@ export type UseMensal = {
   diasDecorridos: number;
   dias: DiaDoMes[];
   resumo: ResumoMes;
+  /** Gasto do mes somado por local de compra, do maior para o menor. */
+  gastoPorLocal: GastoPorLocal[];
   comparativo: ComparativoMes;
   /** Curva do acumulado projetada ate o fim do mes; vazia fora do mes corrente. */
   projecaoPorDia: number[];
@@ -210,6 +213,29 @@ export function useMensal(): UseMensal {
     };
   }, [transacoesMes, dias, diasDecorridos, diasNoMes, mesCorrente, mesFuturo, hojeIso]);
 
+  /** So o realizado entra: gasto comprometido a vencer ainda nao aconteceu em lugar nenhum. */
+  const gastoPorLocal = useMemo((): GastoPorLocal[] => {
+    const porLocal = new Map<number, number>();
+
+    for (const transacao of transacoesMes) {
+      if (!jaAconteceu(transacao, hojeIso)) {
+        continue;
+      }
+
+      const localId = transacao.local ?? Locais.padrao;
+      porLocal.set(localId, (porLocal.get(localId) ?? 0) + gastoDe(transacao));
+    }
+
+    return Locais.listar()
+      .map((local) => ({
+        localId: local.id,
+        descricao: local.descricao,
+        gasto: porLocal.get(local.id) ?? 0,
+      }))
+      .filter((item) => item.gasto > 0)
+      .sort((a, b) => b.gasto - a.gasto);
+  }, [transacoesMes, hojeIso]);
+
   const comparativo = useMemo((): ComparativoMes => {
     const totalAnterior = somaGastos(transacoesMesAnterior);
 
@@ -281,6 +307,7 @@ export function useMensal(): UseMensal {
     diasDecorridos,
     dias,
     resumo,
+    gastoPorLocal,
     comparativo,
     projecaoPorDia,
     escalaAcumulado,

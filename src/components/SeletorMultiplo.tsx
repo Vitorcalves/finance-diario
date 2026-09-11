@@ -20,6 +20,8 @@ type SeletorMultiploProps = {
   add?: boolean;
   textoAdicionar?: string;
   formAdicionar?: (fechar: () => void) => React.ReactNode;
+  /** Elemento ao lado do botao de abrir a lista (ex.: atalho de leitura por codigo de barras). */
+  extra?: React.ReactNode;
 };
 
 export default function SeletorMultiplo({
@@ -34,6 +36,7 @@ export default function SeletorMultiplo({
   add = false,
   textoAdicionar = 'Adicionar novo',
   formAdicionar,
+  extra,
 }: SeletorMultiploProps): React.ReactNode {
   const [aberto, setAberto] = useState(false);
   const [busca, setBusca] = useState('');
@@ -67,14 +70,21 @@ export default function SeletorMultiplo({
         </View>
       )}
 
-      <Pressable style={styles.comboTrigger} onPress={(): void => setAberto((atual) => !atual)}>
-        <Text style={styles.comboTriggerText}>{textoTrigger}</Text>
-        <Ionicons
-          name={aberto ? 'chevron-up' : 'chevron-down'}
-          size={18}
-          color={colors.primaryDark}
-        />
-      </Pressable>
+      <View style={styles.triggerRow}>
+        <Pressable
+          style={[styles.comboTrigger, styles.comboTriggerFlex]}
+          onPress={(): void => setAberto((atual) => !atual)}
+        >
+          <Text style={styles.comboTriggerText}>{textoTrigger}</Text>
+          <Ionicons
+            name={aberto ? 'chevron-up' : 'chevron-down'}
+            size={18}
+            color={colors.primaryDark}
+          />
+        </Pressable>
+
+        {extra}
+      </View>
 
       {aberto && (
         <View style={styles.comboDropdown}>
@@ -151,6 +161,11 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: fontWeight.medium,
   },
+  triggerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   comboTrigger: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -161,6 +176,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  comboTriggerFlex: {
+    flex: 1,
   },
   comboTriggerText: {
     fontSize: fontSize.body,

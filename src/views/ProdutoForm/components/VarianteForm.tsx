@@ -1,12 +1,11 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, StyleSheet, Text, TextInput, View } from 'react-native';
 import BrazilianIntegerInput from '../../../components/BrazilianIntegerInput';
 import ScannerCodigoBarras from '../../../components/ScannerCodigoBarras';
 import SeletorMultiplo from '../../../components/SeletorMultiplo';
-import { Button } from '../../../components/ui';
+import { Button, IconButton } from '../../../components/ui';
 import type { Marca } from '../../../models/marcas';
-import { colors, iconSize, radius, sharedStyles, spacing } from '../../../theme';
+import { colors, sharedStyles, spacing } from '../../../theme';
 import type { DadosVariante, VarianteFormItem } from '../types';
 import NomeSimplesForm from './NomeSimplesForm';
 import SeletorUnidade from './SeletorUnidade';
@@ -108,9 +107,7 @@ export default function VarianteForm({
           keyboardType="number-pad"
           placeholderTextColor={colors.placeholder}
         />
-        <Pressable style={styles.scanButton} onPress={(): void => setScannerAberto(true)}>
-          <Ionicons name="camera" size={iconSize.md} color={colors.primary} />
-        </Pressable>
+        <IconButton icon="barcode-outline" onPress={(): void => setScannerAberto(true)} />
       </View>
 
       <Text style={sharedStyles.label}>Preço *</Text>
@@ -156,14 +153,5 @@ const styles = StyleSheet.create({
   },
   codigoInput: {
     flex: 1,
-  },
-  scanButton: {
-    backgroundColor: colors.primarySoft,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
 });

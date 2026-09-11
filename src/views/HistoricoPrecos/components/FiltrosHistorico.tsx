@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import ScannerCodigoBarras from '../../../components/ScannerCodigoBarras';
 import SeletorMultiplo from '../../../components/SeletorMultiplo';
-import { ChipSelector } from '../../../components/ui';
+import { ChipSelector, IconButton } from '../../../components/ui';
 import type { Produto } from '../../../models/produtos';
 import {
   colors,
@@ -62,10 +62,17 @@ export default function FiltrosHistorico({
 
   return (
     <View style={sharedStyles.card}>
-      <Pressable style={styles.scanButton} onPress={(): void => setScannerAberto(true)}>
-        <Ionicons name="barcode-outline" size={iconSize.md} color={colors.primary} />
-        <Text style={styles.scanButtonText}>Ler codigo de barras</Text>
-      </Pressable>
+      <SeletorMultiplo
+        label="Produto"
+        opcoes={produtos.map((produto) => ({ id: produto.id, nome: produto.nome }))}
+        selecionados={produtoFiltro ? [produtoFiltro] : []}
+        onToggle={onAlternarProduto}
+        placeholderBusca="Buscar produto"
+        textoTrigger={produtoFiltro ? 'Trocar produto' : 'Todos os produtos'}
+        textoVazio="Nenhum produto cadastrado"
+        textoNenhumEncontrado="Nenhum produto encontrado"
+        extra={<IconButton icon="barcode-outline" onPress={(): void => setScannerAberto(true)} />}
+      />
 
       {codigoFiltro !== null && (
         <View style={styles.filtroAtivo}>
@@ -82,17 +89,6 @@ export default function FiltrosHistorico({
           </Pressable>
         </View>
       )}
-
-      <SeletorMultiplo
-        label="Produto"
-        opcoes={produtos.map((produto) => ({ id: produto.id, nome: produto.nome }))}
-        selecionados={produtoFiltro ? [produtoFiltro] : []}
-        onToggle={onAlternarProduto}
-        placeholderBusca="Buscar produto"
-        textoTrigger={produtoFiltro ? 'Trocar produto' : 'Todos os produtos'}
-        textoVazio="Nenhum produto cadastrado"
-        textoNenhumEncontrado="Nenhum produto encontrado"
-      />
 
       <Text style={sharedStyles.label}>Comparar por</Text>
       <ChipSelector
@@ -122,23 +118,6 @@ export default function FiltrosHistorico({
 }
 
 const styles = StyleSheet.create({
-  scanButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.primarySoft,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  scanButtonText: {
-    color: colors.textBody,
-    fontSize: fontSize.input,
-    fontWeight: fontWeight.bold,
-  },
   filtroAtivo: {
     flexDirection: 'row',
     alignItems: 'center',

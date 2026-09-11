@@ -1,17 +1,16 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
-import React, {useMemo, useState} from 'react';
-import {Alert, Pressable, StyleSheet, Text, TextInput, View} from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Alert, Text, TextInput, View } from 'react-native';
 import BrazilianIntegerInput from '../../../components/BrazilianIntegerInput';
 import ScannerCodigoBarras from '../../../components/ScannerCodigoBarras';
 import SeletorMultiplo from '../../../components/SeletorMultiplo';
-import {Button, ChipSelector} from '../../../components/ui';
-import type {Marca} from '../../../models/marcas';
-import type {Produto} from '../../../models/produtos';
-import type {ProdutoVariantes} from '../../../models/produtoVariantes';
-import {colors, fontSize, fontWeight, iconSize, radius, sharedStyles, spacing} from '../../../theme';
-import {toCurrency} from '../../../utils/format';
-import {rotuloVariante} from '../../../utils/variantes';
-import type {ItemLancamento} from '../types';
+import { Button, ChipSelector, IconButton } from '../../../components/ui';
+import type { Marca } from '../../../models/marcas';
+import type { Produto } from '../../../models/produtos';
+import type { ProdutoVariantes } from '../../../models/produtoVariantes';
+import { colors, sharedStyles } from '../../../theme';
+import { toCurrency } from '../../../utils/format';
+import { rotuloVariante } from '../../../utils/variantes';
+import type { ItemLancamento } from '../types';
 
 export type DadosItemLancamento = Omit<ItemLancamento, 'localId'>;
 
@@ -32,13 +31,13 @@ type LancamentoItemFormProps = {
  * componente para alternar entre edicao e novo item.
  */
 export default function LancamentoItemForm({
-                                             produtos,
-                                             variantes,
-                                             marcas,
-                                             itemInicial,
-                                             onSalvar,
-                                             onCancelar,
-                                           }: LancamentoItemFormProps): React.ReactNode {
+  produtos,
+  variantes,
+  marcas,
+  itemInicial,
+  onSalvar,
+  onCancelar,
+}: LancamentoItemFormProps): React.ReactNode {
   const [produtoId, setProdutoId] = useState<string | null>(itemInicial?.produtoId ?? null);
   const [varianteId, setVarianteId] = useState<string | null>(itemInicial?.varianteId ?? null);
   const [descricao, setDescricao] = useState(itemInicial?.descricao ?? '');
@@ -105,7 +104,10 @@ export default function LancamentoItemForm({
     const variante = variantes.find((item) => (item.codigo_barras ?? '').trim() === codigoLimpo);
 
     if (!variante) {
-      Alert.alert('Codigo nao encontrado', `Nenhuma variante cadastrada com o codigo ${codigoLimpo}`);
+      Alert.alert(
+        'Codigo nao encontrado',
+        `Nenhuma variante cadastrada com o codigo ${codigoLimpo}`,
+      );
       return;
     }
 
@@ -145,20 +147,16 @@ export default function LancamentoItemForm({
     <View style={sharedStyles.subForm}>
       <Text style={sharedStyles.subFormTitle}>{editando ? 'Editar item' : 'Novo item'}</Text>
 
-      <Pressable style={styles.scanButton} onPress={(): void => setScannerAberto(true)}>
-        <Ionicons name="barcode-outline" size={iconSize.md} color={colors.primary}/>
-        <Text style={styles.scanButtonText}>Ler codigo de barras</Text>
-      </Pressable>
-
       <SeletorMultiplo
         label="Produto"
-        opcoes={produtos.map((produto) => ({id: produto.id, nome: produto.nome}))}
+        opcoes={produtos.map((produto) => ({ id: produto.id, nome: produto.nome }))}
         selecionados={produtoId ? [produtoId] : []}
         onToggle={selecionarProduto}
         placeholderBusca="Buscar produto"
         textoTrigger="Selecionar produto"
         textoVazio="Nenhum produto cadastrado"
         textoNenhumEncontrado="Nenhum produto encontrado"
+        extra={<IconButton icon="barcode-outline" onPress={(): void => setScannerAberto(true)} />}
       />
 
       {produtoId !== null && (
@@ -219,7 +217,7 @@ export default function LancamentoItemForm({
           flex
           onPress={salvar}
         />
-        {editando && <Button label="Cancelar" variant="secondary" flex onPress={onCancelar}/>}
+        {editando && <Button label="Cancelar" variant="secondary" flex onPress={onCancelar} />}
       </View>
 
       {scannerAberto && (
@@ -231,23 +229,3 @@ export default function LancamentoItemForm({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  scanButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.primarySoft,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  scanButtonText: {
-    color: colors.textBody,
-    fontSize: fontSize.input,
-    fontWeight: fontWeight.bold,
-  },
-});

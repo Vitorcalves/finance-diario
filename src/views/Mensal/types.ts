@@ -48,3 +48,10 @@ export type DetalheDoDia = {
   dia: DiaDoMes;
   lancamentos: Transacoes[];
 };
+
+export type GastoPorLocal = {
+  localId: number;
+  descricao: string;
+  /** Total gasto no local, sempre positivo (saidas ja realizadas). */
+  gasto: number;
+};

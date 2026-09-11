@@ -11,6 +11,7 @@ const registro = (id: string, preco: number, data = '2026-01-01'): HistoricoPrec
   empresa_id: null,
   preco,
   data,
+  local: 1,
   created_at: data,
 });
 

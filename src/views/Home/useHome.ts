@@ -17,6 +17,8 @@ import {
 import { criarCompraParcelada, materializarPlanos } from '../../models/materializacaoPlanos';
 import { registrarPrecoVariante } from '../../models/produtoVariantes';
 import { type Empresa, listEmpresas } from '../../models/empresas';
+import { getLocalPadrao } from '../../models/settingsModel';
+import { Locais } from '../../utils/local';
 import type { NovoLancamento } from './types';
 
 /** Data com hora local, para o historico de precos ser exibido no dia correto. */
@@ -57,6 +59,8 @@ export function useHome(): UseHome {
   const [itens, setItens] = useState<ItemTransacao[]>([]);
   const [compras, setCompras] = useState<Transacoes[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  /** Configurado na tela de menu; usado sem perguntar em cada lancamento. */
+  const [localPadrao, setLocalPadrao] = useState(Locais.padrao);
   const [loading, setLoading] = useState(true);
 
   const carregarDados = useCallback(async (): Promise<void> => {
@@ -68,22 +72,30 @@ export function useHome(): UseHome {
     const inicioMes = dayjs().startOf('month').format('YYYY-MM-DD');
     const ateData = dayjs().endOf('month').format('YYYY-MM-DD');
 
-    const [transacoesDoBanco, transacoesMesDoBanco, itensDoBanco, comprasDoBanco, empresasDoBanco] =
-      await Promise.all([
-        listTransacoes(null, null, { ateData }),
-        // Com inicio e fim informados a busca nao tem o limite de 50 linhas do
-        // feed recente, entao a media diaria e a projecao saem do mes inteiro.
-        listTransacoes(inicioMes, ateData),
-        listItensTransacao(),
-        listTransacoesCompra(),
-        listEmpresas(),
-      ]);
+    const [
+      transacoesDoBanco,
+      transacoesMesDoBanco,
+      itensDoBanco,
+      comprasDoBanco,
+      empresasDoBanco,
+      localPadraoDoBanco,
+    ] = await Promise.all([
+      listTransacoes(null, null, { ateData }),
+      // Com inicio e fim informados a busca nao tem o limite de 50 linhas do
+      // feed recente, entao a media diaria e a projecao saem do mes inteiro.
+      listTransacoes(inicioMes, ateData),
+      listItensTransacao(),
+      listTransacoesCompra(),
+      listEmpresas(),
+      getLocalPadrao(),
+    ]);
 
     setTransacoes(transacoesDoBanco);
     setTransacoesMes(transacoesMesDoBanco);
     setItens(itensDoBanco);
     setCompras(comprasDoBanco);
     setEmpresas(empresasDoBanco);
+    setLocalPadrao(localPadraoDoBanco);
   }, []);
 
   useEffect(() => {
@@ -215,6 +227,7 @@ export function useHome(): UseHome {
           dataCompra: lancamento.data,
           parcelas: parcelamento.parcelas,
           primeiraParcela: parcelamento.primeiraParcela,
+          local: localPadrao,
         });
 
         transacaoDosItens = compraTransacaoId;
@@ -227,6 +240,7 @@ export function useHome(): UseHome {
           valor: lancamento.valor,
           data: lancamento.data,
           empresa_id: lancamento.empresaId,
+          local: localPadrao,
           created_at: agora,
         });
       }
@@ -250,13 +264,14 @@ export function useHome(): UseHome {
             empresaId: lancamento.empresaId,
             preco: item.precoUnitario,
             data: toDataHistorico(lancamento.data),
+            local: localPadrao,
           });
         }
       }
 
       await carregarDados();
     },
-    [carregarDados],
+    [carregarDados, localPadrao],
   );
 
   const removerTransacao = useCallback(

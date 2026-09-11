@@ -123,6 +123,8 @@ export const registrarPrecoVariante = async (params: {
   empresaId: string | null;
   preco: number;
   data: string;
+  /** Local onde o preco foi pago ou cotado; ver `Locais`. */
+  local: number;
 }): Promise<void> => {
   const db = await getConnection();
 
@@ -144,6 +146,7 @@ export const registrarPrecoVariante = async (params: {
     empresa_id: params.empresaId,
     preco: params.preco,
     data: params.data,
+    local: params.local,
     created_at: new Date().toISOString(),
   };
 

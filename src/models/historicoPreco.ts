@@ -1,3 +1,4 @@
+import { Locais } from '../utils/local';
 import { getConnection } from './database';
 
 export type HistoricoPreco = {
@@ -7,6 +8,8 @@ export type HistoricoPreco = {
   empresa_id: string | null;
   preco: number;
   data: string;
+  /** Local onde o preco foi pago ou cotado; ver `Locais`. */
+  local: number;
   created_at: string;
 };
 
@@ -15,7 +18,7 @@ export const listHistoricoPreco = async (): Promise<HistoricoPreco[]> => {
 
   return await db.getAllAsync<HistoricoPreco>(
     `
-        SELECT id, produto_id, variante_id, empresa_id, preco, data, created_at
+        SELECT id, produto_id, variante_id, empresa_id, preco, data, local, created_at
         FROM historico_preco
         ORDER BY created_at DESC
     `,
@@ -27,8 +30,9 @@ export const insertHistoricoPreco = async (historico: HistoricoPreco): Promise<v
 
   await db.runAsync(
     `
-        INSERT INTO historico_preco (id, produto_id, variante_id, empresa_id, preco, data, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO historico_preco (id, produto_id, variante_id, empresa_id, preco, data, local,
+                                     created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       historico.id,
@@ -37,6 +41,7 @@ export const insertHistoricoPreco = async (historico: HistoricoPreco): Promise<v
       historico.empresa_id ?? null,
       historico.preco,
       historico.data,
+      historico.local ?? Locais.padrao,
       historico.created_at,
     ],
   );
@@ -51,7 +56,7 @@ export const getHistoricoPrecoById = async (id: string): Promise<HistoricoPreco 
   const db = await getConnection();
   const row = await db.getFirstAsync<HistoricoPreco>(
     `
-        SELECT id, produto_id, variante_id, empresa_id, preco, data, created_at
+        SELECT id, produto_id, variante_id, empresa_id, preco, data, local, created_at
         FROM historico_preco
         WHERE id = ?
     `,

@@ -1,3 +1,4 @@
+import { Locais } from '../utils/local';
 import { getConnection } from './database';
 
 export type Transacoes = {
@@ -17,15 +18,17 @@ export type Transacoes = {
   plano_id?: string | null;
   /** `0` e a transacao da compra; `1..n` sao as parcelas/cobrancas. */
   parcela_numero?: number | null;
+  /** Local onde a compra aconteceu; ver `Locais`. */
+  local?: number;
   created_at: string;
 };
 
 /** Campos com valor padrao no insert, para o lancamento avulso continuar simples. */
 export type NovaTransacao = Omit<
   Transacoes,
-  'contabilizado_saldo' | 'plano_id' | 'parcela_numero'
+  'contabilizado_saldo' | 'plano_id' | 'parcela_numero' | 'local'
 > &
-  Partial<Pick<Transacoes, 'contabilizado_saldo' | 'plano_id' | 'parcela_numero'>>;
+  Partial<Pick<Transacoes, 'contabilizado_saldo' | 'plano_id' | 'parcela_numero' | 'local'>>;
 
 export type OpcoesListaTransacoes = {
   /** Traz tambem as transacoes de compra fora do caixa (`contabilizado_saldo = 0`). */
@@ -40,7 +43,7 @@ export type OpcoesListaTransacoes = {
 };
 
 const COLUNAS =
-  'id, descricao, valor, data, empresa_id, contabilizado_saldo, plano_id, parcela_numero, created_at';
+  'id, descricao, valor, data, empresa_id, contabilizado_saldo, plano_id, parcela_numero, local, created_at';
 
 export const listTransacoes = async (
   start: string | null = null,
@@ -101,8 +104,8 @@ export const insertTransacao = async (transacao: NovaTransacao): Promise<void> =
   await db.runAsync(
     `
         INSERT INTO transacoes (id, descricao, valor, data, empresa_id, contabilizado_saldo,
-                                plano_id, parcela_numero, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                plano_id, parcela_numero, local, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       transacao.id,
@@ -113,6 +116,7 @@ export const insertTransacao = async (transacao: NovaTransacao): Promise<void> =
       transacao.contabilizado_saldo ?? 1,
       transacao.plano_id ?? null,
       transacao.parcela_numero ?? null,
+      transacao.local ?? Locais.padrao,
       transacao.created_at,
     ],
   );

@@ -1,5 +1,6 @@
 import dayjs from 'dayjs';
 import { v4 as uuidv4 } from 'uuid';
+import { Locais } from '../utils/local';
 import {
   type FrequenciaPlano,
   ocorrenciasAte,
@@ -87,6 +88,8 @@ export type DadosCompraParcelada = {
   primeiraParcela: string;
   frequencia?: FrequenciaPlano;
   intervalo?: number;
+  /** Local onde a compra aconteceu; ver `Locais`. */
+  local?: number;
 };
 
 export type CompraParceladaCriada = {
@@ -140,8 +143,8 @@ export const criarCompraParcelada = async (
   await db.runAsync(
     `
         INSERT INTO transacoes (id, descricao, valor, data, empresa_id, contabilizado_saldo,
-                                plano_id, parcela_numero, created_at)
-        VALUES (?, ?, ?, ?, ?, 0, ?, 0, ?)
+                                plano_id, parcela_numero, local, created_at)
+        VALUES (?, ?, ?, ?, ?, 0, ?, 0, ?, ?)
     `,
     [
       compraTransacaoId,
@@ -150,6 +153,7 @@ export const criarCompraParcelada = async (
       dados.dataCompra,
       dados.empresaId,
       planoId,
+      dados.local ?? Locais.padrao,
       agora,
     ],
   );

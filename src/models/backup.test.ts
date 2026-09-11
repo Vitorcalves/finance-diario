@@ -46,7 +46,7 @@ const backupBase = (over: Partial<BackupJson> = {}): string =>
   JSON.stringify({
     formato: BACKUP_FORMATO,
     versao: BACKUP_VERSAO,
-    schema_version: 4,
+    schema_version: 5,
     exportado_em: '2026-01-01T00:00:00.000Z',
     tabelas: {},
     ...over,
@@ -62,7 +62,7 @@ describe('exportarBanco', () => {
 
     assert.equal(backup.formato, BACKUP_FORMATO);
     assert.equal(backup.versao, BACKUP_VERSAO);
-    assert.equal(backup.schema_version, 4);
+    assert.equal(backup.schema_version, 5);
     assert.equal(backup.tabelas.unidades.length, 7);
     assert.equal(backup.tabelas.transacoes.length, 0);
   });
@@ -209,8 +209,8 @@ describe('importarBanco sobrescreve', () => {
 
     const db = await getConnection();
     const migracoes = await db.getAllAsync<{ id: number }>('SELECT id FROM migrations');
-    assert.equal(migracoes.length, 4);
-    assert.equal((await exportarBanco()).schema_version, 4);
+    assert.equal(migracoes.length, 5);
+    assert.equal((await exportarBanco()).schema_version, 5);
   });
 });
 

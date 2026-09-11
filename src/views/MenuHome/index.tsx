@@ -1,18 +1,34 @@
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useCallback, useState } from 'react';
 import { Alert, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenHeader } from '../../components/ui';
 import { recriarDatabase } from '../../models/database';
+import { getLocalPadrao, saveLocalPadrao } from '../../models/settingsModel';
 import type { MenuStackParamList, RootTabParamList } from '../../routes/types';
 import { sharedStyles, spacing } from '../../theme';
+import { Locais } from '../../utils/local';
 import MenuGrupo from './components/MenuGrupo';
+import PreferenciasCard from './components/PreferenciasCard';
 
 type MenuNavigation = BottomTabNavigationProp<RootTabParamList, 'Menu'>;
 
 /** Menu de navegacao com atalhos para as abas e os cadastros, agrupados em sanfona. */
 export default function MenuNavigationView(): React.ReactNode {
   const navigation = useNavigation<MenuNavigation>();
+  const [localPadrao, setLocalPadrao] = useState(Locais.padrao);
+
+  useFocusEffect(
+    useCallback(() => {
+      void getLocalPadrao().then(setLocalPadrao);
+    }, []),
+  );
+
+  const alterarLocalPadrao = (id: number): void => {
+    setLocalPadrao(id);
+    void saveLocalPadrao(id);
+  };
 
   const irPara = (screen: keyof MenuStackParamList): void =>
     navigation.navigate('Menu', { screen });
@@ -89,6 +105,8 @@ export default function MenuNavigationView(): React.ReactNode {
             },
           ]}
         />
+
+        <PreferenciasCard localPadrao={localPadrao} onAlterarLocalPadrao={alterarLocalPadrao} />
       </ScrollView>
     </SafeAreaView>
   );

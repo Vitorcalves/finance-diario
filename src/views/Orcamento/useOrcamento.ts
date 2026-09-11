@@ -12,6 +12,8 @@ import {
   type ProdutoVariantes,
   registrarPrecoVariante,
 } from '../../models/produtoVariantes';
+import { getLocalPadrao } from '../../models/settingsModel';
+import { Locais } from '../../utils/local';
 import { precoPorUnidadePrimaria, rotuloVariantePorId } from '../../utils/variantes';
 import type {
   ComparativoMercado,
@@ -86,6 +88,8 @@ export function useOrcamento(): UseOrcamento {
   const [salvando, setSalvando] = useState(false);
 
   const [empresaSelecionada, setEmpresaSelecionada] = useState<string | null>(null);
+  /** Configurado na tela de menu; usado sem perguntar ao registrar precos. */
+  const [localPadrao, setLocalPadrao] = useState(Locais.padrao);
   const [dataOrcamento, setDataOrcamento] = useState(todayIso());
   const [dataInputKey, setDataInputKey] = useState(0);
   const [itens, setItens] = useState<ItemOrcamento[]>([]);
@@ -93,20 +97,28 @@ export function useOrcamento(): UseOrcamento {
   const carregarDados = useCallback(async (): Promise<void> => {
     try {
       setLoading(true);
-      const [empresasDoBanco, produtosDoBanco, variantesDoBanco, marcasDoBanco, historicoDoBanco] =
-        await Promise.all([
-          listEmpresas(),
-          listProdutos(),
-          listProdutoVariantes(),
-          listMarcas(),
-          listHistoricoPreco(),
-        ]);
+      const [
+        empresasDoBanco,
+        produtosDoBanco,
+        variantesDoBanco,
+        marcasDoBanco,
+        historicoDoBanco,
+        localPadraoDoBanco,
+      ] = await Promise.all([
+        listEmpresas(),
+        listProdutos(),
+        listProdutoVariantes(),
+        listMarcas(),
+        listHistoricoPreco(),
+        getLocalPadrao(),
+      ]);
 
       setEmpresas(empresasDoBanco);
       setProdutos(produtosDoBanco);
       setVariantes(variantesDoBanco);
       setMarcas(marcasDoBanco);
       setHistorico(historicoDoBanco);
+      setLocalPadrao(localPadraoDoBanco);
     } catch (error: unknown) {
       console.error('Erro ao carregar dados do orcamento:', error);
       Alert.alert('Erro', 'Nao foi possivel carregar os dados do orcamento');
@@ -382,6 +394,7 @@ export function useOrcamento(): UseOrcamento {
           empresaId: empresaSelecionada,
           preco: item.preco,
           data: dataOrcamento,
+          local: localPadrao,
         });
       }
 
@@ -402,7 +415,7 @@ export function useOrcamento(): UseOrcamento {
     } finally {
       setSalvando(false);
     }
-  }, [empresaSelecionada, dataOrcamento, itens, limpar, carregarDados, nomeEmpresa]);
+  }, [empresaSelecionada, localPadrao, dataOrcamento, itens, limpar, carregarDados, nomeEmpresa]);
 
   return {
     loading,

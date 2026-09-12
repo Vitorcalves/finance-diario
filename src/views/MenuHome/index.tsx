@@ -96,7 +96,7 @@ export default function MenuNavigationView(): React.ReactNode {
           titulo="Sistema"
           icone="settings-outline"
           itens={[
-            { label: 'Integracao (backup JSON)', onPress: (): void => irPara('Integracao') },
+            { label: 'Integracao (backup JSON e API)', onPress: (): void => irPara('Integracao') },
             {
               label: 'Recriar Banco de Dados',
               icone: 'trash',

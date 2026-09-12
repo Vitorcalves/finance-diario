@@ -14,7 +14,11 @@ import {
 } from '../../models/produtoVariantes';
 import { getLocalPadrao } from '../../models/settingsModel';
 import { Locais } from '../../utils/local';
-import { precoPorUnidadePrimaria, rotuloVariantePorId } from '../../utils/variantes';
+import {
+  precoPorUnidadePrimaria,
+  rotuloQuantidade as rotuloQuantidadeDaVariante,
+  rotuloVariantePorId,
+} from '../../utils/variantes';
 import type {
   ComparativoMercado,
   ComparativoProduto,
@@ -72,6 +76,8 @@ export type UseOrcamento = {
 
   nomeEmpresa: (id: string | null) => string;
   rotuloVariante: (varianteId: string) => string;
+  /** Quantidade de um item pronta para exibir (`2` ou `0,75 kg` nas variantes a granel). */
+  rotuloQuantidade: (quantidade: number, varianteId: string) => string;
 
   limpar: () => void;
   registrarPrecos: () => Promise<void>;
@@ -148,6 +154,15 @@ export function useOrcamento(): UseOrcamento {
   const rotuloVariante = useCallback(
     (varianteId: string): string => rotuloVariantePorId(varianteId, variantes, marcas),
     [variantes, marcas],
+  );
+
+  const rotuloQuantidade = useCallback(
+    (quantidade: number, varianteId: string): string =>
+      rotuloQuantidadeDaVariante(
+        quantidade,
+        variantes.find((variante) => variante.id === varianteId),
+      ),
+    [variantes],
   );
 
   const ultimoPreco = useCallback(
@@ -442,6 +457,7 @@ export function useOrcamento(): UseOrcamento {
     precoBaseDaVariante,
     nomeEmpresa,
     rotuloVariante,
+    rotuloQuantidade,
     limpar,
     registrarPrecos,
   };

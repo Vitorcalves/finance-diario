@@ -35,11 +35,25 @@ describe('listar', () => {
     }
   });
 
-  test('ids e siglas nao se repetem', () => {
+  test('ids nao se repetem; siglas so se repetem entre medida e sua versao a granel', () => {
     const ids = Unidades.listar().map((unidade) => unidade.id);
-    const siglas = Unidades.listar().map((unidade) => unidade.sigla);
+    const siglas = Unidades.listar()
+      .filter((unidade) => !unidade.granel)
+      .map((unidade) => unidade.sigla);
     assert.equal(new Set(ids).size, ids.length);
     assert.equal(new Set(siglas).size, siglas.length);
+  });
+
+  test('unidades a granel reduzem a primaria do grupo com fator 1', () => {
+    for (const unidade of Unidades.listar().filter((item) => item.granel)) {
+      const primaria = Unidades.primariaDe(unidade.id);
+      assert.ok(primaria, `sem primaria: ${unidade.descricao}`);
+      assert.equal(unidade.sigla, primaria.sigla);
+      assert.equal(Unidades.converter(1, unidade.id, primaria.id), 1);
+    }
+    assert.equal(Unidades.ehGranel(8), true);
+    assert.equal(Unidades.ehGranel(2), false);
+    assert.equal(Unidades.ehGranel(null), false);
   });
 });
 

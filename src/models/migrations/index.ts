@@ -4,6 +4,7 @@ import { migration002 } from './002_item_transacao_variante';
 import { migration003 } from './003_planos_pagamento';
 import { migration004 } from './004_unidade_avulsa';
 import { migration005 } from './005_vicosa_externo';
+import { migration006 } from './006_unidades_granel';
 
 export const migrations: Migration[] = [
   migration001,
@@ -11,4 +12,5 @@ export const migrations: Migration[] = [
   migration003,
   migration004,
   migration005,
+  migration006,
 ];

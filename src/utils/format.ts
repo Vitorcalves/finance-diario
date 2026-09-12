@@ -30,6 +30,14 @@ const formatadorMoedaFina = new Intl.NumberFormat('pt-BR', {
   maximumFractionDigits: 4,
 });
 
+/** Quantidades de item: inteiras nos pacotes, ate 3 casas nos itens a granel (0,750 kg). */
+const formatadorQuantidade = new Intl.NumberFormat('pt-BR', {
+  maximumFractionDigits: 3,
+});
+
+/** Ex.: `2` ou `0,75`. */
+export const formatarQuantidade = (valor: number): string => formatadorQuantidade.format(valor);
+
 /** Ex.: `R$ 1.234,56`. */
 export const toCurrency = (valor: number): string => formatadorMoeda.format(valor);
 

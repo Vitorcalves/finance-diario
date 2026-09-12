@@ -9,6 +9,7 @@ import type { Produto } from '../../../models/produtos';
 import type { ProdutoVariantes } from '../../../models/produtoVariantes';
 import { colors, fontSize, radius, sharedStyles, spacing } from '../../../theme';
 import { formatarData, toCurrency } from '../../../utils/format';
+import { ehGranel, medidaGranel, rotuloQuantidade } from '../../../utils/variantes';
 import type { DadosItemOrcamento, ItemOrcamento } from '../types';
 
 type ItemOrcamentoFormProps = {
@@ -59,15 +60,38 @@ export default function ItemOrcamentoForm({
     [variantes, produtoId],
   );
 
+  const varianteSelecionada = useMemo(
+    () => variantes.find((variante) => variante.id === varianteId),
+    [variantes, varianteId],
+  );
+
+  /** Item a granel: quantidade e o peso/volume e o preco pesquisado e por medida. */
+  const granel = ehGranel(varianteSelecionada);
+  const medida = varianteSelecionada && granel ? medidaGranel(varianteSelecionada) : '';
+
+  /**
+   * Troca de variante entre pacote e granel: limpa o peso para o usuario digitar
+   * (o campo passa a ter casas decimais) ou volta para 1 pacote.
+   */
+  const ajustarQuantidade = (nova: ProdutoVariantes | undefined): void => {
+    const novaGranel = ehGranel(nova);
+
+    if (novaGranel !== granel) {
+      setQuantidade(novaGranel ? '' : '1');
+    }
+  };
+
   const selecionarProduto = (id: string): void => {
     setProdutoId((atual) => (atual === id ? null : id));
     setVarianteId(null);
+    ajustarQuantidade(undefined);
     setPreco('');
   };
 
   const aplicarVariante = (variante: ProdutoVariantes): void => {
     setProdutoId(variante.produto_id);
     setVarianteId(variante.id);
+    ajustarQuantidade(variante);
 
     // Sugere o ultimo preco visto neste mercado; se nao houver, o preco atual da variante.
     const referencia = ultimoPreco(variante.id, empresaSelecionada);
@@ -79,6 +103,7 @@ export default function ItemOrcamentoForm({
   const selecionarVariante = (id: string): void => {
     if (varianteId === id) {
       setVarianteId(null);
+      ajustarQuantidade(undefined);
       setPreco('');
       return;
     }
@@ -130,7 +155,10 @@ export default function ItemOrcamentoForm({
     const precoNumero = Number(preco);
 
     if (!Number.isFinite(quantidadeNumero) || quantidadeNumero <= 0) {
-      Alert.alert('Erro', 'Quantidade deve ser maior que zero');
+      Alert.alert(
+        'Erro',
+        granel ? `Informe o peso em ${medida} (ex.: 0,750)` : 'Quantidade deve ser maior que zero',
+      );
       return;
     }
 
@@ -203,26 +231,36 @@ export default function ItemOrcamentoForm({
         </View>
       )}
 
-      <Text style={sharedStyles.label}>Quantidade</Text>
+      <Text style={sharedStyles.label}>{granel ? `Quantidade (${medida})` : 'Quantidade'}</Text>
       <BrazilianIntegerInput
         value={quantidade}
         onChangeValue={setQuantidade}
-        decimalScale={0}
-        placeholder="Ex.: 2"
+        decimalScale={granel ? 3 : 0}
+        placeholder={granel ? 'Ex.: 0,750' : 'Ex.: 2'}
         placeholderTextColor={colors.placeholder}
         style={[sharedStyles.input, sharedStyles.inputSpaced]}
       />
 
-      <Text style={sharedStyles.label}>Preco pesquisado (R$)</Text>
+      <Text style={sharedStyles.label}>
+        {granel ? `Preco pesquisado por ${medida} (R$)` : 'Preco pesquisado (R$)'}
+      </Text>
       <BrazilianIntegerInput
         value={preco}
         onChangeValue={setPreco}
         decimalScale={2}
         fixedDecimalScale
-        placeholder="Ex.: 43,90"
+        placeholder={granel ? 'Ex.: 8,90' : 'Ex.: 43,90'}
         placeholderTextColor={colors.placeholder}
         style={[sharedStyles.input, sharedStyles.inputSpaced]}
       />
+
+      {granel && Number(quantidade) > 0 && Number(preco) > 0 && (
+        <Text style={[sharedStyles.sectionHint, sharedStyles.inputSpaced]}>
+          {`${rotuloQuantidade(Number(quantidade), varianteSelecionada)} x ${toCurrency(
+            Number(preco),
+          )} = ${toCurrency(Number(quantidade) * Number(preco))}`}
+        </Text>
+      )}
 
       <View style={sharedStyles.actionsRow}>
         <Button

@@ -93,7 +93,7 @@ describe('initializeDatabase', () => {
 });
 
 describe('unidades semeadas', () => {
-  test('as sete unidades usadas pelo app existem no banco', async () => {
+  test('as unidades usadas pelo app existem no banco', async () => {
     const db = await getConnection();
     const unidades = await db.getAllAsync<{ id: number; descricao: string }>(
       'SELECT id, descricao FROM unidades ORDER BY id',
@@ -107,6 +107,9 @@ describe('unidades semeadas', () => {
       { id: 5, descricao: 'Centímetros' },
       { id: 6, descricao: 'Mililitros' },
       { id: 7, descricao: 'Unidade' },
+      { id: 8, descricao: 'Quilo (granel)' },
+      { id: 9, descricao: 'Litro (granel)' },
+      { id: 10, descricao: 'Metro (granel)' },
     ]);
   });
 });

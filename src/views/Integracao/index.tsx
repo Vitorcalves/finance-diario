@@ -11,6 +11,7 @@ import {
 } from '../../components/ui';
 import { sharedStyles } from '../../theme';
 import ExportarPainel from './components/ExportarPainel';
+import ApiPainel from './components/ApiPainel';
 import ImportarPainel from './components/ImportarPainel';
 import type { ModoIntegracao } from './types';
 import { useIntegracao } from './useIntegracao';
@@ -18,9 +19,10 @@ import { useIntegracao } from './useIntegracao';
 const MODOS: ChipOpcao<ModoIntegracao>[] = [
   { valor: 'exportar', rotulo: 'Exportar' },
   { valor: 'importar', rotulo: 'Importar' },
+  { valor: 'api', rotulo: 'API' },
 ];
 
-/** Integracao: extrai o banco como JSON ou sobrescreve o banco a partir de um JSON. */
+/** Integracao: extrai o banco como JSON, sobrescreve a partir de um JSON ou envia para a API. */
 export default function IntegracaoView(): React.ReactNode {
   const navigation = useNavigation();
   const [modo, setModo] = useState<ModoIntegracao>('exportar');
@@ -36,6 +38,11 @@ export default function IntegracaoView(): React.ReactNode {
     validarImportacao,
     confirmarImportacao,
     limparImportacao,
+    apiConfig,
+    setApiConfig,
+    envioApi,
+    enviando,
+    enviarParaApi,
   } = useIntegracao();
 
   return (
@@ -62,6 +69,14 @@ export default function IntegracaoView(): React.ReactNode {
               carregando={exportando}
               onGerar={(): void => void gerarExportacao()}
               onCompartilhar={(): void => void compartilharExportacao()}
+            />
+          ) : modo === 'api' ? (
+            <ApiPainel
+              config={apiConfig}
+              onChangeConfig={setApiConfig}
+              resultado={envioApi}
+              carregando={enviando}
+              onEnviar={(): void => void enviarParaApi()}
             />
           ) : (
             <ImportarPainel

@@ -9,6 +9,7 @@ type ItemOrcamentoCardProps = {
   item: ItemOrcamento;
   /** Preco reduzido a unidade primaria; `null` quando a variante nao tem medida cadastrada. */
   unitario: PrecoPorUnidade | null;
+  rotuloQuantidade: (quantidade: number, varianteId: string) => string;
   onEditar: () => void;
   onRemover: () => void;
 };
@@ -17,6 +18,7 @@ type ItemOrcamentoCardProps = {
 export default function ItemOrcamentoCard({
   item,
   unitario,
+  rotuloQuantidade,
   onEditar,
   onRemover,
 }: ItemOrcamentoCardProps): React.ReactNode {
@@ -25,9 +27,9 @@ export default function ItemOrcamentoCard({
       <View style={sharedStyles.listCardInfo}>
         <Text style={sharedStyles.listCardTitle}>{item.descricao}</Text>
         <Text style={sharedStyles.listCardDetail}>
-          {`${item.quantidade} x ${toCurrency(item.preco)} = ${toCurrency(
-            item.quantidade * item.preco,
-          )}`}
+          {`${rotuloQuantidade(item.quantidade, item.varianteId)} x ${toCurrency(
+            item.preco,
+          )} = ${toCurrency(item.quantidade * item.preco)}`}
         </Text>
         {unitario && (
           <Text style={styles.unitario}>

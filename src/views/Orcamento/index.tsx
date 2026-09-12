@@ -105,6 +105,7 @@ export default function OrcamentoView(): React.ReactNode {
                   key={item.localId}
                   item={item}
                   unitario={unitario}
+                  rotuloQuantidade={orcamento.rotuloQuantidade}
                   onEditar={(): void => reiniciarItemForm(index)}
                   onRemover={(): void => removerItem(index)}
                 />
@@ -129,6 +130,7 @@ export default function OrcamentoView(): React.ReactNode {
             <ComparativoVariantes
               grupos={orcamento.comparativoVariantes}
               rotuloVariante={orcamento.rotuloVariante}
+              rotuloQuantidade={orcamento.rotuloQuantidade}
             />
 
             <ComparativoMercados

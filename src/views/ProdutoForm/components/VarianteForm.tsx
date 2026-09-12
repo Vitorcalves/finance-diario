@@ -6,6 +6,7 @@ import SeletorMultiplo from '../../../components/SeletorMultiplo';
 import { Button, IconButton } from '../../../components/ui';
 import type { Marca } from '../../../models/marcas';
 import { colors, sharedStyles, spacing } from '../../../theme';
+import { Unidades } from '../../../utils/unidades';
 import type { DadosVariante, VarianteFormItem } from '../types';
 import NomeSimplesForm from './NomeSimplesForm';
 import SeletorUnidade from './SeletorUnidade';
@@ -41,6 +42,12 @@ export default function VarianteForm({
   const [scannerAberto, setScannerAberto] = useState(false);
 
   const editando = varianteInicial !== null;
+
+  /** Unidade de venda a granel: o preco e por kg/L/m e a quantidade vira opcional. */
+  const granel = Unidades.ehGranel(unidadeId);
+  const medidaGranel = `${quantidade && quantidade !== '1' ? `${quantidade} ` : ''}${
+    Unidades.porId(unidadeId)?.sigla ?? ''
+  }`;
 
   const criarMarca = async (nome: string): Promise<boolean> => {
     const idCriado = await onCriarMarca(nome);
@@ -86,11 +93,18 @@ export default function VarianteForm({
 
       <Text style={sharedStyles.label}>Unidade</Text>
       <SeletorUnidade valor={unidadeId} onSelecionar={setUnidadeId} />
+      {granel && (
+        <Text style={[sharedStyles.sectionHint, sharedStyles.inputSpaced]}>
+          {`Venda a granel: o preco e por ${medidaGranel} e, no lancamento, voce informa o peso comprado (ex.: 0,750 kg). Deixe a quantidade vazia para preco por ${
+            Unidades.porId(unidadeId)?.sigla ?? ''
+          }.`}
+        </Text>
+      )}
 
       <Text style={sharedStyles.label}>Quantidade</Text>
       <BrazilianIntegerInput
         style={[sharedStyles.input, sharedStyles.inputSpaced]}
-        placeholder="Ex: 500"
+        placeholder={granel ? 'Ex: 1 (opcional)' : 'Ex: 500'}
         value={quantidade}
         onChangeValue={setQuantidade}
         decimalScale={0}
@@ -110,7 +124,7 @@ export default function VarianteForm({
         <IconButton icon="barcode-outline" onPress={(): void => setScannerAberto(true)} />
       </View>
 
-      <Text style={sharedStyles.label}>Preço *</Text>
+      <Text style={sharedStyles.label}>{granel ? `Preço por ${medidaGranel} *` : 'Preço *'}</Text>
       <BrazilianIntegerInput
         style={[sharedStyles.input, sharedStyles.inputSpaced]}
         placeholder="Ex: 10,50"

@@ -237,6 +237,9 @@ export default function NovoLancamentoForm({
                   <LancamentoItemCard
                     key={item.localId}
                     item={item}
+                    variante={catalogo.variantes.find(
+                      (variante) => variante.id === item.varianteId,
+                    )}
                     onEditar={(): void => reiniciarItemForm(index)}
                     onRemover={(): void => removerItem(index)}
                   />

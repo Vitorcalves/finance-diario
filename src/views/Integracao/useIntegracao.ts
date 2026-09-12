@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, Share } from 'react-native';
 import {
   analisarBackup,
@@ -7,7 +7,12 @@ import {
   importarBanco,
   resumirBackup,
 } from '../../models/backup';
-import type { PreviaImportacao, ResultadoExportacao } from './types';
+import { getApiConfig, saveApiConfig, type ApiConfig } from '../../models/settingsModel';
+import {
+  enviarParaApi as enviarBancoParaApi,
+  SincronizacaoError,
+} from '../../models/sincronizacaoApi';
+import type { PreviaImportacao, ResultadoEnvioApi, ResultadoExportacao } from './types';
 
 export type UseIntegracao = {
   exportacao: ResultadoExportacao | null;
@@ -24,17 +29,25 @@ export type UseIntegracao = {
   /** Pede confirmacao e sobrescreve o banco com o JSON validado. */
   confirmarImportacao: (aoConcluir?: () => void) => void;
   limparImportacao: () => void;
+
+  apiConfig: ApiConfig;
+  /** Atualiza e persiste endereco/chave da API. */
+  setApiConfig: (config: ApiConfig) => void;
+  envioApi: ResultadoEnvioApi | null;
+  enviando: boolean;
+  /** Exporta o banco e envia para `POST /sync` da API. So le o banco local. */
+  enviarParaApi: () => Promise<void>;
 };
 
 const mensagemDeErro = (error: unknown, fallback: string): string => {
-  if (error instanceof BackupInvalidoError) {
+  if (error instanceof BackupInvalidoError || error instanceof SincronizacaoError) {
     return error.message;
   }
 
   return error instanceof Error ? `${fallback} (${error.message})` : fallback;
 };
 
-/** Estado da tela de integracao: gerar o JSON do banco e sobrescrever a partir de um JSON. */
+/** Estado da tela de integracao: gerar o JSON, sobrescrever a partir de um JSON e enviar para a API. */
 export function useIntegracao(): UseIntegracao {
   const [exportacao, setExportacao] = useState<ResultadoExportacao | null>(null);
   const [exportando, setExportando] = useState(false);
@@ -42,6 +55,14 @@ export function useIntegracao(): UseIntegracao {
   const [textoImportacao, setTextoImportacao] = useState('');
   const [previa, setPrevia] = useState<PreviaImportacao | null>(null);
   const [importando, setImportando] = useState(false);
+
+  const [apiConfig, setApiConfigState] = useState<ApiConfig>({ url: '', token: '' });
+  const [envioApi, setEnvioApi] = useState<ResultadoEnvioApi | null>(null);
+  const [enviando, setEnviando] = useState(false);
+
+  useEffect(() => {
+    void getApiConfig().then(setApiConfigState);
+  }, []);
 
   const gerarExportacao = useCallback(async (): Promise<void> => {
     setExportando(true);
@@ -152,6 +173,32 @@ export function useIntegracao(): UseIntegracao {
     [previa, executarImportacao],
   );
 
+  const setApiConfig = useCallback((config: ApiConfig): void => {
+    setApiConfigState(config);
+    void saveApiConfig(config);
+  }, []);
+
+  const enviarParaApi = useCallback(async (): Promise<void> => {
+    setEnviando(true);
+
+    try {
+      const resultado = await enviarBancoParaApi(apiConfig);
+
+      setEnvioApi({
+        id: resultado.id,
+        recebidoEm: resultado.recebido_em,
+        totalRegistros: resultado.registros,
+        resumo: resultado.tabelas,
+        ignorados: resultado.ignorados,
+      });
+    } catch (error: unknown) {
+      console.error('Erro ao enviar banco para a API:', error);
+      Alert.alert('Erro', mensagemDeErro(error, 'Nao foi possivel enviar para a API'));
+    } finally {
+      setEnviando(false);
+    }
+  }, [apiConfig]);
+
   return {
     exportacao,
     exportando,
@@ -165,5 +212,11 @@ export function useIntegracao(): UseIntegracao {
     validarImportacao,
     confirmarImportacao,
     limparImportacao,
+
+    apiConfig,
+    setApiConfig,
+    envioApi,
+    enviando,
+    enviarParaApi,
   };
 }

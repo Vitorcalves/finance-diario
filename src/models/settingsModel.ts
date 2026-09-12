@@ -68,3 +68,43 @@ export const saveLocalPadrao = async (id: number): Promise<void> => {
     [LOCAL_PADRAO_KEY, String(id)],
   );
 };
+
+const API_URL_KEY = 'api_url';
+const API_TOKEN_KEY = 'api_token';
+
+export type ApiConfig = {
+  /** Endereco base da API, ex.: `http://192.168.0.10:8010`. Vazio = nao configurada. */
+  url: string;
+  /** Enviado no header `X-API-Key`; vazio quando a API nao exige chave. */
+  token: string;
+};
+
+const lerSetting = async (key: string): Promise<string> => {
+  const db = await getConnection();
+  const row = await db.getFirstAsync<SettingRow>('SELECT value FROM settings WHERE key = ?', [key]);
+  return row?.value ?? '';
+};
+
+/** Endereco e chave da API de persistencia, informados na tela de Integracao. */
+export const getApiConfig = async (): Promise<ApiConfig> => {
+  const [url, token] = await Promise.all([lerSetting(API_URL_KEY), lerSetting(API_TOKEN_KEY)]);
+  return { url, token };
+};
+
+export const saveApiConfig = async (config: ApiConfig): Promise<void> => {
+  const db = await getConnection();
+
+  for (const [key, value] of [
+    [API_URL_KEY, config.url.trim()],
+    [API_TOKEN_KEY, config.token.trim()],
+  ]) {
+    await db.runAsync(
+      `
+          INSERT INTO settings (key, value)
+          VALUES (?, ?)
+          ON CONFLICT(key) DO UPDATE SET value = excluded.value
+      `,
+      [key, value],
+    );
+  }
+};

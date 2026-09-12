@@ -6,6 +6,7 @@ import type { ComparativoProduto } from '../types';
 type ComparativoVariantesProps = {
   grupos: ComparativoProduto[];
   rotuloVariante: (varianteId: string) => string;
+  rotuloQuantidade: (quantidade: number, varianteId: string) => string;
 };
 
 /**
@@ -17,6 +18,7 @@ type ComparativoVariantesProps = {
 export default function ComparativoVariantes({
   grupos,
   rotuloVariante,
+  rotuloQuantidade,
 }: ComparativoVariantesProps): React.ReactNode {
   if (grupos.length === 0) {
     return null;
@@ -71,7 +73,7 @@ export default function ComparativoVariantes({
                       {rotuloVariante(entrada.item.varianteId)}
                     </Text>
                     <Text style={styles.linhaDetalhe}>
-                      {`${entrada.item.quantidade} x ${toCurrency(entrada.item.preco)}`}
+                      {`${rotuloQuantidade(entrada.item.quantidade, entrada.item.varianteId)} x ${toCurrency(entrada.item.preco)}`}
                       {variacao !== null && variacao > 0
                         ? ` • ${toPercent(variacao)} mais caro por medida`
                         : ''}

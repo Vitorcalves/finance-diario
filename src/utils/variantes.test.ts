@@ -2,7 +2,13 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Marca } from '../models/marcas';
 import type { ProdutoVariantes } from '../models/produtoVariantes';
-import { precoPorUnidadePrimaria, rotuloVariante, rotuloVariantePorId } from './variantes';
+import {
+  ehGranel,
+  precoPorUnidadePrimaria,
+  rotuloQuantidade,
+  rotuloVariante,
+  rotuloVariantePorId,
+} from './variantes';
 
 const MARCAS: Marca[] = [
   { id: 1, nome: 'Marca A', created_at: '2026-01-01' },
@@ -43,6 +49,43 @@ describe('rotuloVariante', () => {
 
   test('quantidade sem unidade valida mostra so o numero', () => {
     assert.equal(rotuloVariante(variante({ unidade_id: 999 }), MARCAS), 'Marca A • 1');
+  });
+
+  test('unidade a granel mostra a medida em que o preco e cobrado', () => {
+    assert.equal(rotuloVariante(variante({ unidade_id: 8 }), MARCAS), 'Marca A • por kg');
+    assert.equal(
+      rotuloVariante(variante({ unidade_id: 8, quantidade: null }), MARCAS),
+      'Marca A • por kg',
+    );
+    assert.equal(
+      rotuloVariante(variante({ unidade_id: 9, quantidade: 2 }), MARCAS),
+      'Marca A • por 2 L',
+    );
+  });
+});
+
+describe('ehGranel', () => {
+  test('depende da unidade da variante', () => {
+    assert.equal(ehGranel(variante()), false);
+    assert.equal(ehGranel(variante({ unidade_id: 8 })), true);
+    assert.equal(ehGranel(variante({ unidade_id: 10, quantidade: null })), true);
+    assert.equal(ehGranel(undefined), false);
+  });
+});
+
+describe('rotuloQuantidade', () => {
+  test('pacote mostra so o numero', () => {
+    assert.equal(rotuloQuantidade(2, variante()), '2');
+    assert.equal(rotuloQuantidade(2, undefined), '2');
+  });
+
+  test('a granel mostra o peso com a medida', () => {
+    assert.equal(rotuloQuantidade(0.75, variante({ unidade_id: 8 })), '0,75 kg');
+    assert.equal(rotuloQuantidade(0.75, variante({ unidade_id: 8, quantidade: null })), '0,75 kg');
+  });
+
+  test('a granel com preco por medida diferente de 1 mostra o multiplicador', () => {
+    assert.equal(rotuloQuantidade(2.5, variante({ unidade_id: 9, quantidade: 2 })), '2,5 x 2 L');
   });
 });
 
@@ -99,6 +142,19 @@ describe('precoPorUnidadePrimaria', () => {
     assert.equal(precoPorUnidadePrimaria(5, variante({ quantidade: null })), null);
     assert.equal(precoPorUnidadePrimaria(5, variante({ unidade_id: null })), null);
     assert.equal(precoPorUnidadePrimaria(5, undefined), null);
+  });
+
+  test('a granel sem quantidade vale 1 da medida: R$ 8,90 por kg', () => {
+    assert.deepEqual(precoPorUnidadePrimaria(8.9, variante({ unidade_id: 8, quantidade: null })), {
+      valor: 8.9,
+      unidadeId: 2,
+      sigla: 'kg',
+    });
+    assert.deepEqual(precoPorUnidadePrimaria(10, variante({ unidade_id: 9, quantidade: 2 })), {
+      valor: 5,
+      unidadeId: 3,
+      sigla: 'L',
+    });
   });
 
   test('quantidade zero ou negativa nao divide', () => {

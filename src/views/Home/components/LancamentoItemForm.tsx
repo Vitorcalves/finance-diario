@@ -9,7 +9,7 @@ import type { Produto } from '../../../models/produtos';
 import type { ProdutoVariantes } from '../../../models/produtoVariantes';
 import { colors, sharedStyles } from '../../../theme';
 import { toCurrency } from '../../../utils/format';
-import { rotuloVariante } from '../../../utils/variantes';
+import { ehGranel, medidaGranel, rotuloQuantidade, rotuloVariante } from '../../../utils/variantes';
 import type { ItemLancamento } from '../types';
 
 export type DadosItemLancamento = Omit<ItemLancamento, 'localId'>;
@@ -52,10 +52,32 @@ export default function LancamentoItemForm({
     [variantes, produtoId],
   );
 
+  const varianteSelecionada = useMemo(
+    () => variantes.find((variante) => variante.id === varianteId),
+    [variantes, varianteId],
+  );
+
+  /** Item a granel: quantidade e o peso/volume comprado e o preco e por medida. */
+  const granel = ehGranel(varianteSelecionada);
+  const medida = varianteSelecionada && granel ? medidaGranel(varianteSelecionada) : '';
+
+  /**
+   * Troca de variante entre pacote e granel: limpa o peso para o usuario digitar
+   * (o campo passa a ter casas decimais) ou volta para 1 pacote.
+   */
+  const ajustarQuantidade = (nova: ProdutoVariantes | undefined): void => {
+    const novaGranel = ehGranel(nova);
+
+    if (novaGranel !== granel) {
+      setQuantidade(novaGranel ? '' : '1');
+    }
+  };
+
   const selecionarProduto = (id: string): void => {
     if (produtoId === id) {
       setProdutoId(null);
       setVarianteId(null);
+      ajustarQuantidade(undefined);
       return;
     }
 
@@ -63,6 +85,7 @@ export default function LancamentoItemForm({
 
     setProdutoId(id);
     setVarianteId(null);
+    ajustarQuantidade(undefined);
     setDescricao(produto?.nome ?? '');
     setPreco(produto ? produto.preco.toFixed(2) : '');
   };
@@ -72,6 +95,7 @@ export default function LancamentoItemForm({
 
     setProdutoId(variante.produto_id);
     setVarianteId(variante.id);
+    ajustarQuantidade(variante);
     setDescricao(`${produto?.nome ?? ''} - ${rotuloVariante(variante, marcas)}`.trim());
     setPreco(variante.preco.toFixed(2));
   };
@@ -79,6 +103,7 @@ export default function LancamentoItemForm({
   const selecionarVariante = (id: string): void => {
     if (varianteId === id) {
       setVarianteId(null);
+      ajustarQuantidade(undefined);
       return;
     }
 
@@ -125,7 +150,12 @@ export default function LancamentoItemForm({
     }
 
     if (!Number.isFinite(quantidadeNumero) || quantidadeNumero <= 0) {
-      Alert.alert('Erro', 'Quantidade do item deve ser maior que zero');
+      Alert.alert(
+        'Erro',
+        granel
+          ? `Informe o peso comprado em ${medida} (ex.: 0,750)`
+          : 'Quantidade do item deve ser maior que zero',
+      );
       return;
     }
 
@@ -189,26 +219,36 @@ export default function LancamentoItemForm({
         style={[sharedStyles.input, sharedStyles.inputSpaced]}
       />
 
-      <Text style={sharedStyles.label}>Quantidade</Text>
+      <Text style={sharedStyles.label}>{granel ? `Quantidade (${medida})` : 'Quantidade'}</Text>
       <BrazilianIntegerInput
         value={quantidade}
         onChangeValue={setQuantidade}
-        decimalScale={0}
-        placeholder="Ex.: 2"
+        decimalScale={granel ? 3 : 0}
+        placeholder={granel ? 'Ex.: 0,750' : 'Ex.: 2'}
         placeholderTextColor={colors.placeholder}
         style={[sharedStyles.input, sharedStyles.inputSpaced]}
       />
 
-      <Text style={sharedStyles.label}>Preco unitario (R$)</Text>
+      <Text style={sharedStyles.label}>
+        {granel ? `Preco por ${medida} (R$)` : 'Preco unitario (R$)'}
+      </Text>
       <BrazilianIntegerInput
         value={preco}
         onChangeValue={setPreco}
         decimalScale={2}
         fixedDecimalScale
-        placeholder="Ex.: 43,90"
+        placeholder={granel ? 'Ex.: 8,90' : 'Ex.: 43,90'}
         placeholderTextColor={colors.placeholder}
         style={[sharedStyles.input, sharedStyles.inputSpaced]}
       />
+
+      {granel && Number(quantidade) > 0 && Number(preco) > 0 && (
+        <Text style={[sharedStyles.sectionHint, sharedStyles.inputSpaced]}>
+          {`${rotuloQuantidade(Number(quantidade), varianteSelecionada)} x ${toCurrency(
+            Number(preco),
+          )} = ${toCurrency(Number(quantidade) * Number(preco))}`}
+        </Text>
+      )}
 
       <View style={sharedStyles.actionsRow}>
         <Button

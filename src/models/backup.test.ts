@@ -15,6 +15,11 @@ import { getConnection } from './database';
 import { insertCategoria } from './categorias';
 import { insertEmpresa } from './empresas';
 import { insertMarca, listMarcas } from './marcas';
+import { migrations } from './migrations';
+import { Unidades } from '../utils/unidades';
+
+/** Versao do schema = id da ultima migration, para o teste nao quebrar a cada migration nova. */
+const SCHEMA_VERSION = migrations[migrations.length - 1].id;
 
 /** Dados variados de proposito: REAL, NULL, texto com acento e FK. */
 const semear = async (): Promise<void> => {
@@ -46,7 +51,7 @@ const backupBase = (over: Partial<BackupJson> = {}): string =>
   JSON.stringify({
     formato: BACKUP_FORMATO,
     versao: BACKUP_VERSAO,
-    schema_version: 5,
+    schema_version: SCHEMA_VERSION,
     exportado_em: '2026-01-01T00:00:00.000Z',
     tabelas: {},
     ...over,
@@ -62,8 +67,8 @@ describe('exportarBanco', () => {
 
     assert.equal(backup.formato, BACKUP_FORMATO);
     assert.equal(backup.versao, BACKUP_VERSAO);
-    assert.equal(backup.schema_version, 5);
-    assert.equal(backup.tabelas.unidades.length, 7);
+    assert.equal(backup.schema_version, SCHEMA_VERSION);
+    assert.equal(backup.tabelas.unidades.length, Unidades.listar().length);
     assert.equal(backup.tabelas.transacoes.length, 0);
   });
 
@@ -209,8 +214,8 @@ describe('importarBanco sobrescreve', () => {
 
     const db = await getConnection();
     const migracoes = await db.getAllAsync<{ id: number }>('SELECT id FROM migrations');
-    assert.equal(migracoes.length, 5);
-    assert.equal((await exportarBanco()).schema_version, 5);
+    assert.equal(migracoes.length, migrations.length);
+    assert.equal((await exportarBanco()).schema_version, SCHEMA_VERSION);
   });
 });
 

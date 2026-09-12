@@ -13,7 +13,7 @@ import {
   sharedStyles,
   spacing,
 } from '../../../theme';
-import { formatarData, toCurrency } from '../../../utils/format';
+import { formatarData, formatarQuantidade, toCurrency } from '../../../utils/format';
 import React from 'react';
 
 type TransacaoItemProps = {
@@ -69,7 +69,7 @@ export default function TransacaoItem({
           {itens.map((item) => (
             <View key={item.id} style={styles.itemRow}>
               <Text style={styles.itemDescricao} numberOfLines={1}>
-                {`${item.quantidade}x ${item.descricao}`}
+                {`${formatarQuantidade(item.quantidade)}x ${item.descricao}`}
               </Text>
               <Text style={styles.itemValor}>{toCurrency(totalItemTransacao(item))}</Text>
             </View>

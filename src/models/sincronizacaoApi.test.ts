@@ -5,10 +5,13 @@ import { BACKUP_FORMATO, BACKUP_VERSAO, type BackupJson } from './backup';
 import { getConnection } from './database';
 import { getApiConfig, saveApiConfig } from './settingsModel';
 import {
+  consultarIa,
   enviarParaApi,
   montarRequisicao,
+  montarRequisicaoIa,
   normalizarUrl,
   SincronizacaoError,
+  type RespostaIa,
 } from './sincronizacaoApi';
 
 const backup: BackupJson = {
@@ -61,6 +64,90 @@ describe('montarRequisicao', () => {
 
   test('recusa endereco vazio', () => {
     assert.throws(() => montarRequisicao({ url: '   ', token: '' }, backup), SincronizacaoError);
+  });
+});
+
+describe('montarRequisicaoIa', () => {
+  test('monta POST /ia/consultar com a pergunta sem espacos e a chave', () => {
+    const { url, init } = montarRequisicaoIa(
+      { url: 'http://api:8010/', token: 'abc' },
+      { pergunta: '  Quanto gastei?  ', pensar: true, max_passos: 6 },
+    );
+
+    assert.equal(url, 'http://api:8010/ia/consultar');
+    assert.equal(init.method, 'POST');
+    assert.deepEqual(init.headers, { 'Content-Type': 'application/json', 'X-API-Key': 'abc' });
+    assert.deepEqual(JSON.parse(init.body as string), {
+      pergunta: 'Quanto gastei?',
+      pensar: true,
+      max_passos: 6,
+    });
+  });
+
+  test('recusa pergunta vazia e endereco vazio', () => {
+    assert.throws(
+      () =>
+        montarRequisicaoIa(
+          { url: 'http://api:8010', token: '' },
+          { pergunta: '  ', pensar: false, max_passos: 6 },
+        ),
+      /pergunta/i,
+    );
+    assert.throws(
+      () =>
+        montarRequisicaoIa(
+          { url: '', token: '' },
+          { pergunta: 'Oi', pensar: false, max_passos: 6 },
+        ),
+      SincronizacaoError,
+    );
+  });
+});
+
+describe('consultarIa', () => {
+  const resposta: RespostaIa = {
+    resposta: 'Voce gastou mais na loja **Bahamas**, com **R$ 182,89**.',
+    raciocinio: 'The user wants to know...',
+    consultas: [{ sql: 'SELECT 1', linhas: 10, erro: null, segundos: 0.07 }],
+    passos: 2,
+    modelo: 'qwen3.5-9b',
+    tokens_entrada: 3111,
+    tokens_saida: 332,
+    cortado: false,
+    segundos: 8.5,
+  };
+
+  test('devolve a resposta do modelo', async () => {
+    const { chamadas, restaurar } = simularFetch(200, resposta);
+
+    try {
+      const resultado = await consultarIa(
+        { url: 'http://api:8010', token: '' },
+        { pergunta: 'Onde gastei mais?', pensar: true, max_passos: 6 },
+      );
+
+      assert.deepEqual(resultado, resposta);
+      assert.equal(chamadas.length, 1);
+      assert.equal(chamadas[0].url, 'http://api:8010/ia/consultar');
+    } finally {
+      restaurar();
+    }
+  });
+
+  test('traduz erros da API em mensagem para o usuario', async () => {
+    const { restaurar } = simularFetch(503, { detail: 'Modelo indisponível' });
+
+    try {
+      await assert.rejects(
+        consultarIa(
+          { url: 'http://api:8010', token: '' },
+          { pergunta: 'Oi', pensar: false, max_passos: 6 },
+        ),
+        /Modelo indisponível/,
+      );
+    } finally {
+      restaurar();
+    }
   });
 });
 

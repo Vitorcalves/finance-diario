@@ -9,10 +9,17 @@ import {
 } from '../../models/backup';
 import { getApiConfig, saveApiConfig, type ApiConfig } from '../../models/settingsModel';
 import {
+  consultarIa as consultarIaNaApi,
   enviarParaApi as enviarBancoParaApi,
+  MAX_PASSOS_PADRAO,
   SincronizacaoError,
 } from '../../models/sincronizacaoApi';
-import type { PreviaImportacao, ResultadoEnvioApi, ResultadoExportacao } from './types';
+import type {
+  PreviaImportacao,
+  ResultadoConsultaIa,
+  ResultadoEnvioApi,
+  ResultadoExportacao,
+} from './types';
 
 export type UseIntegracao = {
   exportacao: ResultadoExportacao | null;
@@ -37,6 +44,17 @@ export type UseIntegracao = {
   enviando: boolean;
   /** Exporta o banco e envia para `POST /sync` da API. So le o banco local. */
   enviarParaApi: () => Promise<void>;
+
+  pergunta: string;
+  setPergunta: (pergunta: string) => void;
+  /** Liga o modo de raciocinio do modelo (`pensar` no corpo da requisicao). */
+  pensar: boolean;
+  setPensar: (pensar: boolean) => void;
+  consultaIa: ResultadoConsultaIa | null;
+  consultando: boolean;
+  /** Manda a pergunta para `POST /ia/consultar` da API. Nao toca o banco local. */
+  consultarIa: () => Promise<void>;
+  limparConsultaIa: () => void;
 };
 
 const mensagemDeErro = (error: unknown, fallback: string): string => {
@@ -59,6 +77,11 @@ export function useIntegracao(): UseIntegracao {
   const [apiConfig, setApiConfigState] = useState<ApiConfig>({ url: '', token: '' });
   const [envioApi, setEnvioApi] = useState<ResultadoEnvioApi | null>(null);
   const [enviando, setEnviando] = useState(false);
+
+  const [pergunta, setPergunta] = useState('');
+  const [pensar, setPensar] = useState(true);
+  const [consultaIa, setConsultaIa] = useState<ResultadoConsultaIa | null>(null);
+  const [consultando, setConsultando] = useState(false);
 
   useEffect(() => {
     void getApiConfig().then(setApiConfigState);
@@ -199,6 +222,34 @@ export function useIntegracao(): UseIntegracao {
     }
   }, [apiConfig]);
 
+  const consultarIa = useCallback(async (): Promise<void> => {
+    setConsultando(true);
+
+    try {
+      const resposta = await consultarIaNaApi(apiConfig, {
+        pergunta,
+        pensar,
+        max_passos: MAX_PASSOS_PADRAO,
+      });
+
+      setConsultaIa({
+        pergunta: pergunta.trim(),
+        resposta,
+        recebidoEm: new Date().toISOString(),
+      });
+    } catch (error: unknown) {
+      console.error('Erro ao consultar a IA da API:', error);
+      Alert.alert('Erro', mensagemDeErro(error, 'Nao foi possivel consultar a IA'));
+    } finally {
+      setConsultando(false);
+    }
+  }, [apiConfig, pergunta, pensar]);
+
+  const limparConsultaIa = useCallback((): void => {
+    setPergunta('');
+    setConsultaIa(null);
+  }, []);
+
   return {
     exportacao,
     exportando,
@@ -218,5 +269,14 @@ export function useIntegracao(): UseIntegracao {
     envioApi,
     enviando,
     enviarParaApi,
+
+    pergunta,
+    setPergunta,
+    pensar,
+    setPensar,
+    consultaIa,
+    consultando,
+    consultarIa,
+    limparConsultaIa,
   };
 }

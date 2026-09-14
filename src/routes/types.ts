@@ -11,6 +11,11 @@ export type MenuStackParamList = {
   Integracao: undefined;
 };
 
+export type DashboardStackParamList = {
+  DashboardHome: undefined;
+  AnalisePrecos: { produtoId?: string } | undefined;
+};
+
 export type ProdutosStackParamList = {
   ProdutosList: undefined;
   ProdutoForm: { produtoId?: string } | undefined;
@@ -20,5 +25,6 @@ export type RootTabParamList = {
   Home: undefined;
   GastosMensais: undefined;
   Produtos: NavigatorScreenParams<ProdutosStackParamList> | undefined;
+  Dashboard: NavigatorScreenParams<DashboardStackParamList> | undefined;
   Menu: NavigatorScreenParams<MenuStackParamList> | undefined;
 };

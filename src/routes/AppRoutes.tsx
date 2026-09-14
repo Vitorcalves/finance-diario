@@ -2,7 +2,9 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { colors } from '../theme';
+import AnalisePrecosView from '../views/AnalisePrecos';
 import CategoriasView from '../views/Categorias';
+import DashboardHomeView from '../views/Dashboard';
 import EmpresasView from '../views/Empresas';
 import HistoricoPrecosView from '../views/HistoricoPrecos';
 import HomeView from '../views/Home';
@@ -15,11 +17,17 @@ import PlanosView from '../views/Planos';
 import ProdutoFormView from '../views/ProdutoForm';
 import ProdutosListView from '../views/ProdutosList';
 import TabIcon from './TabIcon';
-import type { MenuStackParamList, ProdutosStackParamList, RootTabParamList } from './types';
+import type {
+  DashboardStackParamList,
+  MenuStackParamList,
+  ProdutosStackParamList,
+  RootTabParamList,
+} from './types';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 const MenuStackNav = createNativeStackNavigator<MenuStackParamList>();
 const ProdutosStackNav = createNativeStackNavigator<ProdutosStackParamList>();
+const DashboardStackNav = createNativeStackNavigator<DashboardStackParamList>();
 
 /** Cadastros e ferramentas acessados pela aba Menu. */
 function MenuStack(): React.ReactNode {
@@ -44,6 +52,16 @@ function ProdutosStack(): React.ReactNode {
       <ProdutosStackNav.Screen name="ProdutosList" component={ProdutosListView} />
       <ProdutosStackNav.Screen name="ProdutoForm" component={ProdutoFormView} />
     </ProdutosStackNav.Navigator>
+  );
+}
+
+/** Paineis de analise: hub com a lista de telas e cada analise em si. */
+function DashboardStack(): React.ReactNode {
+  return (
+    <DashboardStackNav.Navigator screenOptions={{ headerShown: false }}>
+      <DashboardStackNav.Screen name="DashboardHome" component={DashboardHomeView} />
+      <DashboardStackNav.Screen name="AnalisePrecos" component={AnalisePrecosView} />
+    </DashboardStackNav.Navigator>
   );
 }
 
@@ -85,6 +103,11 @@ export default function AppRoutes(): React.ReactNode {
           name="Produtos"
           component={ProdutosStack}
           options={{ title: 'Produtos', tabBarLabel: 'Produtos' }}
+        />
+        <Tab.Screen
+          name="Dashboard"
+          component={DashboardStack}
+          options={{ title: 'Dashboard', tabBarLabel: 'Dashboard' }}
         />
         <Tab.Screen
           name="Menu"

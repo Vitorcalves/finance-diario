@@ -64,6 +64,7 @@ export default function MenuNavigationView(): React.ReactNode {
               onPress: (): void => navigation.navigate('GastosMensais'),
             },
             { label: 'Produtos', onPress: (): void => navigation.navigate('Produtos') },
+            { label: 'Dashboard', onPress: (): void => navigation.navigate('Dashboard') },
           ]}
         />
 

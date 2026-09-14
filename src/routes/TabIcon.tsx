@@ -14,6 +14,7 @@ const iconByRoute: Record<TabName, ComponentProps<typeof Ionicons>['name']> = {
   Home: 'home',
   GastosMensais: 'calendar',
   Produtos: 'ellipse-outline',
+  Dashboard: 'analytics',
   Menu: 'menu',
 };
 

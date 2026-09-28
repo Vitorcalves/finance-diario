@@ -105,7 +105,11 @@ export default function OrcamentoView(): React.ReactNode {
                   key={item.localId}
                   item={item}
                   unitario={unitario}
+                  historico={orcamento.historicoDoProduto(item.produtoId)}
+                  variantes={orcamento.variantes}
                   rotuloQuantidade={orcamento.rotuloQuantidade}
+                  rotuloVariante={orcamento.rotuloVariante}
+                  nomeEmpresa={orcamento.nomeEmpresa}
                   onEditar={(): void => reiniciarItemForm(index)}
                   onRemover={(): void => removerItem(index)}
                 />

@@ -70,6 +70,7 @@ export default function ItemOrcamentoCard({
           historico={historico}
           variantes={variantes}
           rotuloVariante={rotuloVariante}
+          rotuloQuantidade={rotuloQuantidade}
           nomeEmpresa={nomeEmpresa}
           onFechar={(): void => setHistoricoVisivel(false)}
         />

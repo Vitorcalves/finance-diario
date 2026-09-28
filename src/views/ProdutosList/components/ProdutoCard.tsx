@@ -43,6 +43,7 @@ export default function ProdutoCard({
             {toCurrency(produto.preco)}
             {produto.unidade_id !== null ? ` / ${nomeUnidade(produto.unidade_id)}` : ''}
           </Text>
+          {produto.eventual === 1 && <Text style={styles.eventual}>Compra eventual</Text>}
         </View>
 
         <View style={sharedStyles.iconButtonRow}>
@@ -117,6 +118,10 @@ const styles = StyleSheet.create({
     fontSize: fontSize.body,
     fontWeight: fontWeight.medium,
     color: colors.primary,
+  },
+  eventual: {
+    fontSize: fontSize.caption,
+    color: colors.textSubtle,
   },
   categoriaRow: {
     flexDirection: 'row',

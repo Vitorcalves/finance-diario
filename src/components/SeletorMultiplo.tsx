@@ -6,6 +6,8 @@ import { colors, fontSize, fontWeight, radius, shadows, sharedStyles, spacing } 
 export type OpcaoSeletorMultiplo = {
   id: string;
   nome: string;
+  /** `true` so lista a opcao quando algo e digitado na busca (ex.: produto eventual). */
+  oculta?: boolean;
 };
 
 type SeletorMultiploProps = {
@@ -42,8 +44,9 @@ export default function SeletorMultiplo({
   const [busca, setBusca] = useState('');
   const [mostrarFormAdicionar, setMostrarFormAdicionar] = useState(false);
 
-  const opcoesFiltradas = opcoes.filter((opcao) =>
-    opcao.nome.toLowerCase().includes(busca.trim().toLowerCase()),
+  const termo = busca.trim().toLowerCase();
+  const opcoesFiltradas = opcoes.filter(
+    (opcao) => (termo || !opcao.oculta) && opcao.nome.toLowerCase().includes(termo),
   );
 
   const fecharFormAdicionar = (): void => setMostrarFormAdicionar(false);

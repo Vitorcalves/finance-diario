@@ -179,7 +179,11 @@ export default function LancamentoItemForm({
 
       <SeletorMultiplo
         label="Produto"
-        opcoes={produtos.map((produto) => ({ id: produto.id, nome: produto.nome }))}
+        opcoes={produtos.map((produto) => ({
+          id: produto.id,
+          nome: produto.nome,
+          oculta: produto.eventual === 1,
+        }))}
         selecionados={produtoId ? [produtoId] : []}
         onToggle={selecionarProduto}
         placeholderBusca="Buscar produto"

@@ -179,7 +179,10 @@ export default function ItemOrcamentoForm({
 
       <SeletorMultiplo
         label="Produto"
-        opcoes={produtos.map((produto) => ({ id: produto.id, nome: produto.nome }))}
+        opcoes={produtos
+          // Orcamento e pesquisa de mercado; compra eventual nao entra aqui.
+          .filter((produto) => produto.eventual !== 1 || produto.id === produtoId)
+          .map((produto) => ({ id: produto.id, nome: produto.nome }))}
         selecionados={produtoId ? [produtoId] : []}
         onToggle={selecionarProduto}
         placeholderBusca="Buscar produto"

@@ -21,13 +21,12 @@ import { useProdutosList } from './useProdutosList';
 
 type ProdutosListNavigation = NativeStackNavigationProp<ProdutosStackParamList, 'ProdutosList'>;
 
-type Ordenacao = 'recentes' | 'nome' | 'menor-preco' | 'maior-preco';
+type Filtro = 'frequentes' | 'eventuais' | 'todos';
 
-const ORDENACAO_OPCOES: ChipOpcao<Ordenacao>[] = [
-  { valor: 'recentes', rotulo: 'Recentes' },
-  { valor: 'nome', rotulo: 'Nome' },
-  { valor: 'menor-preco', rotulo: 'Menor preço' },
-  { valor: 'maior-preco', rotulo: 'Maior preço' },
+const FILTRO_OPCOES: ChipOpcao<Filtro>[] = [
+  { valor: 'frequentes', rotulo: 'Frequentes' },
+  { valor: 'eventuais', rotulo: 'Eventuais' },
+  { valor: 'todos', rotulo: 'Todos' },
 ];
 
 /** Lista de produtos cadastrados. */
@@ -47,32 +46,28 @@ export default function ProdutosListView(): React.ReactNode {
 
   const [produtoHistorico, setProdutoHistorico] = useState<Produto | null>(null);
   const [busca, setBusca] = useState('');
-  const [ordenacao, setOrdenacao] = useState<Ordenacao>('recentes');
+  const [filtro, setFiltro] = useState<Filtro>('frequentes');
 
+  /** Ja vem em ordem alfabetica do model; aqui so filtra. */
   const produtosFiltrados = useMemo(() => {
     const termo = busca.trim().toLowerCase();
-    const filtrados = termo
-      ? produtos.filter((produto) => produto.nome.toLowerCase().includes(termo))
-      : produtos;
 
-    const ordenados = [...filtrados];
-    switch (ordenacao) {
-      case 'nome':
-        ordenados.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-        break;
-      case 'menor-preco':
-        ordenados.sort((a, b) => a.preco - b.preco);
-        break;
-      case 'maior-preco':
-        ordenados.sort((a, b) => b.preco - a.preco);
-        break;
-      case 'recentes':
-      default:
-        break;
-    }
+    return produtos.filter((produto) => {
+      const eventual = produto.eventual === 1;
 
-    return ordenados;
-  }, [produtos, busca, ordenacao]);
+      // Com busca, "Frequentes" tambem acha os eventuais: e assim que se
+      // reencontra o mouse comprado ha 3 anos.
+      if (filtro === 'frequentes' && eventual && !termo) {
+        return false;
+      }
+
+      if (filtro === 'eventuais' && !eventual) {
+        return false;
+      }
+
+      return produto.nome.toLowerCase().includes(termo);
+    });
+  }, [produtos, busca, filtro]);
 
   return (
     <SafeAreaView style={sharedStyles.screen}>
@@ -99,9 +94,9 @@ export default function ProdutosListView(): React.ReactNode {
           </View>
 
           <ChipSelector
-            opcoes={ORDENACAO_OPCOES}
-            selecionado={ordenacao}
-            onSelecionar={setOrdenacao}
+            opcoes={FILTRO_OPCOES}
+            selecionado={filtro}
+            onSelecionar={setFiltro}
             scroll
           />
         </View>
@@ -117,7 +112,14 @@ export default function ProdutosListView(): React.ReactNode {
           onAction={(): void => navigation.navigate('ProdutoForm')}
         />
       ) : produtosFiltrados.length === 0 ? (
-        <EmptyState icon="search" message={`Nenhum produto encontrado para "${busca}"`} />
+        <EmptyState
+          icon="search"
+          message={
+            busca.trim()
+              ? `Nenhum produto encontrado para "${busca}"`
+              : 'Nenhum produto neste filtro'
+          }
+        />
       ) : (
         <ScrollView
           style={sharedStyles.scrollArea}

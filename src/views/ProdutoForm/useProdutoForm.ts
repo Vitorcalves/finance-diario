@@ -32,6 +32,9 @@ export type UseProdutoForm = {
   setPreco: (preco: string) => void;
   unidadeId: number | null;
   setUnidadeId: (id: number | null) => void;
+  /** Compra eventual: fica fora da lista padrao e do seletor sem busca. */
+  eventual: boolean;
+  setEventual: (eventual: boolean) => void;
 
   categoriasSelecionadas: string[];
   alternarCategoria: (categoriaId: string) => void;
@@ -60,6 +63,7 @@ export function useProdutoForm(produtoId?: string): UseProdutoForm {
   const [nome, setNome] = useState('');
   const [preco, setPreco] = useState('');
   const [unidadeId, setUnidadeId] = useState<number | null>(null);
+  const [eventual, setEventual] = useState(false);
 
   const [categoriasSelecionadas, setCategoriasSelecionadas] = useState<string[]>([]);
   const [vinculosOriginais, setVinculosOriginais] = useState<CategoriaProduto[]>([]);
@@ -101,6 +105,7 @@ export function useProdutoForm(produtoId?: string): UseProdutoForm {
         setNome(produto.nome);
         setPreco(produto.preco.toFixed(2));
         setUnidadeId(produto.unidade_id);
+        setEventual(produto.eventual === 1);
 
         const vinculosDoProduto = todosVinculos.filter(
           (vinculo) => vinculo.produto_id === produtoId,
@@ -233,6 +238,7 @@ export function useProdutoForm(produtoId?: string): UseProdutoForm {
         nome,
         preco: precoParsado,
         unidade_id: unidadeId,
+        eventual: eventual ? 1 : 0,
         created_at: agora,
       };
 
@@ -296,6 +302,7 @@ export function useProdutoForm(produtoId?: string): UseProdutoForm {
     nome,
     preco,
     unidadeId,
+    eventual,
     produtoId,
     categoriasSelecionadas,
     vinculosOriginais,
@@ -314,6 +321,8 @@ export function useProdutoForm(produtoId?: string): UseProdutoForm {
     setPreco,
     unidadeId,
     setUnidadeId,
+    eventual,
+    setEventual,
     categoriasSelecionadas,
     alternarCategoria,
     criarCategoria,

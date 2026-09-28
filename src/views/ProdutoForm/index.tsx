@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { ScrollView, Text, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { type RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -8,7 +8,7 @@ import BrazilianIntegerInput from '../../components/BrazilianIntegerInput';
 import SeletorMultiplo from '../../components/SeletorMultiplo';
 import { Button, KeyboardAvoidingScreen, LoadingState, ScreenHeader } from '../../components/ui';
 import type { ProdutosStackParamList } from '../../routes/types';
-import { colors, sharedStyles } from '../../theme';
+import { colors, fontSize, sharedStyles, spacing } from '../../theme';
 import NomeSimplesForm from './components/NomeSimplesForm';
 import SeletorUnidade from './components/SeletorUnidade';
 import VarianteCard from './components/VarianteCard';
@@ -111,6 +111,22 @@ export default function ProdutoFormView(): React.ReactNode {
             />
           </View>
 
+          <View style={[sharedStyles.formGroup, styles.linhaSwitch]}>
+            <View style={styles.textoSwitch}>
+              <Text style={sharedStyles.label}>Compra eventual</Text>
+              <Text style={styles.ajuda}>
+                Comprado raramente (ex.: mouse). Some da lista padrao e so aparece no lancamento
+                quando buscado.
+              </Text>
+            </View>
+            <Switch
+              value={form.eventual}
+              onValueChange={form.setEventual}
+              trackColor={{ false: colors.borderStrong, true: colors.primary }}
+              thumbColor={colors.surface}
+            />
+          </View>
+
           <SeletorMultiplo
             label="Categorias"
             opcoes={form.categorias.map((categoria) => ({
@@ -177,3 +193,19 @@ export default function ProdutoFormView(): React.ReactNode {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  linhaSwitch: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  textoSwitch: {
+    flex: 1,
+  },
+  ajuda: {
+    fontSize: fontSize.caption,
+    color: colors.textSubtle,
+  },
+});

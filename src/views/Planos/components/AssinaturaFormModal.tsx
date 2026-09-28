@@ -92,7 +92,6 @@ export default function AssinaturaFormModal({
                 value={valor}
                 onChangeValue={setValor}
                 decimalScale={2}
-                fixedDecimalScale
                 placeholder="Ex.: 39,90"
                 placeholderTextColor={colors.placeholder}
                 style={sharedStyles.input}

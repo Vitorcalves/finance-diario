@@ -5,7 +5,6 @@ type BrazilianIntegerInputProps = Omit<TextInputProps, 'value' | 'onChangeText'>
   value: string;
   onChangeValue: (value: string) => void;
   decimalScale?: number;
-  fixedDecimalScale?: boolean;
   style?: StyleProp<TextStyle>;
 };
 
@@ -27,11 +26,7 @@ const toRawNumberString = (rawDigits: string, decimalScale: number): string => {
   return value.toFixed(decimalScale);
 };
 
-const formatBrazilianNumber = (
-  rawNumberString: string,
-  decimalScale: number,
-  fixedDecimalScale: boolean,
-): string => {
+const formatBrazilianNumber = (rawNumberString: string, decimalScale: number): string => {
   if (!rawNumberString) {
     return '';
   }
@@ -42,8 +37,10 @@ const formatBrazilianNumber = (
     return '';
   }
 
+  // Os dígitos são digitados da direita para a esquerda, então todas as casas
+  // decimais precisam aparecer; senão zeros à direita somem do texto e se perdem.
   return new Intl.NumberFormat('pt-BR', {
-    minimumFractionDigits: fixedDecimalScale ? normalizedScale : 0,
+    minimumFractionDigits: normalizedScale,
     maximumFractionDigits: normalizedScale,
   }).format(value);
 };
@@ -52,12 +49,11 @@ export default function BrazilianIntegerInput({
   value,
   onChangeValue,
   decimalScale = 0,
-  fixedDecimalScale = false,
   style,
   ...rest
 }: BrazilianIntegerInputProps): React.ReactNode {
   const normalizedScale = Math.max(0, decimalScale);
-  const displayValue = formatBrazilianNumber(value, normalizedScale, fixedDecimalScale);
+  const displayValue = formatBrazilianNumber(value, normalizedScale);
 
   return (
     <TextInput

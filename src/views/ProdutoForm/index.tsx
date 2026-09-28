@@ -98,7 +98,6 @@ export default function ProdutoFormView(): React.ReactNode {
               value={form.preco}
               onChangeValue={form.setPreco}
               decimalScale={2}
-              fixedDecimalScale
               placeholderTextColor={colors.placeholder}
             />
           </View>

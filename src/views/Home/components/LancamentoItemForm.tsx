@@ -236,7 +236,6 @@ export default function LancamentoItemForm({
         value={preco}
         onChangeValue={setPreco}
         decimalScale={2}
-        fixedDecimalScale
         placeholder={granel ? 'Ex.: 8,90' : 'Ex.: 43,90'}
         placeholderTextColor={colors.placeholder}
         style={[sharedStyles.input, sharedStyles.inputSpaced]}

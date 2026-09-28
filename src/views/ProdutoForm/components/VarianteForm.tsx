@@ -131,7 +131,6 @@ export default function VarianteForm({
         value={preco}
         onChangeValue={setPreco}
         decimalScale={2}
-        fixedDecimalScale
         placeholderTextColor={colors.placeholder}
       />
 

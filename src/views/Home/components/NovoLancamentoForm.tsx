@@ -263,7 +263,6 @@ export default function NovoLancamentoForm({
                     value={valorManual}
                     onChangeValue={setValorManual}
                     decimalScale={2}
-                    fixedDecimalScale
                     placeholder="Ex.: 43,90"
                     placeholderTextColor={colors.placeholder}
                     style={[sharedStyles.input, sharedStyles.inputSpaced]}

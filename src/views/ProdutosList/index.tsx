@@ -12,10 +12,10 @@ import {
   LoadingState,
   ScreenHeader,
 } from '../../components/ui';
+import HistoricoProdutoModal from '../../components/HistoricoProdutoModal';
 import type { Produto } from '../../models/produtos';
 import type { ProdutosStackParamList } from '../../routes/types';
 import { colors, fontSize, iconSize, radius, sharedStyles, spacing } from '../../theme';
-import HistoricoProdutoModal from './components/HistoricoProdutoModal';
 import ProdutoCard from './components/ProdutoCard';
 import { useProdutosList } from './useProdutosList';
 
@@ -36,6 +36,7 @@ export default function ProdutosListView(): React.ReactNode {
   const {
     produtos,
     variantes,
+    marcas,
     loading,
     categoriasDoProduto,
     variantesDoProduto,
@@ -140,9 +141,10 @@ export default function ProdutosListView(): React.ReactNode {
 
       {produtoHistorico && (
         <HistoricoProdutoModal
-          produto={produtoHistorico}
+          produtoId={produtoHistorico.id}
+          subtitulo={produtoHistorico.nome}
           variantes={variantes}
-          nomeMarca={nomeMarca}
+          marcas={marcas}
           onFechar={(): void => setProdutoHistorico(null)}
         />
       )}

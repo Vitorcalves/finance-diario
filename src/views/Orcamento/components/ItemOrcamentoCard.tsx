@@ -1,24 +1,21 @@
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import HistoricoProdutoModal from '../../../components/HistoricoProdutoModal';
 import { IconButton } from '../../../components/ui';
-import type { HistoricoPreco } from '../../../models/historicoPreco';
+import type { Marca } from '../../../models/marcas';
 import type { ProdutoVariantes } from '../../../models/produtoVariantes';
 import { colors, fontSize, fontWeight, iconSize, sharedStyles } from '../../../theme';
 import { toCurrency, toCurrencyPorUnidade } from '../../../utils/format';
 import type { PrecoPorUnidade } from '../../../utils/variantes';
 import type { ItemOrcamento } from '../types';
-import HistoricoItemModal from './HistoricoItemModal';
 
 type ItemOrcamentoCardProps = {
   item: ItemOrcamento;
   /** Preco reduzido a unidade primaria; `null` quando a variante nao tem medida cadastrada. */
   unitario: PrecoPorUnidade | null;
-  /** Historico de precos do produto do item, do mais recente para o mais antigo. */
-  historico: HistoricoPreco[];
   variantes: ProdutoVariantes[];
+  marcas: Marca[];
   rotuloQuantidade: (quantidade: number, varianteId: string) => string;
-  rotuloVariante: (varianteId: string) => string;
-  nomeEmpresa: (id: string | null) => string;
   onEditar: () => void;
   onRemover: () => void;
 };
@@ -27,11 +24,9 @@ type ItemOrcamentoCardProps = {
 export default function ItemOrcamentoCard({
   item,
   unitario,
-  historico,
   variantes,
+  marcas,
   rotuloQuantidade,
-  rotuloVariante,
-  nomeEmpresa,
   onEditar,
   onRemover,
 }: ItemOrcamentoCardProps): React.ReactNode {
@@ -65,13 +60,12 @@ export default function ItemOrcamentoCard({
       </View>
 
       {historicoVisivel && (
-        <HistoricoItemModal
-          item={item}
-          historico={historico}
+        <HistoricoProdutoModal
+          produtoId={item.produtoId}
+          subtitulo={item.descricao}
+          varianteId={item.varianteId}
           variantes={variantes}
-          rotuloVariante={rotuloVariante}
-          rotuloQuantidade={rotuloQuantidade}
-          nomeEmpresa={nomeEmpresa}
+          marcas={marcas}
           onFechar={(): void => setHistoricoVisivel(false)}
         />
       )}

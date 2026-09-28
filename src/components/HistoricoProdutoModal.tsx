@@ -10,10 +10,10 @@ import {
   Text,
   View,
 } from 'react-native';
-import { ChipSelector, IconButton } from '../../../components/ui';
-import { listPrecosPagosPorProduto } from '../../../models/dashboard';
-import type { HistoricoPreco } from '../../../models/historicoPreco';
-import type { ProdutoVariantes } from '../../../models/produtoVariantes';
+import { listHistoricoPorProduto, listPrecosPagosPorProduto } from '../models/dashboard';
+import { listEmpresas } from '../models/empresas';
+import type { Marca } from '../models/marcas';
+import type { ProdutoVariantes } from '../models/produtoVariantes';
 import {
   colors,
   fontSize,
@@ -23,17 +23,13 @@ import {
   shadows,
   sharedStyles,
   spacing,
-} from '../../../theme';
-import { formatarData, toCurrency, toCurrencyPorUnidade } from '../../../utils/format';
-import { precoPorUnidadePrimaria } from '../../../utils/variantes';
-import type { ItemOrcamento } from '../types';
+} from '../theme';
+import { formatarData, toCurrency, toCurrencyPorUnidade } from '../utils/format';
+import { precoPorUnidadePrimaria, rotuloQuantidade, rotuloVariantePorId } from '../utils/variantes';
+import { ChipSelector, IconButton } from './ui';
 
-type Aba = 'produto' | 'variante';
-
-const ABAS = [
-  { valor: 'produto' as const, rotulo: 'Produto' },
-  { valor: 'variante' as const, rotulo: 'Variante' },
-];
+/** Chip "Produto" junta todas as variantes; os demais chips sao ids de variante. */
+const TODAS = 'produto';
 
 /** Linha da lista: um preco registrado ou um item efetivamente comprado. */
 type Registro = {
@@ -46,60 +42,84 @@ type Registro = {
   quantidade: number | null;
 };
 
-type HistoricoItemModalProps = {
-  item: ItemOrcamento;
-  /** Historico do produto inteiro, ja ordenado do mais recente para o mais antigo. */
-  historico: HistoricoPreco[];
+type Dados = {
+  precos: Registro[];
+  compras: Registro[];
+  nomesEmpresas: Map<string, string>;
+};
+
+type HistoricoProdutoModalProps = {
+  produtoId: string;
+  /** Texto abaixo do titulo (nome do produto ou descricao do item). */
+  subtitulo: string;
+  /**
+   * Variante em foco (item do orcamento): vira um unico chip "Variante".
+   * Sem ela, cada variante do produto ganha o seu chip.
+   */
+  varianteId?: string;
   variantes: ProdutoVariantes[];
-  rotuloVariante: (varianteId: string) => string;
-  rotuloQuantidade: (quantidade: number, varianteId: string) => string;
-  nomeEmpresa: (id: string | null) => string;
+  marcas: Marca[];
   onFechar: () => void;
 };
 
 /**
- * Historico de um item do orcamento, aberto pelo icone de olho do card.
- * A aba "Produto" junta todas as variantes; a aba "Variante" so a do item.
- * O switch troca entre os precos registrados e as compras lancadas.
+ * Historico de um produto em janela flutuante, aberto pelo icone de olho.
+ * O switch troca entre os precos registrados e as compras lancadas; os chips
+ * filtram por variante.
  */
-export default function HistoricoItemModal({
-  item,
-  historico,
+export default function HistoricoProdutoModal({
+  produtoId,
+  subtitulo,
+  varianteId,
   variantes,
-  rotuloVariante,
-  rotuloQuantidade,
-  nomeEmpresa,
+  marcas,
   onFechar,
-}: HistoricoItemModalProps): React.ReactNode {
-  const [aba, setAba] = useState<Aba>('produto');
+}: HistoricoProdutoModalProps): React.ReactNode {
+  const [filtro, setFiltro] = useState<string>(TODAS);
   const [mostrarCompras, setMostrarCompras] = useState(false);
-  const [compras, setCompras] = useState<Registro[] | null>(null);
+  const [dados, setDados] = useState<Dados | null>(null);
 
   useEffect(() => {
     let ativo = true;
 
     void (async (): Promise<void> => {
       try {
-        const pagos = await listPrecosPagosPorProduto(item.produtoId);
+        const [historico, pagos, empresas] = await Promise.all([
+          listHistoricoPorProduto(produtoId),
+          listPrecosPagosPorProduto(produtoId),
+          listEmpresas(),
+        ]);
 
-        if (ativo) {
-          setCompras(
-            pagos.reverse().map((pago) => ({
-              id: pago.item_id,
-              varianteId: pago.variante_id,
-              empresaId: pago.empresa_id,
-              preco: pago.preco,
-              data: pago.data,
-              quantidade: pago.quantidade,
-            })),
-          );
+        if (!ativo) {
+          return;
         }
+
+        // As consultas vem do mais antigo ao mais recente; a lista mostra o inverso.
+        setDados({
+          precos: historico.reverse().map((registro) => ({
+            id: registro.id,
+            varianteId: registro.variante_id,
+            empresaId: registro.empresa_id,
+            preco: registro.preco,
+            data: registro.data,
+            quantidade: null,
+          })),
+          compras: pagos.reverse().map((pago) => ({
+            id: pago.item_id,
+            varianteId: pago.variante_id,
+            empresaId: pago.empresa_id,
+            preco: pago.preco,
+            data: pago.data,
+            quantidade: pago.quantidade,
+          })),
+          nomesEmpresas: new Map(empresas.map((empresa) => [empresa.id, empresa.nome])),
+        });
       } catch (error: unknown) {
-        console.error('Erro ao carregar compras do produto:', error);
-        Alert.alert('Erro', 'Nao foi possivel carregar as compras do produto');
+        console.error('Erro ao carregar historico do produto:', error);
+        Alert.alert('Erro', 'Nao foi possivel carregar o historico do produto');
 
         if (ativo) {
-          setCompras([]);
+          setDados({ precos: [], compras: [], nomesEmpresas: new Map() });
         }
       }
     })();
@@ -107,38 +127,45 @@ export default function HistoricoItemModal({
     return (): void => {
       ativo = false;
     };
-  }, [item.produtoId]);
+  }, [produtoId]);
 
-  const precos: Registro[] = historico.map((registro) => ({
-    id: registro.id,
-    varianteId: registro.variante_id,
-    empresaId: registro.empresa_id,
-    preco: registro.preco,
-    data: registro.data,
-    quantidade: null,
-  }));
+  const opcoes = [
+    { valor: TODAS, rotulo: 'Produto' },
+    ...(varianteId
+      ? [{ valor: varianteId, rotulo: 'Variante' }]
+      : variantes
+          .filter((variante) => variante.produto_id === produtoId)
+          .map((variante) => ({
+            valor: variante.id,
+            rotulo: rotuloVariantePorId(variante.id, variantes, marcas),
+          }))),
+  ];
 
-  const fonte = mostrarCompras ? compras : precos;
+  const fonte = dados && (mostrarCompras ? dados.compras : dados.precos);
   const registros =
-    fonte && aba === 'variante'
-      ? fonte.filter((registro) => registro.varianteId === item.varianteId)
-      : fonte;
+    fonte && filtro !== TODAS ? fonte.filter((registro) => registro.varianteId === filtro) : fonte;
 
   const renderRegistro = (registro: Registro): React.ReactNode => {
     const variante = variantes.find((opcao) => opcao.id === registro.varianteId);
     const unitario = precoPorUnidadePrimaria(registro.preco, variante);
-    const detalhes = [nomeEmpresa(registro.empresaId), formatarData(registro.data)];
+    const detalhes = [
+      (registro.empresaId ? dados?.nomesEmpresas.get(registro.empresaId) : undefined) ??
+        'Sem mercado',
+      formatarData(registro.data),
+    ];
 
     if (registro.quantidade !== null) {
-      detalhes.unshift(`Qtd. ${rotuloQuantidade(registro.quantidade, registro.varianteId ?? '')}`);
+      detalhes.unshift(`Qtd. ${rotuloQuantidade(registro.quantidade, variante)}`);
     }
 
     return (
       <View key={registro.id} style={styles.registro}>
         <View style={styles.registroInfo}>
-          {aba === 'produto' && (
+          {filtro === TODAS && (
             <Text style={styles.variante}>
-              {registro.varianteId ? rotuloVariante(registro.varianteId) : 'Sem variante'}
+              {registro.varianteId
+                ? rotuloVariantePorId(registro.varianteId, variantes, marcas)
+                : 'Sem variante'}
             </Text>
           )}
           <Text style={styles.detalhe}>{detalhes.join(' • ')}</Text>
@@ -167,7 +194,7 @@ export default function HistoricoItemModal({
               <Text style={sharedStyles.sectionTitle}>
                 {mostrarCompras ? 'Historico de compras' : 'Historico de precos'}
               </Text>
-              <Text style={sharedStyles.listCardDetail}>{item.descricao}</Text>
+              <Text style={sharedStyles.listCardDetail}>{subtitulo}</Text>
             </View>
             <IconButton icon="close" size={iconSize.sm} onPress={onFechar} />
           </View>
@@ -182,7 +209,7 @@ export default function HistoricoItemModal({
             />
           </View>
 
-          <ChipSelector opcoes={ABAS} selecionado={aba} onSelecionar={setAba} />
+          <ChipSelector opcoes={opcoes} selecionado={filtro} onSelecionar={setFiltro} scroll />
 
           {registros === null ? (
             <ActivityIndicator color={colors.primary} />

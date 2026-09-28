@@ -72,8 +72,6 @@ export type UseOrcamento = {
   /** Ultimo preco visto para a variante, opcionalmente restrito a um mercado. */
   ultimoPreco: (varianteId: string, empresaId: string | null) => HistoricoPreco | null;
   menorPrecoRegistrado: (varianteId: string) => HistoricoPreco | null;
-  /** Todos os precos registrados do produto, do mais recente para o mais antigo. */
-  historicoDoProduto: (produtoId: string) => HistoricoPreco[];
   precoBaseDaVariante: (varianteId: string) => number | null;
 
   nomeEmpresa: (id: string | null) => string;
@@ -192,12 +190,6 @@ export function useOrcamento(): UseOrcamento {
 
       return registros.reduce((menor, atual) => (atual.preco < menor.preco ? atual : menor));
     },
-    [historico],
-  );
-
-  const historicoDoProduto = useCallback(
-    (produtoId: string): HistoricoPreco[] =>
-      historico.filter((registro) => registro.produto_id === produtoId).sort(maisRecentePrimeiro),
     [historico],
   );
 
@@ -462,7 +454,6 @@ export function useOrcamento(): UseOrcamento {
     menorTotalCompleto,
     ultimoPreco,
     menorPrecoRegistrado,
-    historicoDoProduto,
     precoBaseDaVariante,
     nomeEmpresa,
     rotuloVariante,

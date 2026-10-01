@@ -1,8 +1,9 @@
 import dayjs from 'dayjs';
-import { StyleSheet, Text, View } from 'react-native';
-import { colors, fontSize, fontWeight, radius, sharedStyles, spacing } from '../../../theme';
+import { View } from 'react-native';
+import { fontSize, fontWeight, makeStyles, radius, spacing, useTheme } from '../../../theme';
 import { toCurrency } from '../../../utils/format';
 import type { DetalheDoDia } from '../types';
+import { Text } from '../../../components/ui';
 
 type DetalheDiaProps = {
   /** `null` quando nenhuma barra esta selecionada. */
@@ -12,6 +13,8 @@ type DetalheDiaProps = {
 
 /** Lancamentos do dia escolhido no grafico diario. */
 export default function DetalheDia({ detalhe, nomeEmpresa }: DetalheDiaProps): React.ReactNode {
+  const { sharedStyles } = useTheme();
+  const styles = useStyles();
   if (!detalhe) {
     return <Text style={styles.dica}>Toque em uma barra para ver o dia.</Text>;
   }
@@ -24,7 +27,7 @@ export default function DetalheDia({ detalhe, nomeEmpresa }: DetalheDiaProps): R
       </View>
 
       {detalhe.lancamentos.length === 0 ? (
-        <Text style={sharedStyles.inlineEmptyText}>Nenhum lancamento neste dia.</Text>
+        <Text style={sharedStyles.inlineEmptyText}>Nenhum lançamento neste dia.</Text>
       ) : (
         detalhe.lancamentos.map((lancamento) => {
           const empresa = nomeEmpresa(lancamento.empresa_id);
@@ -53,16 +56,14 @@ export default function DetalheDia({ detalhe, nomeEmpresa }: DetalheDiaProps): R
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   dica: {
     fontSize: fontSize.micro,
     color: colors.textSubtle,
   },
   box: {
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
     padding: spacing.md,
     gap: spacing.sm,
   },
@@ -74,7 +75,7 @@ const styles = StyleSheet.create({
   data: {
     fontSize: fontSize.body,
     fontWeight: fontWeight.bold,
-    color: colors.primaryDark,
+    color: colors.textStrong,
     textTransform: 'capitalize',
   },
   total: {
@@ -96,7 +97,7 @@ const styles = StyleSheet.create({
   },
   lancamentoDescricao: {
     fontSize: fontSize.small,
-    color: colors.textBody,
+    color: colors.text,
   },
   lancamentoEmpresa: {
     fontSize: fontSize.micro,
@@ -106,4 +107,4 @@ const styles = StyleSheet.create({
     fontSize: fontSize.small,
     fontWeight: fontWeight.bold,
   },
-});
+}));

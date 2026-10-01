@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { colors, fontSize, fontWeight, radius, shadows, sharedStyles, spacing } from '../theme';
+import { fontSize, fontWeight, makeStyles, radius, shadows, spacing, useTheme } from '../theme';
+import { Text, TextInput } from './ui';
 
 export type OpcaoSeletorMultiplo = {
   id: string;
@@ -40,6 +41,8 @@ export default function SeletorMultiplo({
   formAdicionar,
   extra,
 }: SeletorMultiploProps): React.ReactNode {
+  const { colors, sharedStyles } = useTheme();
+  const styles = useStyles();
   const [aberto, setAberto] = useState(false);
   const [busca, setBusca] = useState('');
   const [mostrarFormAdicionar, setMostrarFormAdicionar] = useState(false);
@@ -82,7 +85,7 @@ export default function SeletorMultiplo({
           <Ionicons
             name={aberto ? 'chevron-up' : 'chevron-down'}
             size={18}
-            color={colors.primaryDark}
+            color={colors.textStrong}
           />
         </Pressable>
 
@@ -138,7 +141,7 @@ export default function SeletorMultiplo({
             <View style={styles.formFlutuanteHeader}>
               <Text style={styles.formFlutuanteTitulo}>{textoAdicionar}</Text>
               <Pressable onPress={fecharFormAdicionar}>
-                <Ionicons name="close" size={22} color={colors.primaryDark} />
+                <Ionicons name="close" size={22} color={colors.textStrong} />
               </Pressable>
             </View>
             {formAdicionar?.(fecharFormAdicionar)}
@@ -149,7 +152,7 @@ export default function SeletorMultiplo({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   container: {
     marginBottom: spacing.lg,
     position: 'relative',
@@ -172,7 +175,7 @@ const styles = StyleSheet.create({
   comboTrigger: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     backgroundColor: colors.surfaceMuted,
@@ -185,13 +188,13 @@ const styles = StyleSheet.create({
   },
   comboTriggerText: {
     fontSize: fontSize.body,
-    color: colors.primaryDark,
+    color: colors.textStrong,
   },
   comboDropdown: {
     marginTop: spacing.sm,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     backgroundColor: colors.surface,
   },
   comboBuscaInput: {
@@ -200,7 +203,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     fontSize: fontSize.small,
-    color: colors.primaryDark,
+    color: colors.textStrong,
   },
   comboLista: {
     maxHeight: 170,
@@ -211,7 +214,7 @@ const styles = StyleSheet.create({
   },
   comboItemText: {
     fontSize: fontSize.body,
-    color: colors.primaryDark,
+    color: colors.textStrong,
   },
   comboItemTextAtivo: {
     color: colors.primary,
@@ -242,8 +245,6 @@ const styles = StyleSheet.create({
   formFlutuante: {
     backgroundColor: colors.surface,
     borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
     padding: spacing.lg,
     ...shadows.floating,
   },
@@ -256,6 +257,6 @@ const styles = StyleSheet.create({
   formFlutuanteTitulo: {
     fontSize: fontSize.input,
     fontWeight: fontWeight.bold,
-    color: colors.primaryDark,
+    color: colors.textStrong,
   },
-});
+}));

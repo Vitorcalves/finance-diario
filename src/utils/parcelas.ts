@@ -184,4 +184,4 @@ export const custoMensalEquivalente = (
 
 /** Ex.: `3/12`. Vai no fim da descricao para aparecer em qualquer listagem. */
 export const rotuloParcela = (numero: number, total: number | null): string =>
-  total === null ? `${numero}a cobranca` : `${numero}/${total}`;
+  total === null ? `${numero}ª cobrança` : `${numero}/${total}`;

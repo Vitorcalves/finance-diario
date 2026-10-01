@@ -1,13 +1,15 @@
-import React from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
-import { colors, sharedStyles } from '../../theme';
+import { ActivityIndicator, View } from 'react-native';
+import { useTheme } from '../../theme';
+import Text from './Text';
 
 type LoadingStateProps = {
   message?: string;
 };
 
-/** Indicador de carregamento centralizado, usado enquanto a tela busca dados. */
+/** Indicador de carregamento centralizado, usado so na primeira carga da tela. */
 export default function LoadingState({ message }: LoadingStateProps): React.ReactNode {
+  const { colors, sharedStyles } = useTheme();
+
   return (
     <View style={sharedStyles.centerContent}>
       <ActivityIndicator size="large" color={colors.primary} />

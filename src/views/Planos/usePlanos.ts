@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import dayjs from 'dayjs';
+import { useToast } from '../../components/ui';
 import { type Empresa, listEmpresas } from '../../models/empresas';
 import {
   cancelarPlano,
@@ -32,6 +33,7 @@ export type UsePlanos = {
 
 /** Cadastro de assinaturas e acompanhamento dos parcelamentos em aberto. */
 export function usePlanos(): UsePlanos {
+  const toast = useToast();
   const [planos, setPlanos] = useState<PlanoPagamento[]>([]);
   const [cobrancas, setCobrancas] = useState<Transacoes[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
@@ -55,7 +57,7 @@ export function usePlanos(): UsePlanos {
       setCobrancas(cobrancasDoBanco.filter((cobranca) => cobranca.plano_id !== null));
     } catch (error: unknown) {
       console.error('Erro ao carregar os planos:', error);
-      Alert.alert('Erro', 'Nao foi possivel carregar as assinaturas e parcelamentos');
+      Alert.alert('Erro', 'Não foi possível carregar as assinaturas e parcelamentos');
     } finally {
       setLoading(false);
     }
@@ -137,17 +139,17 @@ export function usePlanos(): UsePlanos {
       const descricao = dados.descricao.trim();
 
       if (!descricao) {
-        Alert.alert('Erro', 'Descricao da assinatura e obrigatoria');
+        Alert.alert('Erro', 'Descrição da assinatura é obrigatória');
         return false;
       }
 
       if (dados.valor <= 0) {
-        Alert.alert('Erro', 'Informe o valor da cobranca');
+        Alert.alert('Erro', 'Informe o valor da cobrança');
         return false;
       }
 
       if (!/^\d{4}-\d{2}-\d{2}$/.test(dados.dataInicio)) {
-        Alert.alert('Erro', 'Informe uma data valida para a 1a cobranca');
+        Alert.alert('Erro', 'Informe uma data válida para a 1ª cobrança');
         return false;
       }
 
@@ -165,23 +167,24 @@ export function usePlanos(): UsePlanos {
         });
 
         await carregar();
+        toast.mostrar(`Assinatura "${descricao}" criada`);
         return true;
       } catch (error: unknown) {
         console.error('Erro ao salvar a assinatura:', error);
-        Alert.alert('Erro', 'Nao foi possivel salvar a assinatura');
+        Alert.alert('Erro', 'Não foi possível salvar a assinatura');
         return false;
       } finally {
         setSalvando(false);
       }
     },
-    [carregar],
+    [carregar, toast],
   );
 
   const encerrar = useCallback(
     (item: PlanoNaTela): void => {
       Alert.alert(
         'Encerrar plano',
-        `As cobrancas de "${item.plano.descricao}" que ainda nao venceram serao removidas. O historico ja pago continua no app.`,
+        `As cobranças de "${item.plano.descricao}" que ainda não venceram serão removidas. O histórico já pago continua no app.`,
         [
           { text: 'Cancelar', style: 'cancel' },
           {
@@ -192,9 +195,10 @@ export function usePlanos(): UsePlanos {
                 try {
                   await cancelarPlano(item.plano);
                   await carregar();
+                  toast.mostrar(`"${item.plano.descricao}" encerrado`);
                 } catch (error: unknown) {
                   console.error('Erro ao encerrar o plano:', error);
-                  Alert.alert('Erro', 'Nao foi possivel encerrar o plano');
+                  Alert.alert('Erro', 'Não foi possível encerrar o plano');
                 }
               })();
             },
@@ -202,14 +206,14 @@ export function usePlanos(): UsePlanos {
         ],
       );
     },
-    [carregar],
+    [carregar, toast],
   );
 
   const excluir = useCallback(
     (item: PlanoNaTela): void => {
       Alert.alert(
         'Excluir plano',
-        `Todas as cobrancas de "${item.plano.descricao}" serao apagadas, inclusive as ja pagas. Deseja continuar?`,
+        `Todas as cobranças de "${item.plano.descricao}" serão apagadas, inclusive as já pagas. Deseja continuar?`,
         [
           { text: 'Cancelar', style: 'cancel' },
           {
@@ -220,9 +224,10 @@ export function usePlanos(): UsePlanos {
                 try {
                   await deletePlanoById(item.plano.id);
                   await carregar();
+                  toast.mostrar(`"${item.plano.descricao}" excluído`);
                 } catch (error: unknown) {
                   console.error('Erro ao excluir o plano:', error);
-                  Alert.alert('Erro', 'Nao foi possivel excluir o plano');
+                  Alert.alert('Erro', 'Não foi possível excluir o plano');
                 }
               })();
             },
@@ -230,7 +235,7 @@ export function usePlanos(): UsePlanos {
         ],
       );
     },
-    [carregar],
+    [carregar, toast],
   );
 
   return {

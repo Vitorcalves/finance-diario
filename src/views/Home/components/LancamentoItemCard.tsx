@@ -1,6 +1,6 @@
-import { Text, View } from 'react-native';
-import { IconButton } from '../../../components/ui';
-import { iconSize, sharedStyles } from '../../../theme';
+import { View } from 'react-native';
+import { IconButton, Text } from '../../../components/ui';
+import { iconSize, useTheme } from '../../../theme';
 import type { ProdutoVariantes } from '../../../models/produtoVariantes';
 import { toCurrency } from '../../../utils/format';
 import { rotuloQuantidade } from '../../../utils/variantes';
@@ -22,6 +22,7 @@ export default function LancamentoItemCard({
   onEditar,
   onRemover,
 }: LancamentoItemCardProps): React.ReactNode {
+  const { sharedStyles } = useTheme();
   return (
     <View style={sharedStyles.listCard}>
       <View style={sharedStyles.listCardInfo}>

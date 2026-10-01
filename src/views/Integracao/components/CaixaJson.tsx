@@ -1,5 +1,6 @@
-import { StyleSheet, TextInput, type StyleProp, type TextStyle } from 'react-native';
-import { colors, fontSize, radius, spacing } from '../../../theme';
+import { type StyleProp, type TextStyle } from 'react-native';
+import { fontSize, makeStyles, radius, spacing, useTheme } from '../../../theme';
+import { TextInput } from '../../../components/ui';
 
 type CaixaJsonProps = {
   valor: string;
@@ -21,6 +22,8 @@ export default function CaixaJson({
   placeholder,
   style,
 }: CaixaJsonProps): React.ReactNode {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const somenteLeitura = !onChangeText;
 
   return (
@@ -41,7 +44,7 @@ export default function CaixaJson({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   caixa: {
     height: 260,
     borderWidth: 1,
@@ -51,6 +54,6 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     fontSize: fontSize.caption,
     fontFamily: 'monospace',
-    color: colors.textBody,
+    color: colors.text,
   },
-});
+}));

@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import 'dayjs/locale/pt-br';
 
 /**
  * Formatadores compartilhados por todas as telas.
@@ -62,3 +63,31 @@ export const formatarData = (data: string): string => dayjs(data).format('DD/MM/
 
 /** Ex.: `08/09/2026 14:30`. */
 export const formatarDataHora = (data: string): string => dayjs(data).format('DD/MM/YYYY HH:mm');
+
+/** Ex.: `Hoje`, `Ontem`, `Amanhã` ou `Qui, 24 set` (com o ano quando nao e o atual). */
+export const formatarDiaRelativo = (
+  data: string,
+  hoje: string = dayjs().format('YYYY-MM-DD'),
+): string => {
+  const dia = dayjs(data).startOf('day');
+  const base = dayjs(hoje).startOf('day');
+  const diferenca = dia.diff(base, 'day');
+
+  if (diferenca === 0) {
+    return 'Hoje';
+  }
+
+  if (diferenca === -1) {
+    return 'Ontem';
+  }
+
+  if (diferenca === 1) {
+    return 'Amanhã';
+  }
+
+  const texto = dia
+    .locale('pt-br')
+    .format(dia.year() === base.year() ? 'ddd, DD MMM' : 'ddd, DD MMM YYYY');
+
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+};

@@ -1,6 +1,12 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { alturaBarra, ALTURA_POR_DIA, posicaoLinha } from './charts';
+import {
+  alturaBarra,
+  alturaProporcional,
+  ALTURA_POR_DIA,
+  caminhoArea,
+  caminhoSuave,
+} from './charts';
 
 describe('alturaBarra', () => {
   test('proporcional ao maximo', () => {
@@ -30,20 +36,77 @@ describe('alturaBarra', () => {
   });
 });
 
-describe('posicaoLinha', () => {
+describe('alturaProporcional', () => {
   test('posiciona proporcionalmente', () => {
-    assert.deepEqual(posicaoLinha(50, 100, 140), { bottom: 70 });
+    assert.equal(alturaProporcional(50, 100, 140), 70);
   });
 
   test('nao passa do topo do grafico', () => {
-    assert.deepEqual(posicaoLinha(500, 100, 140), { bottom: 140 });
+    assert.equal(alturaProporcional(500, 100, 140), 140);
   });
 
   test('maximo zero encosta no chao', () => {
-    assert.deepEqual(posicaoLinha(10, 0, 140), { bottom: 0 });
+    assert.equal(alturaProporcional(10, 0, 140), 0);
   });
 
   test('valor zero encosta no chao', () => {
-    assert.deepEqual(posicaoLinha(0, 100, 140), { bottom: 0 });
+    assert.equal(alturaProporcional(0, 100, 140), 0);
+  });
+});
+
+/** Numeros do caminho SVG, na ordem em que aparecem. */
+const numeros = (caminho: string): number[] => (caminho.match(/-?\d+(\.\d+)?/g) ?? []).map(Number);
+
+describe('caminhoSuave', () => {
+  test('sem pontos nao desenha nada', () => {
+    assert.equal(caminhoSuave([]), '');
+  });
+
+  test('um ponto vira so o movimento ate ele', () => {
+    assert.equal(caminhoSuave([{ x: 1, y: 2 }]), 'M1.0 2.0');
+  });
+
+  test('comeca no primeiro ponto e termina no ultimo', () => {
+    const caminho = caminhoSuave([
+      { x: 0, y: 100 },
+      { x: 10, y: 80 },
+      { x: 20, y: 40 },
+    ]);
+    const valores = numeros(caminho);
+
+    assert.ok(caminho.startsWith('M0.0 100.0'));
+    assert.deepEqual(valores.slice(-2), [20, 40]);
+  });
+
+  test('serie monotona nao ultrapassa os pontos (acumulado nunca "desce")', () => {
+    // Acumulado com um salto: y decresce (sobe na tela) e depois fica plano.
+    const pontos = [
+      { x: 0, y: 100 },
+      { x: 10, y: 100 },
+      { x: 20, y: 20 },
+      { x: 30, y: 20 },
+    ];
+    const valores = numeros(caminhoSuave(pontos));
+    const ys = valores.filter((_, indice) => indice % 2 === 1);
+
+    assert.ok(ys.every((y) => y >= 20 && y <= 100));
+  });
+});
+
+describe('caminhoArea', () => {
+  test('fecha a curva na linha de base', () => {
+    const caminho = caminhoArea(
+      [
+        { x: 0, y: 50 },
+        { x: 10, y: 20 },
+      ],
+      100,
+    );
+
+    assert.ok(caminho.endsWith('L10.0 100.0 L0.0 100.0 Z'));
+  });
+
+  test('menos de dois pontos nao forma area', () => {
+    assert.equal(caminhoArea([{ x: 0, y: 0 }], 100), '');
   });
 });

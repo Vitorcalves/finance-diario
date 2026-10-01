@@ -236,8 +236,8 @@ describe('analisarBackup recusa JSON invalido', () => {
   recusa('texto vazio', '   ', /Cole o JSON/);
   recusa('JSON quebrado', '{ "formato": ', /JSON invalido/);
   recusa('lista no lugar de objeto', '[]', /objeto/);
-  recusa('formato de outro app', backupBase({ formato: 'outro' }), /nao e um backup/);
-  recusa('versao nao suportada', backupBase({ versao: 99 }), /Versao de backup/);
+  recusa('formato de outro app', backupBase({ formato: 'outro' }), /não é um backup/);
+  recusa('versao nao suportada', backupBase({ versao: 99 }), /Versão de backup/);
   recusa(
     'schema_version ausente',
     JSON.stringify({ formato: BACKUP_FORMATO, versao: BACKUP_VERSAO, tabelas: {} }),
@@ -271,7 +271,7 @@ describe('importarBanco recusa antes de escrever', () => {
   test('tabela que nao existe neste banco', async () => {
     await assert.rejects(
       importarBanco(analisarBackup(backupBase({ tabelas: { nao_existe: [] } }))),
-      /Tabelas que nao existem/,
+      /Tabelas que não existem/,
     );
   });
 
@@ -287,7 +287,7 @@ describe('importarBanco recusa antes de escrever', () => {
       importarBanco(
         analisarBackup(backupBase({ tabelas: { marcas: [{ id: 1, nome: { a: 1 } }] } as never })),
       ),
-      /Valor nao suportado/,
+      /Valor não suportado/,
     );
   });
 

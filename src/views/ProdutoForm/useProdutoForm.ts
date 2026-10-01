@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { v4 as uuidv4 } from 'uuid';
+import { useToast } from '../../components/ui';
+import { emTransacao } from '../../models/database';
 import { type Categoria, insertCategoria, listCategorias } from '../../models/categorias';
 import {
   type CategoriaProduto,
@@ -55,6 +57,7 @@ export type UseProdutoForm = {
 /** Estado e persistencia do formulario de produto. */
 export function useProdutoForm(produtoId?: string): UseProdutoForm {
   const editando = Boolean(produtoId);
+  const toast = useToast();
 
   const [carregando, setCarregando] = useState(editando);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -218,7 +221,9 @@ export function useProdutoForm(produtoId?: string): UseProdutoForm {
   );
 
   const salvar = useCallback(async (): Promise<boolean> => {
-    if (!nome.trim()) {
+    const nomeLimpo = nome.trim();
+
+    if (!nomeLimpo) {
       Alert.alert('Erro', 'Nome do produto é obrigatório');
       return false;
     }
@@ -235,63 +240,67 @@ export function useProdutoForm(produtoId?: string): UseProdutoForm {
       const idDoProduto = produtoId ?? uuidv4();
       const dadosProduto = {
         id: idDoProduto,
-        nome,
+        nome: nomeLimpo,
         preco: precoParsado,
         unidade_id: unidadeId,
         eventual: eventual ? 1 : 0,
         created_at: agora,
       };
 
-      await (produtoId ? updateProduto(dadosProduto) : insertProduto(dadosProduto));
+      // Produto, categorias e variantes juntos: uma falha no meio nao deixa o
+      // produto salvo pela metade.
+      await emTransacao(async () => {
+        await (produtoId ? updateProduto(dadosProduto) : insertProduto(dadosProduto));
 
-      // Categorias: remove os vinculos desmarcados e cria os novos.
-      const idsExistentes = vinculosOriginais.map((vinculo) => vinculo.categoria_id);
-      const paraRemover = vinculosOriginais.filter(
-        (vinculo) => !categoriasSelecionadas.includes(vinculo.categoria_id),
-      );
-      const paraAdicionar = categoriasSelecionadas.filter((id) => !idsExistentes.includes(id));
+        // Categorias: remove os vinculos desmarcados e cria os novos.
+        const idsExistentes = vinculosOriginais.map((vinculo) => vinculo.categoria_id);
+        const paraRemover = vinculosOriginais.filter(
+          (vinculo) => !categoriasSelecionadas.includes(vinculo.categoria_id),
+        );
+        const paraAdicionar = categoriasSelecionadas.filter((id) => !idsExistentes.includes(id));
 
-      await Promise.all(paraRemover.map((vinculo) => deleteCategoriaVinculo(vinculo.id)));
-      await Promise.all(
-        paraAdicionar.map((categoriaId) =>
-          insertCategoriaVinculo({
-            id: uuidv4(),
-            categoria_id: categoriaId,
-            produto_id: idDoProduto,
-            created_at: agora,
+        await Promise.all(paraRemover.map((vinculo) => deleteCategoriaVinculo(vinculo.id)));
+        await Promise.all(
+          paraAdicionar.map((categoriaId) =>
+            insertCategoriaVinculo({
+              id: uuidv4(),
+              categoria_id: categoriaId,
+              produto_id: idDoProduto,
+              created_at: agora,
+            }),
+          ),
+        );
+
+        // Variantes: apaga as removidas da lista e grava as demais.
+        const idsAtuais = variantes
+          .filter((variante) => variante.id !== null)
+          .map((variante) => variante.id as string);
+
+        await Promise.all(
+          variantesOriginais
+            .filter((variante) => !idsAtuais.includes(variante.id))
+            .map((variante) => deleteProdutoVariantesById(variante.id)),
+        );
+
+        await Promise.all(
+          variantes.map((variante) => {
+            const dados: ProdutoVariantes = {
+              id: variante.id ?? uuidv4(),
+              produto_id: idDoProduto,
+              marca_id: variante.marcaId,
+              unidade_id: variante.unidadeId,
+              quantidade: variante.quantidade ? Number(variante.quantidade) : null,
+              codigo_barras: variante.codigoBarras || null,
+              preco: Number(variante.preco),
+              created_at: agora,
+            };
+
+            return variante.id ? updateProdutoVariantes(dados) : insertProdutoVariantes(dados);
           }),
-        ),
-      );
+        );
+      });
 
-      // Variantes: apaga as removidas da lista e grava as demais.
-      const idsAtuais = variantes
-        .filter((variante) => variante.id !== null)
-        .map((variante) => variante.id as string);
-
-      await Promise.all(
-        variantesOriginais
-          .filter((variante) => !idsAtuais.includes(variante.id))
-          .map((variante) => deleteProdutoVariantesById(variante.id)),
-      );
-
-      await Promise.all(
-        variantes.map((variante) => {
-          const dados: ProdutoVariantes = {
-            id: variante.id ?? uuidv4(),
-            produto_id: idDoProduto,
-            marca_id: variante.marcaId,
-            unidade_id: variante.unidadeId,
-            quantidade: variante.quantidade ? Number(variante.quantidade) : null,
-            codigo_barras: variante.codigoBarras || null,
-            preco: Number(variante.preco),
-            created_at: agora,
-          };
-
-          return variante.id ? updateProdutoVariantes(dados) : insertProdutoVariantes(dados);
-        }),
-      );
-
-      Alert.alert('Sucesso', produtoId ? 'Produto atualizado!' : 'Produto adicionado!');
+      toast.mostrar(produtoId ? 'Produto atualizado' : 'Produto adicionado');
       return true;
     } catch (error: unknown) {
       console.error('Erro ao salvar produto:', error);
@@ -308,6 +317,7 @@ export function useProdutoForm(produtoId?: string): UseProdutoForm {
     vinculosOriginais,
     variantes,
     variantesOriginais,
+    toast,
   ]);
 
   return {

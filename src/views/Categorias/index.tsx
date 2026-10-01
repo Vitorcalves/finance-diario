@@ -1,22 +1,28 @@
 import { useState } from 'react';
-import { StatusBar } from 'expo-status-bar';
-import { ScrollView, StyleSheet } from 'react-native';
+import { ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState, LoadingState, ScreenHeader } from '../../components/ui';
-import { sharedStyles, spacing } from '../../theme';
+import { makeStyles, spacing, useTheme } from '../../theme';
 import CategoriaCard from './components/CategoriaCard';
 import CategoriaFormModal from './components/CategoriaFormModal';
 import { useCategorias } from './useCategorias';
 
 /** Cadastro de categorias de produto. */
 export default function CategoriasView(): React.ReactNode {
+  const { sharedStyles } = useTheme();
+  const styles = useStyles();
   const { categorias, loading, salvar, deletar } = useCategorias();
   const [showForm, setShowForm] = useState(false);
+  /** Nova chave a cada abertura: o formulario nasce limpo. */
+  const [formKey, setFormKey] = useState(0);
+
+  const abrirFormulario = (): void => {
+    setFormKey((atual) => atual + 1);
+    setShowForm(true);
+  };
 
   return (
     <SafeAreaView style={sharedStyles.screen}>
-      <StatusBar style="dark" />
-
       <ScreenHeader
         title="Categorias"
         subtitle={
@@ -24,7 +30,7 @@ export default function CategoriasView(): React.ReactNode {
             ? `${categorias.length} ${categorias.length === 1 ? 'categoria cadastrada' : 'categorias cadastradas'}`
             : undefined
         }
-        onAdd={(): void => setShowForm(true)}
+        onAdd={abrirFormulario}
       />
 
       {loading ? (
@@ -34,7 +40,7 @@ export default function CategoriasView(): React.ReactNode {
           icon="albums-outline"
           message="Nenhuma categoria cadastrada"
           actionLabel="Adicionar Categoria"
-          onAction={(): void => setShowForm(true)}
+          onAction={abrirFormulario}
         />
       ) : (
         <ScrollView
@@ -51,15 +57,18 @@ export default function CategoriasView(): React.ReactNode {
         </ScrollView>
       )}
 
-      {showForm && (
-        <CategoriaFormModal onFechar={(): void => setShowForm(false)} onSalvar={salvar} />
-      )}
+      <CategoriaFormModal
+        key={formKey}
+        visivel={showForm}
+        onFechar={(): void => setShowForm(false)}
+        onSalvar={salvar}
+      />
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(() => ({
   listContent: {
     gap: spacing.sm,
   },
-});
+}));

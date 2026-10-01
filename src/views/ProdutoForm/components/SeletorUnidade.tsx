@@ -1,6 +1,7 @@
-import { Pressable, ScrollView, Text } from 'react-native';
-import { sharedStyles } from '../../../theme';
+import { Pressable, ScrollView } from 'react-native';
+import { useTheme } from '../../../theme';
 import { Unidades } from '../../../utils/unidades';
+import { Text } from '../../../components/ui';
 
 type SeletorUnidadeProps = {
   valor: number | null;
@@ -18,6 +19,7 @@ export default function SeletorUnidade({
   onSelecionar,
   apenasPrimarias = false,
 }: SeletorUnidadeProps): React.ReactNode {
+  const { sharedStyles } = useTheme();
   const unidades = apenasPrimarias
     ? Unidades.listar().filter((unidade) => unidade.primario)
     : Unidades.listar();

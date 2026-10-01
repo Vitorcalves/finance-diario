@@ -1,7 +1,7 @@
-import { StyleSheet, Text, TextInput, View } from 'react-native';
-import { Button } from '../../../components/ui';
+import { View } from 'react-native';
+import { Button, Text, TextInput } from '../../../components/ui';
 import type { ApiConfig } from '../../../models/settingsModel';
-import { colors, fontSize, sharedStyles, spacing } from '../../../theme';
+import { fontSize, makeStyles, spacing, useTheme } from '../../../theme';
 import type { ResultadoEnvioApi } from '../types';
 import ResumoTabelas from './ResumoTabelas';
 
@@ -26,14 +26,16 @@ export default function ApiPainel({
   carregando,
   onEnviar,
 }: ApiPainelProps): React.ReactNode {
+  const { colors, sharedStyles } = useTheme();
+  const styles = useStyles();
   return (
     <View style={styles.painel}>
       <Text style={sharedStyles.sectionHint}>
-        Envia uma copia de todo o banco para a API. O app so manda dados; nada e alterado aqui.
+        Envia uma cópia de todo o banco para a API. O app só manda dados; nada é alterado aqui.
       </Text>
 
       <View>
-        <Text style={sharedStyles.label}>Endereco da API</Text>
+        <Text style={sharedStyles.label}>Endereço da API</Text>
         <TextInput
           style={sharedStyles.input}
           value={config.url}
@@ -52,7 +54,7 @@ export default function ApiPainel({
           style={sharedStyles.input}
           value={config.token}
           onChangeText={(token): void => onChangeConfig({ ...config, token })}
-          placeholder="Deixe vazio se a API nao exigir"
+          placeholder="Deixe vazio se a API não exigir"
           placeholderTextColor={colors.textSubtle}
           autoCapitalize="none"
           autoCorrect={false}
@@ -89,7 +91,7 @@ export default function ApiPainel({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   painel: {
     gap: spacing.md,
   },
@@ -100,4 +102,4 @@ const styles = StyleSheet.create({
     fontSize: fontSize.caption,
     color: colors.textSubtle,
   },
-});
+}));

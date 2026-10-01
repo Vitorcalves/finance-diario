@@ -1,7 +1,7 @@
-import { Text, View } from 'react-native';
-import { IconButton } from '../../../components/ui';
+import { View } from 'react-native';
+import { IconButton, Text } from '../../../components/ui';
 import type { Empresa } from '../../../models/empresas';
-import { sharedStyles } from '../../../theme';
+import { useTheme } from '../../../theme';
 
 type EmpresaCardProps = {
   empresa: Empresa;
@@ -15,6 +15,7 @@ export default function EmpresaCard({
   onEditar,
   onDeletar,
 }: EmpresaCardProps): React.ReactNode {
+  const { sharedStyles } = useTheme();
   return (
     <View style={sharedStyles.listCard}>
       <View style={sharedStyles.listCardInfo}>

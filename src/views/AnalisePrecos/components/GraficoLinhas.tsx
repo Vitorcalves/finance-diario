@@ -2,14 +2,20 @@ import { useMemo, useState } from 'react';
 import {
   type LayoutChangeEvent,
   Pressable,
-  StyleSheet,
-  Text,
   type TextStyle,
   View,
   type ViewStyle,
 } from 'react-native';
 import Svg, { Circle, G, Line, Path, Text as SvgText } from 'react-native-svg';
-import { colors, fontSize, fontWeight, radius, sharedStyles, spacing } from '../../../theme';
+import {
+  fontSize,
+  fontWeight,
+  makeStyles,
+  type Paleta,
+  radius,
+  spacing,
+  useTheme,
+} from '../../../theme';
 import { formatarData, toCurrency, toCurrencyCurto } from '../../../utils/format';
 import {
   ALTURA_GRAFICO,
@@ -22,16 +28,17 @@ import {
   ticksEixoX,
 } from '../series';
 import type { PontoProjetado, Serie, SerieId } from '../types';
+import { Text } from '../../../components/ui';
 
 type GraficoLinhasProps = {
   series: Serie[];
 };
 
 /** Cor de cada serie; `pago` e a marca, `historico` fica em azul de apoio. */
-const COR_SERIE: Record<SerieId, string> = {
+const corSerie = (colors: Paleta): Record<SerieId, string> => ({
   pago: colors.primary,
   historico: colors.info,
-};
+});
 
 const RAIO_PONTO = 3.5;
 const RAIO_PONTO_ATIVO = 6;
@@ -48,6 +55,20 @@ type SerieProjetada = {
  * Tocar no grafico destaca o ponto mais proximo e mostra os valores do dia.
  */
 export default function GraficoLinhas({ series }: GraficoLinhasProps): React.ReactNode {
+  const { colors, sharedStyles } = useTheme();
+  const styles = useStyles();
+  const COR_SERIE = corSerie(colors);
+
+  /** Estilos por serie ficam no StyleSheet (regra `react-native/no-inline-styles`). */
+  const ESTILO_LEGENDA: Record<SerieId, ViewStyle> = {
+    pago: styles.legendaPago,
+    historico: styles.legendaHistorico,
+  };
+
+  const ESTILO_VALOR: Record<SerieId, TextStyle> = {
+    pago: styles.valorPago,
+    historico: styles.valorHistorico,
+  };
   const [larguraTotal, setLarguraTotal] = useState(0);
   const [selecionado, setSelecionado] = useState<{ serie: SerieId; indice: number } | null>(null);
 
@@ -106,7 +127,7 @@ export default function GraficoLinhas({ series }: GraficoLinhasProps): React.Rea
 
   return (
     <View style={sharedStyles.card}>
-      <Text style={sharedStyles.sectionTitle}>Preco ao longo do tempo</Text>
+      <Text style={sharedStyles.sectionTitle}>Preço ao longo do tempo</Text>
 
       <Pressable onLayout={aoMedir} onPress={(event): void => aoTocar(event.nativeEvent.locationX)}>
         {dominio && larguraTotal > 0 ? (
@@ -211,9 +232,9 @@ export default function GraficoLinhas({ series }: GraficoLinhasProps): React.Rea
             {toCurrency(pontoSelecionado.ponto.valor)}
           </Text>
           <Text style={styles.detalheHint}>
-            {selecionado.serie === 'pago' ? 'pago' : 'no historico'}
+            {selecionado.serie === 'pago' ? 'pago' : 'no histórico'}
             {pontoSelecionado.ponto.registros > 1
-              ? ` • media de ${pontoSelecionado.ponto.registros} registros`
+              ? ` • média de ${pontoSelecionado.ponto.registros} registros`
               : ''}
           </Text>
         </View>
@@ -222,7 +243,7 @@ export default function GraficoLinhas({ series }: GraficoLinhasProps): React.Rea
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   placeholder: {
     height: MARGEM.topo + ALTURA_GRAFICO + MARGEM.base,
   },
@@ -267,26 +288,15 @@ const styles = StyleSheet.create({
     color: colors.textSubtle,
   },
   legendaPago: {
-    backgroundColor: COR_SERIE.pago,
+    backgroundColor: colors.primary,
   },
   legendaHistorico: {
-    backgroundColor: COR_SERIE.historico,
+    backgroundColor: colors.info,
   },
   valorPago: {
-    color: COR_SERIE.pago,
+    color: colors.primary,
   },
   valorHistorico: {
-    color: COR_SERIE.historico,
+    color: colors.info,
   },
-});
-
-/** Estilos por serie ficam no StyleSheet (regra `react-native/no-inline-styles`). */
-const ESTILO_LEGENDA: Record<SerieId, ViewStyle> = {
-  pago: styles.legendaPago,
-  historico: styles.legendaHistorico,
-};
-
-const ESTILO_VALOR: Record<SerieId, TextStyle> = {
-  pago: styles.valorPago,
-  historico: styles.valorHistorico,
-};
+}));

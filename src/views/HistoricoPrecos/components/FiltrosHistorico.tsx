@@ -1,18 +1,18 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import ScannerCodigoBarras from '../../../components/ScannerCodigoBarras';
 import SeletorMultiplo from '../../../components/SeletorMultiplo';
-import { ChipSelector, IconButton } from '../../../components/ui';
+import { ChipSelector, IconButton, Text } from '../../../components/ui';
 import type { Produto } from '../../../models/produtos';
 import {
-  colors,
   fontSize,
   fontWeight,
   iconSize,
+  makeStyles,
   radius,
-  sharedStyles,
   spacing,
+  useTheme,
 } from '../../../theme';
 import type { Agrupamento, Ordenacao } from '../types';
 
@@ -22,7 +22,7 @@ const OPCOES_AGRUPAMENTO: { valor: Agrupamento; rotulo: string }[] = [
 ];
 
 const OPCOES_ORDENACAO: { valor: Ordenacao; rotulo: string }[] = [
-  { valor: 'menorPreco', rotulo: 'Menor preco atual' },
+  { valor: 'menorPreco', rotulo: 'Menor preço atual' },
   { valor: 'recente', rotulo: 'Mais recente' },
   { valor: 'nome', rotulo: 'Nome' },
 ];
@@ -58,6 +58,8 @@ export default function FiltrosHistorico({
   ordenacao,
   onTrocarOrdenacao,
 }: FiltrosHistoricoProps): React.ReactNode {
+  const { colors, sharedStyles } = useTheme();
+  const styles = useStyles();
   const [scannerAberto, setScannerAberto] = useState(false);
 
   return (
@@ -117,13 +119,11 @@ export default function FiltrosHistorico({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   filtroAtivo: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: radius.md,
     backgroundColor: colors.surfaceMuted,
     padding: spacing.md,
@@ -141,4 +141,4 @@ const styles = StyleSheet.create({
     fontSize: fontSize.micro,
     color: colors.textMuted,
   },
-});
+}));

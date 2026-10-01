@@ -1,7 +1,8 @@
-import { StyleSheet, Text, View } from 'react-native';
-import { colors, fontSize, fontWeight, radius, sharedStyles, spacing } from '../../../theme';
+import { View } from 'react-native';
+import { fontSize, fontWeight, makeStyles, radius, spacing, useTheme } from '../../../theme';
 import { toCurrency, toPercent } from '../../../utils/format';
 import type { ResumoPrecos } from '../types';
+import { Text } from '../../../components/ui';
 
 type ResumoPrecosCardProps = {
   resumo: ResumoPrecos;
@@ -13,13 +14,15 @@ const moeda = (valor: number | null): string => (valor === null ? SEM_VALOR : to
 
 /** Numeros-chave do produto: ultimo pago, variacao, faixa e ultimo registro. */
 export default function ResumoPrecosCard({ resumo }: ResumoPrecosCardProps): React.ReactNode {
+  const { sharedStyles } = useTheme();
+  const styles = useStyles();
   const variacao = resumo.variacaoPago;
 
   return (
     <View style={sharedStyles.card}>
       <View style={styles.linha}>
         <View style={styles.bloco}>
-          <Text style={styles.rotulo}>Ultimo pago</Text>
+          <Text style={styles.rotulo}>Último pago</Text>
           <Text style={styles.valorDestaque}>{moeda(resumo.ultimoPago)}</Text>
           {variacao !== null && (
             <Text
@@ -34,7 +37,7 @@ export default function ResumoPrecosCard({ resumo }: ResumoPrecosCardProps): Rea
         </View>
 
         <View style={styles.bloco}>
-          <Text style={styles.rotulo}>Ultimo no historico</Text>
+          <Text style={styles.rotulo}>Último no histórico</Text>
           <Text style={styles.valorDestaqueHistorico}>{moeda(resumo.ultimoHistorico)}</Text>
           <Text style={styles.variacao}>{`${resumo.registros} registro(s)`}</Text>
         </View>
@@ -58,7 +61,7 @@ export default function ResumoPrecosCard({ resumo }: ResumoPrecosCardProps): Rea
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   linha: {
     flexDirection: 'row',
     gap: spacing.md,
@@ -103,6 +106,6 @@ const styles = StyleSheet.create({
   valor: {
     fontSize: fontSize.body,
     fontWeight: fontWeight.bold,
-    color: colors.textBody,
+    color: colors.text,
   },
-});
+}));

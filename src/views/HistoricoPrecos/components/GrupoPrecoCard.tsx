@@ -1,16 +1,17 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import {
-  colors,
   fontSize,
   fontWeight,
   iconSize,
+  makeStyles,
   radius,
-  sharedStyles,
   spacing,
+  useTheme,
 } from '../../../theme';
 import { formatarData, toCurrency, toCurrencyPorUnidade, toPercent } from '../../../utils/format';
 import type { Agrupamento, BaseComparacao, GrupoPreco } from '../types';
+import { Text } from '../../../components/ui';
 
 type GrupoPrecoCardProps = {
   grupo: GrupoPreco;
@@ -35,6 +36,8 @@ export default function GrupoPrecoCard({
   nomeEmpresa,
   rotuloVariante,
 }: GrupoPrecoCardProps): React.ReactNode {
+  const { colors, sharedStyles } = useTheme();
+  const styles = useStyles();
   const normalizado = grupo.normalizado;
 
   /**
@@ -76,7 +79,7 @@ export default function GrupoPrecoCard({
   const rotuloMelhor =
     baseComparacao === 'unitario' && normalizado.status === 'ok'
       ? `Melhor por ${normalizado.sigla}`
-      : 'Melhor preco';
+      : 'Melhor preço';
 
   const renderAviso = (): React.ReactNode => {
     if (agrupamento !== 'produto') {
@@ -86,7 +89,7 @@ export default function GrupoPrecoCard({
     if (normalizado.status === 'semMedida') {
       return (
         <Text style={styles.aviso}>
-          Sem comparacao por unidade: as variantes deste produto nao tem quantidade e unidade
+          Sem comparação por unidade: as variantes deste produto não têm quantidade e unidade
           cadastradas.
         </Text>
       );
@@ -95,7 +98,7 @@ export default function GrupoPrecoCard({
     if (normalizado.status === 'unidadesIncompativeis') {
       return (
         <Text style={styles.aviso}>
-          Sem comparacao por unidade: este produto mistura variantes de medidas diferentes.
+          Sem comparação por unidade: este produto mistura variantes de medidas diferentes.
         </Text>
       );
     }
@@ -103,7 +106,7 @@ export default function GrupoPrecoCard({
     if (normalizado.semMedida > 0) {
       return (
         <Text style={styles.aviso}>
-          {normalizado.semMedida} registro(s) fora da comparacao por nao terem medida cadastrada.
+          {normalizado.semMedida} registro(s) fora da comparação por não terem medida cadastrada.
         </Text>
       );
     }
@@ -128,7 +131,7 @@ export default function GrupoPrecoCard({
         <Ionicons
           name={expandido ? 'chevron-up' : 'chevron-down'}
           size={iconSize.md}
-          color={colors.primaryDark}
+          color={colors.textStrong}
         />
       </Pressable>
 
@@ -158,7 +161,7 @@ export default function GrupoPrecoCard({
         <Text style={styles.porUnidade}>
           {toCurrencyPorUnidade(normalizado.atual, normalizado.sigla)} no preco atual
           {normalizado.menor < normalizado.atual
-            ? ` • menor ja pago ${toCurrencyPorUnidade(normalizado.menor, normalizado.sigla)}`
+            ? ` • menor já pago ${toCurrencyPorUnidade(normalizado.menor, normalizado.sigla)}`
             : ''}
         </Text>
       )}
@@ -173,8 +176,8 @@ export default function GrupoPrecoCard({
           ]}
         >
           {variacao > 0
-            ? `${toPercent(variacao)} acima do menor preco ja pago`
-            : 'Esta no menor preco ja registrado'}
+            ? `${toPercent(variacao)} acima do menor preço já pago`
+            : 'Está no menor preço já registrado'}
         </Text>
       )}
 
@@ -212,7 +215,7 @@ export default function GrupoPrecoCard({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -231,7 +234,7 @@ const styles = StyleSheet.create({
   titulo: {
     fontSize: fontSize.input,
     fontWeight: fontWeight.bold,
-    color: colors.primaryDark,
+    color: colors.textStrong,
   },
   subtitulo: {
     fontSize: fontSize.caption,
@@ -245,8 +248,6 @@ const styles = StyleSheet.create({
   metrica: {
     flex: 1,
     backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: radius.md,
     padding: spacing.sm,
   },
@@ -257,7 +258,7 @@ const styles = StyleSheet.create({
   metricaValor: {
     fontSize: fontSize.input,
     fontWeight: fontWeight.bold,
-    color: colors.primaryDark,
+    color: colors.textStrong,
     marginTop: 2,
   },
   metricaValorDestaque: {
@@ -274,7 +275,7 @@ const styles = StyleSheet.create({
   porUnidade: {
     fontSize: fontSize.caption,
     fontWeight: fontWeight.medium,
-    color: colors.primaryDeep,
+    color: colors.textStrong,
   },
   aviso: {
     fontSize: fontSize.micro,
@@ -301,7 +302,7 @@ const styles = StyleSheet.create({
   },
   registroData: {
     fontSize: fontSize.small,
-    color: colors.primaryDark,
+    color: colors.textStrong,
     fontWeight: fontWeight.medium,
   },
   registroEmpresa: {
@@ -314,11 +315,11 @@ const styles = StyleSheet.create({
   registroPreco: {
     fontSize: fontSize.body,
     fontWeight: fontWeight.bold,
-    color: colors.primaryDark,
+    color: colors.textStrong,
   },
   registroUnitario: {
     fontSize: fontSize.micro,
     color: colors.textSubtle,
     marginTop: 2,
   },
-});
+}));

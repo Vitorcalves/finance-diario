@@ -1,8 +1,9 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { colors, fontSize, fontWeight, radius, spacing } from '../../../theme';
+import { View } from 'react-native';
+import { fontSize, fontWeight, makeStyles, radius, spacing } from '../../../theme';
 import { toCurrency } from '../../../utils/format';
 import type { ResumoPlanos as ResumoPlanosModel } from '../types';
+import { Text } from '../../../components/ui';
 
 type ResumoPlanosProps = {
   resumo: ResumoPlanosModel;
@@ -10,15 +11,16 @@ type ResumoPlanosProps = {
 
 /** Quanto os planos ativos pesam por mes e o que ainda vai vencer. */
 export default function ResumoPlanos({ resumo }: ResumoPlanosProps): React.ReactNode {
+  const styles = useStyles();
   return (
     <View style={styles.row}>
       <View style={styles.box}>
-        <Text style={styles.label}>Assinaturas por mes</Text>
+        <Text style={styles.label}>Assinaturas por mês</Text>
         <Text style={styles.valor}>{toCurrency(resumo.assinaturasPorMes)}</Text>
       </View>
 
       <View style={styles.box}>
-        <Text style={styles.label}>A vencer neste mes</Text>
+        <Text style={styles.label}>A vencer neste mês</Text>
         <Text style={styles.valor}>{toCurrency(resumo.comprometidoNoMes)}</Text>
         <Text style={styles.detalhe}>{`${toCurrency(resumo.parcelasAVencer)} no total`}</Text>
       </View>
@@ -26,7 +28,7 @@ export default function ResumoPlanos({ resumo }: ResumoPlanosProps): React.React
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   row: {
     flexDirection: 'row',
     gap: spacing.md,
@@ -35,8 +37,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.primarySoft,
     borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
     padding: spacing.md,
   },
   label: {
@@ -54,4 +54,4 @@ const styles = StyleSheet.create({
     fontSize: fontSize.micro,
     color: colors.textSubtle,
   },
-});
+}));

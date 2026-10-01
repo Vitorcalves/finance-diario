@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { View } from 'react-native';
 import HistoricoProdutoModal from '../../../components/HistoricoProdutoModal';
-import { IconButton } from '../../../components/ui';
+import { IconButton, Text } from '../../../components/ui';
 import type { Marca } from '../../../models/marcas';
 import type { ProdutoVariantes } from '../../../models/produtoVariantes';
-import { colors, fontSize, fontWeight, iconSize, sharedStyles } from '../../../theme';
+import { fontSize, fontWeight, iconSize, makeStyles, useTheme } from '../../../theme';
 import { toCurrency, toCurrencyPorUnidade } from '../../../utils/format';
 import type { PrecoPorUnidade } from '../../../utils/variantes';
 import type { ItemOrcamento } from '../types';
@@ -30,6 +30,8 @@ export default function ItemOrcamentoCard({
   onEditar,
   onRemover,
 }: ItemOrcamentoCardProps): React.ReactNode {
+  const { sharedStyles } = useTheme();
+  const styles = useStyles();
   const [historicoVisivel, setHistoricoVisivel] = useState(false);
 
   return (
@@ -73,10 +75,10 @@ export default function ItemOrcamentoCard({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   unitario: {
     fontSize: fontSize.caption,
     fontWeight: fontWeight.medium,
     color: colors.primary,
   },
-});
+}));

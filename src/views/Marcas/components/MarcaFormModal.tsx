@@ -1,67 +1,66 @@
 import { useState } from 'react';
-import { Modal, ScrollView, Text, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button, KeyboardAvoidingScreen, ScreenHeader } from '../../../components/ui';
+import { View } from 'react-native';
+import { BottomSheet, Button, Text, TextInput } from '../../../components/ui';
 import type { Marca } from '../../../models/marcas';
-import { colors, sharedStyles } from '../../../theme';
+import { useTheme } from '../../../theme';
 
 type MarcaFormModalProps = {
+  visivel: boolean;
   /** Marca em edicao; `null` abre o formulario em branco. */
   marca: Marca | null;
   onFechar: () => void;
-  /** Devolve `true` quando a marca foi salva, o que fecha o modal. */
+  /** Devolve `true` quando a marca foi salva, o que fecha o painel. */
   onSalvar: (nome: string, marca: Marca | null) => Promise<boolean>;
 };
 
-/** Modal de cadastro e edicao de marca. */
+/** Painel de cadastro e edicao de marca. */
 export default function MarcaFormModal({
+  visivel,
   marca,
   onFechar,
   onSalvar,
 }: MarcaFormModalProps): React.ReactNode {
+  const { sharedStyles } = useTheme();
   const [nome, setNome] = useState(marca?.nome ?? '');
+  const [salvando, setSalvando] = useState(false);
 
   const salvar = (): void => {
     void (async (): Promise<void> => {
-      if (await onSalvar(nome, marca)) {
+      setSalvando(true);
+      const salvou = await onSalvar(nome, marca);
+      setSalvando(false);
+
+      if (salvou) {
         onFechar();
       }
     })();
   };
 
   return (
-    <Modal visible animationType="slide" transparent={false} onRequestClose={onFechar}>
-      <SafeAreaView style={sharedStyles.screen}>
-        <ScreenHeader
-          title={marca ? 'Editar Marca' : 'Nova Marca'}
-          backIcon="close"
-          onBack={onFechar}
+    <BottomSheet
+      visivel={visivel}
+      onFechar={onFechar}
+      titulo={marca ? 'Editar marca' : 'Nova marca'}
+      rolavel={false}
+      rodape={
+        <View style={sharedStyles.actionsRow}>
+          <Button label="Cancelar" variant="secondary" flex onPress={onFechar} />
+          <Button label="Salvar" icon="checkmark" loading={salvando} flex onPress={salvar} />
+        </View>
+      }
+    >
+      <View style={sharedStyles.formGroup}>
+        <Text style={sharedStyles.label}>Nome da marca *</Text>
+        <TextInput
+          style={sharedStyles.input}
+          placeholder="Ex.: Camil"
+          value={nome}
+          onChangeText={setNome}
+          autoFocus={!marca}
+          returnKeyType="done"
+          onSubmitEditing={salvar}
         />
-
-        <KeyboardAvoidingScreen>
-          <ScrollView
-            style={sharedStyles.scrollArea}
-            contentContainerStyle={sharedStyles.formContent}
-            keyboardShouldPersistTaps="handled"
-          >
-            <View style={sharedStyles.formGroup}>
-              <Text style={sharedStyles.label}>Nome da Marca *</Text>
-              <TextInput
-                style={sharedStyles.input}
-                placeholder="Ex: Mercado Central"
-                value={nome}
-                onChangeText={setNome}
-                placeholderTextColor={colors.placeholder}
-              />
-            </View>
-
-            <View style={sharedStyles.actionsRow}>
-              <Button label={marca ? 'Salvar Alteracoes' : 'Salvar Marca'} flex onPress={salvar} />
-              <Button label="Cancelar" variant="secondary" flex onPress={onFechar} />
-            </View>
-          </ScrollView>
-        </KeyboardAvoidingScreen>
-      </SafeAreaView>
-    </Modal>
+      </View>
+    </BottomSheet>
   );
 }

@@ -1,6 +1,7 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { View } from 'react-native';
 import type { ResumoTabela } from '../../../models/backup';
-import { colors, fontSize, fontWeight, sharedStyles, spacing } from '../../../theme';
+import { fontSize, fontWeight, makeStyles, spacing, useTheme } from '../../../theme';
+import { Text } from '../../../components/ui';
 
 type ResumoTabelasProps = {
   titulo: string;
@@ -9,6 +10,8 @@ type ResumoTabelasProps = {
 
 /** Contagem de registros por tabela, usada na exportacao e na previa da importacao. */
 export default function ResumoTabelas({ titulo, itens }: ResumoTabelasProps): React.ReactNode {
+  const { sharedStyles } = useTheme();
+  const styles = useStyles();
   const total = itens.reduce((soma, item) => soma + item.registros, 0);
 
   return (
@@ -30,7 +33,7 @@ export default function ResumoTabelas({ titulo, itens }: ResumoTabelasProps): Re
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   linha: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -51,17 +54,17 @@ const styles = StyleSheet.create({
   registros: {
     fontSize: fontSize.body,
     fontWeight: fontWeight.medium,
-    color: colors.textBody,
+    color: colors.text,
   },
   totalLabel: {
     flex: 1,
     fontSize: fontSize.body,
     fontWeight: fontWeight.bold,
-    color: colors.primaryDeep,
+    color: colors.textStrong,
   },
   totalValor: {
     fontSize: fontSize.subtitle,
     fontWeight: fontWeight.heavy,
     color: colors.primary,
   },
-});
+}));

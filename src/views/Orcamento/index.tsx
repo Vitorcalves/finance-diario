@@ -1,12 +1,11 @@
 import { useState } from 'react';
-import { StatusBar } from 'expo-status-bar';
-import { Alert, ScrollView, Text } from 'react-native';
+import { Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { KeyboardAvoidingScreen, LoadingState, ScreenHeader } from '../../components/ui';
-import type { MenuStackParamList } from '../../routes/types';
-import { sharedStyles } from '../../theme';
+import { KeyboardAvoidingScreen, LoadingState, ScreenHeader, Text } from '../../components/ui';
+import type { DashboardStackParamList } from '../../routes/types';
+import { useTheme } from '../../theme';
 import AvisoOrcamento from './components/AvisoOrcamento';
 import ComparativoMercados from './components/ComparativoMercados';
 import ComparativoVariantes from './components/ComparativoVariantes';
@@ -17,10 +16,11 @@ import RodapeOrcamento from './components/RodapeOrcamento';
 import type { DadosItemOrcamento } from './types';
 import { useOrcamento } from './useOrcamento';
 
-type OrcamentoNavigation = NativeStackNavigationProp<MenuStackParamList, 'Orcamento'>;
+type OrcamentoNavigation = NativeStackNavigationProp<DashboardStackParamList, 'Orcamento'>;
 
 /** Pesquisa de precos por mercado, sem gerar lancamento financeiro. */
 export default function OrcamentoView(): React.ReactNode {
+  const { sharedStyles } = useTheme();
   const navigation = useNavigation<OrcamentoNavigation>();
   const orcamento = useOrcamento();
 
@@ -61,7 +61,7 @@ export default function OrcamentoView(): React.ReactNode {
       return;
     }
 
-    Alert.alert('Limpar orcamento', 'Deseja descartar os itens deste orcamento?', [
+    Alert.alert('Limpar orçamento', 'Deseja descartar os itens deste orçamento?', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Limpar', style: 'destructive', onPress: limpar },
     ]);
@@ -69,9 +69,7 @@ export default function OrcamentoView(): React.ReactNode {
 
   return (
     <SafeAreaView style={sharedStyles.screen}>
-      <StatusBar style="dark" />
-
-      <ScreenHeader title="Orcamento" onBack={(): void => navigation.goBack()} />
+      <ScreenHeader title="Orçamento" onBack={(): void => navigation.goBack()} />
 
       {orcamento.loading ? (
         <LoadingState />
@@ -93,11 +91,11 @@ export default function OrcamentoView(): React.ReactNode {
               dataInputKey={orcamento.dataInputKey}
             />
 
-            <Text style={sharedStyles.sectionTitle}>Itens do orcamento</Text>
+            <Text style={sharedStyles.sectionTitle}>Itens do orçamento</Text>
 
             {orcamento.itens.length === 0 ? (
               <Text style={sharedStyles.inlineEmptyText}>
-                Nenhum item adicionado. Escolha produto, variante e o preco visto na gondola.
+                Nenhum item adicionado. Escolha produto, variante e o preço visto na gôndola.
               </Text>
             ) : (
               orcamento.itensComUnitario.map(({ item, unitario }, index) => (

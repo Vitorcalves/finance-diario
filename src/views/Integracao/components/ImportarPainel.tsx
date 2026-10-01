@@ -1,6 +1,6 @@
-import { StyleSheet, Text, View } from 'react-native';
-import { Button } from '../../../components/ui';
-import { colors, fontSize, fontWeight, radius, sharedStyles, spacing } from '../../../theme';
+import { View } from 'react-native';
+import { Button, Text } from '../../../components/ui';
+import { fontSize, fontWeight, makeStyles, radius, spacing, useTheme } from '../../../theme';
 import type { PreviaImportacao } from '../types';
 import CaixaJson from './CaixaJson';
 import ResumoTabelas from './ResumoTabelas';
@@ -30,13 +30,15 @@ export default function ImportarPainel({
   onImportar,
   onLimpar,
 }: ImportarPainelProps): React.ReactNode {
+  const { sharedStyles } = useTheme();
+  const styles = useStyles();
   return (
     <View style={styles.painel}>
       <View style={styles.aviso}>
         <Text style={styles.avisoTitulo}>Substitui todo o banco</Text>
         <Text style={styles.avisoTexto}>
-          Os dados atuais sao apagados e trocados pelos do JSON. Exporte um backup antes. Se algo
-          falhar durante a carga, nada e gravado.
+          Os dados atuais são apagados e trocados pelos do JSON. Exporte um backup antes. Se algo
+          falhar durante a carga, nada é gravado.
         </Text>
       </View>
 
@@ -65,11 +67,11 @@ export default function ImportarPainel({
 
       {previa === null ? (
         <Text style={sharedStyles.sectionHint}>
-          Valide o JSON para conferir o que sera gravado antes de sobrescrever.
+          Valide o JSON para conferir o que será gravado antes de sobrescrever.
         </Text>
       ) : (
         <>
-          <ResumoTabelas titulo="Registros que serao gravados" itens={previa.resumo} />
+          <ResumoTabelas titulo="Registros que serão gravados" itens={previa.resumo} />
 
           <View style={styles.metadados}>
             <Text style={styles.metadado}>
@@ -90,12 +92,12 @@ export default function ImportarPainel({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   painel: {
     gap: spacing.md,
   },
   aviso: {
-    backgroundColor: colors.dangerSurface,
+    backgroundColor: colors.dangerSoft,
     borderWidth: 1,
     borderColor: colors.dangerBorder,
     borderRadius: radius.xl,
@@ -118,4 +120,4 @@ const styles = StyleSheet.create({
     fontSize: fontSize.caption,
     color: colors.textSubtle,
   },
-});
+}));

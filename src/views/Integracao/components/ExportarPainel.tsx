@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { Button } from '../../../components/ui';
-import { colors, fontSize, sharedStyles, spacing } from '../../../theme';
+import { View } from 'react-native';
+import { Button, Text } from '../../../components/ui';
+import { fontSize, makeStyles, spacing, useTheme } from '../../../theme';
 import type { ResultadoExportacao } from '../types';
 import CaixaJson from './CaixaJson';
 import ResumoTabelas from './ResumoTabelas';
@@ -32,6 +32,8 @@ export default function ExportarPainel({
   onGerar,
   onCompartilhar,
 }: ExportarPainelProps): React.ReactNode {
+  const { sharedStyles } = useTheme();
+  const styles = useStyles();
   const [mostrarJson, setMostrarJson] = useState(false);
 
   const grande = (exportacao?.json.length ?? 0) > LIMITE_EXIBICAO_DIRETA;
@@ -40,7 +42,7 @@ export default function ExportarPainel({
   return (
     <View style={styles.painel}>
       <Text style={sharedStyles.sectionHint}>
-        Le todas as tabelas do banco e monta um JSON unico. Use Compartilhar para enviar o arquivo
+        Lê todas as tabelas do banco e monta um JSON único. Use Compartilhar para enviar o arquivo
         ou selecione o texto para copiar.
       </Text>
 
@@ -75,7 +77,7 @@ export default function ExportarPainel({
 
           {grande && !mostrarJson ? (
             <Text style={sharedStyles.sectionHint}>
-              O JSON e grande; exibi-lo na tela pode deixar o app lento. Prefira Compartilhar.
+              O JSON é grande; exibi-lo na tela pode deixar o app lento. Prefira Compartilhar.
             </Text>
           ) : null}
         </>
@@ -84,7 +86,7 @@ export default function ExportarPainel({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   painel: {
     gap: spacing.md,
   },
@@ -95,4 +97,4 @@ const styles = StyleSheet.create({
     fontSize: fontSize.caption,
     color: colors.textSubtle,
   },
-});
+}));

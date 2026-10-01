@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import dayjs from 'dayjs';
 import 'dayjs/locale/pt-br';
@@ -6,6 +6,7 @@ import { type Empresa, listEmpresas } from '../../models/empresas';
 import { materializarPlanos } from '../../models/materializacaoPlanos';
 import { listTransacoes, type Transacoes } from '../../models/transacoesModel';
 import { Locais } from '../../utils/local';
+import { projetarMes, type SituacaoMes } from '../../utils/projecaoMes';
 import type { ComparativoMes, DetalheDoDia, DiaDoMes, GastoPorLocal, ResumoMes } from './types';
 
 dayjs.locale('pt-br');
@@ -22,10 +23,25 @@ const jaAconteceu = (transacao: Transacoes, hoje: string): boolean => transacao.
 const somaGastos = (transacoes: Transacoes[]): number =>
   transacoes.reduce((soma, transacao) => soma + gastoDe(transacao), 0);
 
+type DadosMes = {
+  mes: string;
+  doMes: Transacoes[];
+  doMesAnterior: Transacoes[];
+  empresas: Empresa[];
+};
+
 export type UseMensal = {
+  /** So na primeira carga; trocar de mes mantem a tela e so atualiza os numeros. */
   loading: boolean;
+  /** Buscando outro mes com o anterior ainda na tela. */
+  carregando: boolean;
+  /** Puxar para atualizar. */
+  atualizando: boolean;
+  atualizar: () => void;
   mesSelecionado: dayjs.Dayjs;
   trocarMes: (novoMes: dayjs.Dayjs) => void;
+  /** -1 ao voltar e 1 ao avancar: direcao da animacao de entrada do mes. */
+  direcao: number;
   mesCorrente: boolean;
   mesFuturo: boolean;
   diasNoMes: number;
@@ -50,83 +66,112 @@ export type UseMensal = {
 /** Carrega o mes escolhido e deriva todos os numeros exibidos na tela. */
 export function useMensal(): UseMensal {
   const [mesSelecionado, setMesSelecionado] = useState(dayjs());
-  const [transacoesMes, setTransacoesMes] = useState<Transacoes[]>([]);
-  const [transacoesMesAnterior, setTransacoesMesAnterior] = useState<Transacoes[]>([]);
-  const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [dados, setDados] = useState<DadosMes | null>(null);
   const [diaSelecionado, setDiaSelecionado] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [carregando, setCarregando] = useState(false);
+  const [direcao, setDirecao] = useState(0);
+  const [atualizando, setAtualizando] = useState(false);
+  /** Muda a cada "puxar para atualizar", o que dispara uma nova busca. */
+  const [versao, setVersao] = useState(0);
+  /** So o resultado da busca mais recente entra na tela (trocas rapidas de mes). */
+  const ultimaBusca = useRef(0);
 
-  const carregarDados = useCallback(async (): Promise<void> => {
-    const mesAnterior = mesSelecionado.subtract(1, 'month');
-    const fimDoMes = mesSelecionado.endOf('month').format('YYYY-MM-DD');
-
-    // Abrir um mes futuro materializa as assinaturas dele: a projecao nasce
-    // com os compromissos ja conhecidos dentro.
-    await materializarPlanos(fimDoMes);
-
-    const [doMes, doMesAnterior, empresasDoBanco] = await Promise.all([
-      listTransacoes(mesSelecionado.startOf('month').format('YYYY-MM-DD'), fimDoMes),
-      listTransacoes(
-        mesAnterior.startOf('month').format('YYYY-MM-DD'),
-        mesAnterior.endOf('month').format('YYYY-MM-DD'),
-      ),
-      listEmpresas(),
-    ]);
-
-    setTransacoesMes(doMes);
-    setTransacoesMesAnterior(doMesAnterior);
-    setEmpresas(empresasDoBanco);
-  }, [mesSelecionado]);
+  const transacoesMes = useMemo(() => dados?.doMes ?? [], [dados]);
+  const transacoesMesAnterior = useMemo(() => dados?.doMesAnterior ?? [], [dados]);
+  const empresas = useMemo(() => dados?.empresas ?? [], [dados]);
 
   useFocusEffect(
     useCallback(() => {
-      let ativo = true;
+      const busca = ultimaBusca.current + 1;
+      ultimaBusca.current = busca;
+      setCarregando(true);
 
-      const carregar = async (): Promise<void> => {
-        try {
-          setLoading(true);
-          await carregarDados();
-        } catch (error: unknown) {
-          console.error('Erro ao carregar dados do mes:', error);
-        } finally {
-          if (ativo) {
-            setLoading(false);
+      const carregar = async (): Promise<DadosMes> => {
+        const mesAnterior = mesSelecionado.subtract(1, 'month');
+        const fimDoMes = mesSelecionado.endOf('month').format('YYYY-MM-DD');
+
+        // Abrir um mes futuro materializa as assinaturas dele: a projecao nasce
+        // com os compromissos ja conhecidos dentro.
+        await materializarPlanos(fimDoMes);
+
+        const [doMes, doMesAnterior, empresasDoBanco] = await Promise.all([
+          listTransacoes(mesSelecionado.startOf('month').format('YYYY-MM-DD'), fimDoMes),
+          listTransacoes(
+            mesAnterior.startOf('month').format('YYYY-MM-DD'),
+            mesAnterior.endOf('month').format('YYYY-MM-DD'),
+          ),
+          listEmpresas(),
+        ]);
+
+        return {
+          mes: mesSelecionado.format('YYYY-MM'),
+          doMes,
+          doMesAnterior,
+          empresas: empresasDoBanco,
+        };
+      };
+
+      carregar()
+        .then((novos) => {
+          if (ultimaBusca.current === busca) {
+            setDados(novos);
           }
-        }
-      };
-
-      void carregar();
-
-      return (): void => {
-        ativo = false;
-      };
-    }, [carregarDados]),
+        })
+        .catch((error: unknown) => console.error('Erro ao carregar dados do mes:', error))
+        .finally(() => {
+          if (ultimaBusca.current === busca) {
+            setCarregando(false);
+            setLoading(false);
+            setAtualizando(false);
+          }
+        });
+      // `versao` so existe para refazer a busca quando o usuario puxa a tela.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mesSelecionado, versao]),
   );
 
-  const trocarMes = useCallback((novoMes: dayjs.Dayjs): void => {
-    setMesSelecionado(novoMes);
-    setDiaSelecionado(null);
+  const atualizar = useCallback((): void => {
+    setAtualizando(true);
+    setVersao((atual) => atual + 1);
   }, []);
+
+  const trocarMes = useCallback(
+    (novoMes: dayjs.Dayjs): void => {
+      setDirecao(novoMes.isBefore(mesSelecionado, 'month') ? -1 : 1);
+      setMesSelecionado(novoMes);
+      setDiaSelecionado(null);
+    },
+    [mesSelecionado],
+  );
 
   const alternarDia = useCallback((data: string): void => {
     setDiaSelecionado((atual) => (atual === data ? null : data));
   }, []);
 
-  const nomeEmpresa = useCallback(
-    (id?: string | null): string => empresas.find((empresa) => empresa.id === id)?.nome ?? '',
+  const nomesEmpresas = useMemo(
+    () => new Map(empresas.map((empresa) => [empresa.id, empresa.nome])),
     [empresas],
   );
 
+  const nomeEmpresa = useCallback(
+    (id?: string | null): string => (id ? (nomesEmpresas.get(id) ?? '') : ''),
+    [nomesEmpresas],
+  );
+
+  // Os numeros sao do mes que esta na tela, mesmo durante a busca do proximo.
+  const mesExibido = dados ? dayjs(`${dados.mes}-01`) : mesSelecionado;
   const hoje = dayjs();
   const hojeIso = hoje.format('YYYY-MM-DD');
-  const mesCorrente = mesSelecionado.isSame(hoje, 'month');
-  const mesFuturo = mesSelecionado.isAfter(hoje, 'month');
-  const diasNoMes = mesSelecionado.daysInMonth();
+  const mesCorrente = mesExibido.isSame(hoje, 'month');
+  const mesFuturo = mesExibido.isAfter(hoje, 'month');
+  const situacao: SituacaoMes = mesFuturo ? 'futuro' : mesCorrente ? 'corrente' : 'passado';
+  const diasNoMes = mesExibido.daysInMonth();
   const diasDecorridos = mesFuturo ? 0 : mesCorrente ? hoje.date() : diasNoMes;
 
   const dias = useMemo((): DiaDoMes[] => {
     const base: DiaDoMes[] = Array.from({ length: diasNoMes }, (_, index) => {
-      const data = mesSelecionado.date(index + 1);
+      const data = mesExibido.date(index + 1);
       const diaDaSemana = data.day();
 
       return {
@@ -165,35 +210,18 @@ export function useMensal(): UseMensal {
     }
 
     return base;
-    // `hoje` muda a cada render, mas so importa a data: mesCorrente/diasDecorridos ja cobrem.
+    // `hoje` e `mesExibido` mudam de identidade a cada render; o que importa
+    // deles ja esta nas outras dependencias.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [transacoesMes, mesSelecionado, diasNoMes, diasDecorridos, mesCorrente, hojeIso]);
+  }, [transacoesMes, dados?.mes, diasNoMes, diasDecorridos, mesCorrente, hojeIso]);
 
   const resumo = useMemo((): ResumoMes => {
-    const realizadas = transacoesMes.filter((transacao) => jaAconteceu(transacao, hojeIso));
-    const aVencer = transacoesMes.filter((transacao) => !jaAconteceu(transacao, hojeIso));
-
-    const gastoTotal = somaGastos(realizadas);
-    const entradaTotal = realizadas.reduce((soma, transacao) => soma + entradaDe(transacao), 0);
-    const comprometido = somaGastos(aVencer);
-
-    const mediaDiaria = diasDecorridos > 0 ? gastoTotal / diasDecorridos : 0;
-
-    /**
-     * Parcelas e assinaturas ja realizadas saem da media: elas voltam na
-     * projecao pelo valor exato, e conta-las duas vezes inflaria o mes.
-     */
-    const gastoVariavel = somaGastos(realizadas.filter((transacao) => !transacao.plano_id));
-    const mediaDiariaVariavel = diasDecorridos > 0 ? gastoVariavel / diasDecorridos : 0;
-
-    const diasRestantes = Math.max(0, diasNoMes - diasDecorridos);
-
-    /** Mes fechado ja tem o total final; no mes corrente somamos o que falta. */
-    const projecao = mesFuturo
-      ? comprometido
-      : mesCorrente
-        ? gastoTotal + comprometido + mediaDiariaVariavel * diasRestantes
-        : gastoTotal;
+    const projecao = projetarMes(transacoesMes, {
+      hoje: hojeIso,
+      situacao,
+      diasDecorridos,
+      diasNoMes,
+    });
 
     const diasComGasto = dias.filter((dia) => dia.gasto > 0).length;
     const maiorDia = dias.reduce<DiaDoMes | null>(
@@ -202,16 +230,16 @@ export function useMensal(): UseMensal {
     );
 
     return {
-      gastoTotal,
-      entradaTotal,
-      mediaDiaria,
-      mediaDiariaVariavel,
-      comprometido,
-      projecao,
+      gastoTotal: projecao.gastoRealizado,
+      entradaTotal: projecao.entradaRealizada,
+      mediaDiaria: projecao.mediaDiaria,
+      mediaDiariaVariavel: projecao.mediaDiariaVariavel,
+      comprometido: projecao.comprometido,
+      projecao: projecao.projecao,
       diasComGasto,
       maiorDia,
     };
-  }, [transacoesMes, dias, diasDecorridos, diasNoMes, mesCorrente, mesFuturo, hojeIso]);
+  }, [transacoesMes, dias, diasDecorridos, diasNoMes, situacao, hojeIso]);
 
   /** So o realizado entra: gasto comprometido a vencer ainda nao aconteceu em lugar nenhum. */
   const gastoPorLocal = useMemo((): GastoPorLocal[] => {
@@ -299,8 +327,12 @@ export function useMensal(): UseMensal {
 
   return {
     loading,
+    carregando,
+    atualizando,
+    atualizar,
     mesSelecionado,
     trocarMes,
+    direcao,
     mesCorrente,
     mesFuturo,
     diasNoMes,

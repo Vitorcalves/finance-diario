@@ -1,35 +1,36 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { StyleSheet, Text, View } from 'react-native';
-import { colors, fontSize, iconSize, radius, spacing } from '../../../theme';
+import { View } from 'react-native';
+import { fontSize, iconSize, makeStyles, radius, spacing, useTheme } from '../../../theme';
+import { Text } from '../../../components/ui';
 
 /** Explica que o orcamento nao gera lancamento financeiro. */
 export default function AvisoOrcamento(): React.ReactNode {
+  const { colors } = useTheme();
+  const styles = useStyles();
   return (
     <View style={styles.card}>
       <Ionicons name="information-circle-outline" size={iconSize.sm} color={colors.primary} />
       <Text style={styles.texto}>
-        Este orcamento nao gera lancamento financeiro. Os precos pesquisados vao para o historico de
-        precos e alimentam a comparacao entre mercados.
+        Este orçamento não gera lançamento financeiro. Os preços pesquisados vão para o histórico de
+        preços e alimentam a comparação entre mercados.
       </Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   card: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.sm,
     backgroundColor: colors.primarySoft,
     borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
     padding: spacing.md,
   },
   texto: {
     flex: 1,
     fontSize: fontSize.caption,
-    color: colors.primaryDark,
+    color: colors.textStrong,
     lineHeight: 17,
   },
-});
+}));

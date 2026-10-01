@@ -1,6 +1,6 @@
-import { StyleSheet, Text, View } from 'react-native';
-import { Button } from '../../../components/ui';
-import { sharedStyles } from '../../../theme';
+import { View } from 'react-native';
+import { Button, Text } from '../../../components/ui';
+import { makeStyles, useTheme } from '../../../theme';
 import { toCurrency } from '../../../utils/format';
 
 type RodapeOrcamentoProps = {
@@ -17,18 +17,21 @@ export default function RodapeOrcamento({
   onLimpar,
   onRegistrar,
 }: RodapeOrcamentoProps): React.ReactNode {
+  const { sharedStyles } = useTheme();
+  const styles = useStyles();
   return (
     <View style={sharedStyles.footer}>
       <View style={sharedStyles.totalRow}>
-        <Text style={sharedStyles.totalLabel}>Total do orcamento</Text>
+        <Text style={sharedStyles.totalLabel}>Total do orçamento</Text>
         <Text style={sharedStyles.totalValue}>{toCurrency(total)}</Text>
       </View>
 
       <View style={sharedStyles.actionsRow}>
         <Button label="Limpar" variant="secondary" flex onPress={onLimpar} />
         <Button
-          label={salvando ? 'Registrando...' : 'Registrar no historico'}
-          disabled={salvando}
+          label="Registrar no histórico"
+          icon="cloud-done-outline"
+          loading={salvando}
           style={styles.registrar}
           onPress={onRegistrar}
         />
@@ -37,8 +40,8 @@ export default function RodapeOrcamento({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(() => ({
   registrar: {
     flex: 2,
   },
-});
+}));

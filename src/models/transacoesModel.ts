@@ -1,5 +1,11 @@
 import { Locais } from '../utils/local';
-import { getConnection } from './database';
+import { emTransacao, getConnection } from './database';
+import {
+  deleteItensTransacaoByTransacao,
+  insertItemTransacao,
+  type ItemTransacao,
+  listItensTransacaoByTransacao,
+} from './itensTransacao';
 
 export type Transacoes = {
   id: string;
@@ -151,3 +157,73 @@ export const deleteTransacoesFuturasDoPlano = async (
     [planoId, aPartirDe],
   );
 };
+
+export type ResumoCaixa = {
+  /** Entradas menos saidas ate `hoje`, inclusive. */
+  saldoAtual: number;
+  /** Saidas ja lancadas depois de `hoje` e ate `ate` (valor negativo). */
+  comprometido: number;
+};
+
+/**
+ * Saldo e comprometido somados no proprio banco.
+ *
+ * O feed da Home traz so as 50 transacoes mais recentes: somar aquela lista
+ * dava um saldo errado assim que o historico passava disso.
+ */
+export const resumoCaixa = async (hoje: string, ate: string): Promise<ResumoCaixa> => {
+  const db = await getConnection();
+
+  const row = await db.getFirstAsync<{ saldo: number | null; comprometido: number | null }>(
+    `
+        SELECT SUM(CASE WHEN data <= ? THEN valor ELSE 0 END)                           AS saldo,
+               SUM(CASE WHEN data > ? AND data <= ? AND valor < 0 THEN valor ELSE 0 END) AS comprometido
+        FROM transacoes
+        WHERE contabilizado_saldo = 1
+    `,
+    [hoje, hoje, ate],
+  );
+
+  return { saldoAtual: row?.saldo ?? 0, comprometido: row?.comprometido ?? 0 };
+};
+
+/** O que foi apagado por `excluirTransacao`, guardado para o "Desfazer". */
+export type TransacaoExcluida = {
+  transacao: Transacoes;
+  itens: ItemTransacao[];
+};
+
+/** Apaga a transacao e os itens dela, devolvendo o conteudo apagado. */
+export const excluirTransacao = async (id: string): Promise<TransacaoExcluida | null> =>
+  emTransacao(async () => {
+    const db = await getConnection();
+    const transacao = await db.getFirstAsync<Transacoes>(
+      `
+          SELECT ${COLUNAS}
+          FROM transacoes
+          WHERE id = ?
+      `,
+      [id],
+    );
+
+    if (!transacao) {
+      return null;
+    }
+
+    const itens = await listItensTransacaoByTransacao(id);
+
+    await deleteItensTransacaoByTransacao(id);
+    await deleteTransacaoById(id);
+
+    return { transacao, itens };
+  });
+
+/** Grava de volta, com os mesmos ids, uma transacao apagada por `excluirTransacao`. */
+export const restaurarTransacao = async ({ transacao, itens }: TransacaoExcluida): Promise<void> =>
+  emTransacao(async () => {
+    await insertTransacao(transacao);
+
+    for (const item of itens) {
+      await insertItemTransacao(item);
+    }
+  });

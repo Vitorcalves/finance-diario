@@ -1,19 +1,21 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
 
+/** Cadastros, financeiro e sistema, acessados pela aba Menu. */
 export type MenuStackParamList = {
   MenuHome: undefined;
   Categorias: undefined;
   Empresas: undefined;
   Marcas: undefined;
-  HistoricoPrecos: undefined;
-  Orcamento: undefined;
   Planos: undefined;
   Integracao: undefined;
 };
 
+/** Aba Analises: hub e as telas de consulta de precos. */
 export type DashboardStackParamList = {
   DashboardHome: undefined;
   AnalisePrecos: { produtoId?: string } | undefined;
+  HistoricoPrecos: undefined;
+  Orcamento: undefined;
 };
 
 export type ProdutosStackParamList = {

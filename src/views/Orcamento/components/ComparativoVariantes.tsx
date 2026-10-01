@@ -1,7 +1,16 @@
-import { StyleSheet, Text, View } from 'react-native';
-import { colors, fontSize, fontWeight, radius, sharedStyles, spacing } from '../../../theme';
+import { View } from 'react-native';
+import {
+  fontSize,
+  fontWeight,
+  makeStyles,
+  radius,
+  shadows,
+  spacing,
+  useTheme,
+} from '../../../theme';
 import { toCurrency, toCurrencyPorUnidade, toPercent } from '../../../utils/format';
 import type { ComparativoProduto } from '../types';
+import { Text } from '../../../components/ui';
 
 type ComparativoVariantesProps = {
   grupos: ComparativoProduto[];
@@ -20,6 +29,8 @@ export default function ComparativoVariantes({
   rotuloVariante,
   rotuloQuantidade,
 }: ComparativoVariantesProps): React.ReactNode {
+  const { sharedStyles } = useTheme();
+  const styles = useStyles();
   if (grupos.length === 0) {
     return null;
   }
@@ -28,7 +39,7 @@ export default function ComparativoVariantes({
     <>
       <Text style={sharedStyles.sectionTitle}>Mesmo produto, embalagens diferentes</Text>
       <Text style={sharedStyles.sectionHint}>
-        Preco por kg/L/un de cada variante deste produto no orcamento.
+        Preço por kg/L/un de cada variante deste produto no orçamento.
       </Text>
 
       {grupos.map((grupo) => {
@@ -52,8 +63,8 @@ export default function ComparativoVariantes({
 
             {!grupo.comparavel && (
               <Text style={styles.aviso}>
-                Sem comparacao por unidade: cadastre quantidade e unidade nas variantes para
-                comparar o preco por medida.
+                Sem comparação por unidade: cadastre quantidade e unidade nas variantes para
+                comparar o preço por medida.
               </Text>
             )}
 
@@ -106,19 +117,18 @@ export default function ComparativoVariantes({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
+    ...shadows.card,
     padding: spacing.md,
     gap: spacing.sm,
   },
   titulo: {
     fontSize: fontSize.input,
     fontWeight: fontWeight.bold,
-    color: colors.primaryDark,
+    color: colors.textStrong,
   },
   aviso: {
     fontSize: fontSize.micro,
@@ -142,7 +152,7 @@ const styles = StyleSheet.create({
   linhaVariante: {
     fontSize: fontSize.body,
     fontWeight: fontWeight.medium,
-    color: colors.textBody,
+    color: colors.text,
   },
   linhaDetalhe: {
     fontSize: fontSize.caption,
@@ -156,10 +166,10 @@ const styles = StyleSheet.create({
   linhaUnitario: {
     fontSize: fontSize.body,
     fontWeight: fontWeight.bold,
-    color: colors.primaryDark,
+    color: colors.textStrong,
   },
   linhaSemMedida: {
     fontSize: fontSize.caption,
     color: colors.textSubtle,
   },
-});
+}));

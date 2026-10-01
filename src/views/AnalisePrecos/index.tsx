@@ -1,11 +1,10 @@
 import { type RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { StatusBar } from 'expo-status-bar';
 import { ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState, LoadingState, ScreenHeader } from '../../components/ui';
 import type { DashboardStackParamList } from '../../routes/types';
-import { sharedStyles } from '../../theme';
+import { useTheme } from '../../theme';
 import FiltrosAnalise from './components/FiltrosAnalise';
 import GraficoLinhas from './components/GraficoLinhas';
 import ResumoPrecosCard from './components/ResumoPrecosCard';
@@ -16,6 +15,7 @@ type AnalisePrecosRoute = RouteProp<DashboardStackParamList, 'AnalisePrecos'>;
 
 /** Valor pago por produto ao longo do tempo, contra o historico de precos. */
 export default function AnalisePrecosView(): React.ReactNode {
+  const { sharedStyles } = useTheme();
   const navigation = useNavigation<AnalisePrecosNavigation>();
   const route = useRoute<AnalisePrecosRoute>();
   const {
@@ -42,7 +42,7 @@ export default function AnalisePrecosView(): React.ReactNode {
       return (
         <EmptyState
           icon="time-outline"
-          message="Sem precos para este filtro"
+          message="Sem preços para este filtro"
           hint="Escolha outra variante ou outro produto."
         />
       );
@@ -59,11 +59,9 @@ export default function AnalisePrecosView(): React.ReactNode {
 
   return (
     <SafeAreaView style={sharedStyles.screen}>
-      <StatusBar style="dark" />
-
       <ScreenHeader
-        title="Analise de precos"
-        subtitle="Valor pago x historico de precos"
+        title="Análise de preços"
+        subtitle="Valor pago x histórico de preços"
         onBack={(): void => navigation.goBack()}
       />
 
@@ -72,8 +70,8 @@ export default function AnalisePrecosView(): React.ReactNode {
       ) : produtos.length === 0 ? (
         <EmptyState
           icon="trending-up-outline"
-          message="Nenhum produto com compra ou preco registrado"
-          hint="Lance compras com itens de produto na tela inicial para a analise aparecer aqui."
+          message="Nenhum produto com compra ou preço registrado"
+          hint="Lance compras com itens de produto na tela inicial para a análise aparecer aqui."
         />
       ) : (
         <ScrollView

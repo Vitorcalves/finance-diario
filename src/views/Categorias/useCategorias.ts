@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useToast } from '../../components/ui';
 import { v4 as uuidv4 } from 'uuid';
 import {
   type Categoria,
@@ -19,6 +20,7 @@ export type UseCategorias = {
 
 /** Acesso ao cadastro de categorias. */
 export function useCategorias(): UseCategorias {
+  const toast = useToast();
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -28,7 +30,7 @@ export function useCategorias(): UseCategorias {
       setCategorias(categoriasDoBanco);
     } catch (error: unknown) {
       console.error('Erro ao carregar categorias:', error);
-      Alert.alert('Erro', 'Nao foi possivel carregar as categorias');
+      Alert.alert('Erro', 'Não foi possível carregar as categorias');
     } finally {
       setLoading(false);
     }
@@ -45,7 +47,7 @@ export function useCategorias(): UseCategorias {
       const nomeLimpo = nome.trim();
 
       if (!nomeLimpo) {
-        Alert.alert('Erro', 'Nome da categoria e obrigatorio');
+        Alert.alert('Erro', 'Nome da categoria é obrigatório');
         return false;
       }
 
@@ -57,40 +59,40 @@ export function useCategorias(): UseCategorias {
         });
 
         await carregar();
-        Alert.alert('Sucesso', 'Categoria adicionada!');
+        toast.mostrar('Categoria adicionada');
         return true;
       } catch (error: unknown) {
         console.error('Erro ao salvar categoria:', error);
-        Alert.alert('Erro', 'Nao foi possivel salvar a categoria');
+        Alert.alert('Erro', 'Não foi possível salvar a categoria');
         return false;
       }
     },
-    [carregar],
+    [carregar, toast],
   );
 
   const deletar = useCallback(
     (categoria: Categoria): void => {
-      Alert.alert('Confirmar exclusao', `Deseja deletar "${categoria.nome}"?`, [
+      Alert.alert('Excluir categoria', `Deseja excluir "${categoria.nome}"?`, [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Deletar',
+          text: 'Excluir',
           style: 'destructive',
           onPress: (): void => {
             void (async (): Promise<void> => {
               try {
                 await deleteCategoriaById(categoria.id);
                 await carregar();
-                Alert.alert('Sucesso', 'Categoria deletada!');
+                toast.mostrar('Categoria excluída');
               } catch (error: unknown) {
                 console.error('Erro ao deletar categoria:', error);
-                Alert.alert('Erro', 'Nao foi possivel deletar a categoria');
+                Alert.alert('Erro', 'Não foi possível excluir a categoria');
               }
             })();
           },
         },
       ]);
     },
-    [carregar],
+    [carregar, toast],
   );
 
   return { categorias, loading, salvar, deletar };

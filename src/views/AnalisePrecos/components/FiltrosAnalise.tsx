@@ -1,7 +1,7 @@
-import { StyleSheet, Text, View } from 'react-native';
-import { ChipSelector } from '../../../components/ui';
+import { View } from 'react-native';
+import { ChipSelector, Text } from '../../../components/ui';
 import type { ProdutoComMovimento } from '../../../models/dashboard';
-import { sharedStyles, spacing } from '../../../theme';
+import { makeStyles, spacing, useTheme } from '../../../theme';
 
 type FiltrosAnaliseProps = {
   produtos: ProdutoComMovimento[];
@@ -24,6 +24,8 @@ export default function FiltrosAnalise({
   varianteId,
   onSelecionarVariante,
 }: FiltrosAnaliseProps): React.ReactNode {
+  const { sharedStyles } = useTheme();
+  const styles = useStyles();
   return (
     <View style={styles.container}>
       <Text style={sharedStyles.label}>Produto</Text>
@@ -52,8 +54,8 @@ export default function FiltrosAnalise({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(() => ({
   container: {
     gap: spacing.xs,
   },
-});
+}));

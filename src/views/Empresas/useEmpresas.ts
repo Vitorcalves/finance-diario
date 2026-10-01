@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useToast } from '../../components/ui';
 import { v4 as uuidv4 } from 'uuid';
 import {
   deleteEmpresaById,
@@ -26,6 +27,7 @@ export type UseEmpresas = {
 
 /** Acesso ao cadastro de empresas. */
 export function useEmpresas(): UseEmpresas {
+  const toast = useToast();
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -35,7 +37,7 @@ export function useEmpresas(): UseEmpresas {
       setEmpresas(empresasDoBanco);
     } catch (error: unknown) {
       console.error('Erro ao carregar empresas:', error);
-      Alert.alert('Erro', 'Nao foi possivel carregar as empresas');
+      Alert.alert('Erro', 'Não foi possível carregar as empresas');
     } finally {
       setLoading(false);
     }
@@ -54,7 +56,7 @@ export function useEmpresas(): UseEmpresas {
       const observacao = dados.observacao.trim() || undefined;
 
       if (!nome) {
-        Alert.alert('Erro', 'Nome da empresa e obrigatorio');
+        Alert.alert('Erro', 'Nome da empresa é obrigatório');
         return false;
       }
 
@@ -72,40 +74,40 @@ export function useEmpresas(): UseEmpresas {
         }
 
         await carregar();
-        Alert.alert('Sucesso', empresaEditando ? 'Empresa atualizada!' : 'Empresa adicionada!');
+        toast.mostrar(empresaEditando ? 'Empresa atualizada' : 'Empresa adicionada');
         return true;
       } catch (error: unknown) {
         console.error('Erro ao salvar empresa:', error);
-        Alert.alert('Erro', 'Nao foi possivel salvar a empresa');
+        Alert.alert('Erro', 'Não foi possível salvar a empresa');
         return false;
       }
     },
-    [carregar],
+    [carregar, toast],
   );
 
   const deletar = useCallback(
     (empresa: Empresa): void => {
-      Alert.alert('Confirmar exclusao', `Deseja deletar "${empresa.nome}"?`, [
+      Alert.alert('Excluir empresa', `Deseja excluir "${empresa.nome}"?`, [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Deletar',
+          text: 'Excluir',
           style: 'destructive',
           onPress: (): void => {
             void (async (): Promise<void> => {
               try {
                 await deleteEmpresaById(empresa.id);
                 await carregar();
-                Alert.alert('Sucesso', 'Empresa deletada!');
+                toast.mostrar('Empresa excluída');
               } catch (error: unknown) {
                 console.error('Erro ao deletar empresa:', error);
-                Alert.alert('Erro', 'Nao foi possivel deletar a empresa');
+                Alert.alert('Erro', 'Não foi possível excluir a empresa');
               }
             })();
           },
         },
       ]);
     },
-    [carregar],
+    [carregar, toast],
   );
 
   return { empresas, loading, salvar, deletar };

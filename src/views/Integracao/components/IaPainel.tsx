@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
-import { Button } from '../../../components/ui';
+import { Pressable, Switch, View } from 'react-native';
+import { Button, Text, TextInput } from '../../../components/ui';
 import type { ConsultaIa } from '../../../models/sincronizacaoApi';
-import { colors, fontSize, fontWeight, radius, sharedStyles, spacing } from '../../../theme';
+import { fontSize, fontWeight, makeStyles, radius, spacing, useTheme } from '../../../theme';
 import type { ResultadoConsultaIa } from '../types';
 
 type IaPainelProps = {
@@ -30,6 +30,7 @@ const formatarSegundos = (segundos: number): string => `${segundos.toFixed(1).re
  * Qualquer outra marcacao aparece como texto puro.
  */
 const TextoMarkdown = ({ texto }: { texto: string }): React.ReactNode => {
+  const styles = useStyles();
   const partes = texto.split(/(\*\*[^*]+\*\*)/g);
 
   return (
@@ -55,6 +56,8 @@ const SecaoRecolhivel = ({
   titulo: string;
   children: React.ReactNode;
 }): React.ReactNode => {
+  const { sharedStyles } = useTheme();
+  const styles = useStyles();
   const [aberta, setAberta] = useState(false);
 
   return (
@@ -80,24 +83,28 @@ const LinhaConsulta = ({
 }: {
   consulta: ConsultaIa;
   indice: number;
-}): React.ReactNode => (
-  <View style={styles.consulta}>
-    <View style={styles.consultaCabecalho}>
-      <Text style={styles.consultaIndice}>#{indice + 1}</Text>
-      <Text style={styles.metadado}>
-        {consulta.erro === null
-          ? `${consulta.linhas} linha(s) em ${formatarSegundos(consulta.segundos)}`
-          : `falhou em ${formatarSegundos(consulta.segundos)}`}
+}): React.ReactNode => {
+  const styles = useStyles();
+
+  return (
+    <View style={styles.consulta}>
+      <View style={styles.consultaCabecalho}>
+        <Text style={styles.consultaIndice}>#{indice + 1}</Text>
+        <Text style={styles.metadado}>
+          {consulta.erro === null
+            ? `${consulta.linhas} linha(s) em ${formatarSegundos(consulta.segundos)}`
+            : `falhou em ${formatarSegundos(consulta.segundos)}`}
+        </Text>
+      </View>
+
+      <Text style={styles.sql} selectable>
+        {consulta.sql}
       </Text>
+
+      {consulta.erro === null ? null : <Text style={styles.consultaErro}>{consulta.erro}</Text>}
     </View>
-
-    <Text style={styles.sql} selectable>
-      {consulta.sql}
-    </Text>
-
-    {consulta.erro === null ? null : <Text style={styles.consultaErro}>{consulta.erro}</Text>}
-  </View>
-);
+  );
+};
 
 /** Aba IA: manda uma pergunta em linguagem natural para o modelo da API e mostra a resposta. */
 export default function IaPainel({
@@ -111,16 +118,18 @@ export default function IaPainel({
   onConsultar,
   onLimpar,
 }: IaPainelProps): React.ReactNode {
+  const { colors, sharedStyles } = useTheme();
+  const styles = useStyles();
   return (
     <View style={styles.painel}>
       <Text style={sharedStyles.sectionHint}>
-        Pergunte sobre os dados que ja foram enviados para a API. O modelo consulta o espelho no
-        servidor; nada e alterado aqui.
+        Pergunte sobre os dados que já foram enviados para a API. O modelo consulta o espelho no
+        servidor; nada é alterado aqui.
       </Text>
 
       {configurada ? null : (
         <Text style={styles.avisoConfig}>
-          Informe o endereco da API na aba API antes de perguntar.
+          Informe o endereço da API na aba API antes de perguntar.
         </Text>
       )}
 
@@ -130,7 +139,7 @@ export default function IaPainel({
           style={[sharedStyles.input, sharedStyles.inputMultiline]}
           value={pergunta}
           onChangeText={onChangePergunta}
-          placeholder="Ex.: Quanto ainda falta pagar do tenis de corrida?"
+          placeholder="Ex.: Quanto ainda falta pagar do tênis de corrida?"
           placeholderTextColor={colors.textSubtle}
           multiline
           editable={!carregando}
@@ -140,18 +149,18 @@ export default function IaPainel({
       <View style={styles.opcao}>
         <View style={styles.opcaoTexto}>
           <Text style={styles.opcaoTitulo}>Raciocinar antes de responder</Text>
-          <Text style={sharedStyles.sectionHint}>Mais lento, porem mais preciso.</Text>
+          <Text style={sharedStyles.sectionHint}>Mais lento, porém mais preciso.</Text>
         </View>
-        <Switch value={pensar} onValueChange={onChangePensar} disabled={carregando} />
+        <Switch
+          value={pensar}
+          onValueChange={onChangePensar}
+          disabled={carregando}
+          trackColor={{ false: colors.borderStrong, true: colors.primary }}
+          thumbColor={colors.onHero}
+        />
       </View>
 
       <View style={sharedStyles.actionsRow}>
-        <Button
-          label={carregando ? 'Consultando...' : 'Perguntar'}
-          flex
-          onPress={onConsultar}
-          disabled={carregando || !configurada || pergunta.trim().length === 0}
-        />
         <Button
           label="Limpar"
           variant="secondary"
@@ -159,11 +168,19 @@ export default function IaPainel({
           onPress={onLimpar}
           disabled={carregando || (pergunta.length === 0 && resultado === null)}
         />
+        <Button
+          label="Perguntar"
+          icon="sparkles-outline"
+          loading={carregando}
+          flex
+          onPress={onConsultar}
+          disabled={!configurada || pergunta.trim().length === 0}
+        />
       </View>
 
       {carregando ? (
         <Text style={sharedStyles.sectionHint}>
-          O modelo pode levar alguns segundos, principalmente com raciocinio ligado.
+          O modelo pode levar alguns segundos, principalmente com raciocínio ligado.
         </Text>
       ) : null}
 
@@ -204,7 +221,7 @@ export default function IaPainel({
           ) : null}
 
           {resultado.resposta.raciocinio.trim().length > 0 ? (
-            <SecaoRecolhivel titulo="Raciocinio do modelo">
+            <SecaoRecolhivel titulo="Raciocínio do modelo">
               <Text style={styles.raciocinio} selectable>
                 {resultado.resposta.raciocinio}
               </Text>
@@ -216,7 +233,7 @@ export default function IaPainel({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   painel: {
     gap: spacing.md,
   },
@@ -235,7 +252,7 @@ const styles = StyleSheet.create({
   },
   opcaoTitulo: {
     fontSize: fontSize.body,
-    color: colors.textBody,
+    color: colors.text,
   },
   perguntaFeita: {
     fontSize: fontSize.small,
@@ -246,11 +263,11 @@ const styles = StyleSheet.create({
   resposta: {
     fontSize: fontSize.body,
     lineHeight: 22,
-    color: colors.textBody,
+    color: colors.text,
   },
   respostaNegrito: {
     fontWeight: fontWeight.bold,
-    color: colors.primaryDeep,
+    color: colors.textStrong,
   },
   avisoCortado: {
     marginTop: spacing.sm,
@@ -289,12 +306,12 @@ const styles = StyleSheet.create({
   consultaIndice: {
     fontSize: fontSize.caption,
     fontWeight: fontWeight.bold,
-    color: colors.primaryDeep,
+    color: colors.textStrong,
   },
   sql: {
     fontSize: fontSize.caption,
     fontFamily: 'monospace',
-    color: colors.textBody,
+    color: colors.text,
     backgroundColor: colors.surfaceMuted,
     borderRadius: radius.lg,
     padding: spacing.sm,
@@ -308,4 +325,4 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: colors.textMuted,
   },
-});
+}));

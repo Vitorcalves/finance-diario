@@ -1,15 +1,14 @@
 import { useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
-import { StatusBar } from 'expo-status-bar';
 import { ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  ChipSelector,
   KeyboardAvoidingScreen,
+  type OpcaoSegmento,
   ScreenHeader,
-  type ChipOpcao,
+  SegmentedControl,
 } from '../../components/ui';
-import { sharedStyles } from '../../theme';
+import { useTheme } from '../../theme';
 import ExportarPainel from './components/ExportarPainel';
 import ApiPainel from './components/ApiPainel';
 import IaPainel from './components/IaPainel';
@@ -17,7 +16,7 @@ import ImportarPainel from './components/ImportarPainel';
 import type { ModoIntegracao } from './types';
 import { useIntegracao } from './useIntegracao';
 
-const MODOS: ChipOpcao<ModoIntegracao>[] = [
+const MODOS: OpcaoSegmento<ModoIntegracao>[] = [
   { valor: 'exportar', rotulo: 'Exportar' },
   { valor: 'importar', rotulo: 'Importar' },
   { valor: 'api', rotulo: 'API' },
@@ -26,6 +25,7 @@ const MODOS: ChipOpcao<ModoIntegracao>[] = [
 
 /** Integracao: extrai o banco como JSON, sobrescreve a partir de um JSON, envia para a API ou pergunta a IA. */
 export default function IntegracaoView(): React.ReactNode {
+  const { sharedStyles } = useTheme();
   const navigation = useNavigation();
   const [modo, setModo] = useState<ModoIntegracao>('exportar');
   const {
@@ -57,11 +57,9 @@ export default function IntegracaoView(): React.ReactNode {
 
   return (
     <SafeAreaView style={sharedStyles.screen}>
-      <StatusBar style="dark" />
-
       <ScreenHeader
-        title="Integracao"
-        subtitle="Backup do banco em JSON"
+        title="Integração"
+        subtitle="Backup, API e perguntas sobre seus dados"
         onBack={(): void => navigation.goBack()}
       />
 
@@ -71,7 +69,7 @@ export default function IntegracaoView(): React.ReactNode {
           contentContainerStyle={sharedStyles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          <ChipSelector opcoes={MODOS} selecionado={modo} onSelecionar={setModo} />
+          <SegmentedControl opcoes={MODOS} valor={modo} onChange={setModo} />
 
           {modo === 'exportar' ? (
             <ExportarPainel

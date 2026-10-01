@@ -1,143 +1,210 @@
-import { StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import dayjs from 'dayjs';
+import { useState } from 'react';
+import { LayoutAnimation, Pressable, View } from 'react-native';
 import { type ItemTransacao, totalItemTransacao } from '../../../models/itensTransacao';
 import type { Transacoes } from '../../../models/transacoesModel';
-import { IconButton } from '../../../components/ui';
+import { Text } from '../../../components/ui';
 import {
-  colors,
   fontSize,
   fontWeight,
   iconSize,
+  makeStyles,
   radius,
-  sharedStyles,
   spacing,
+  useTheme,
 } from '../../../theme';
-import { formatarData, formatarQuantidade, toCurrency } from '../../../utils/format';
-import React from 'react';
+import { formatarQuantidade, toCurrency } from '../../../utils/format';
+import { vibrarSelecao } from '../../../utils/haptics';
+import { ehFuturo } from '../useHome';
 
 type TransacaoItemProps = {
   transacao: Transacoes;
   itens: ItemTransacao[];
   empresa: string;
-  onRemover: (id: string) => void;
 };
 
-/** Uma linha da lista de lancamentos, com os itens da compra abaixo. */
+/**
+ * Uma linha da lista de lancamentos: avatar, descricao, empresa e valor.
+ * Quando a compra tem itens, tocar na linha mostra a lista deles.
+ */
 export default function TransacaoItem({
   transacao,
   itens,
   empresa,
-  onRemover,
 }: TransacaoItemProps): React.ReactNode {
+  const { colors } = useTheme();
+  const styles = useStyles();
+  const [aberto, setAberto] = useState(false);
+
   /** Parcela ou assinatura que ainda vai vencer: ja lancada, mas fora do caixa de hoje. */
-  const previsto = transacao.data > dayjs().format('YYYY-MM-DD');
+  const previsto = ehFuturo(transacao.data);
+  const entrada = transacao.valor > 0;
+  const temItens = itens.length > 0;
+
+  const alternarItens = (): void => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    vibrarSelecao();
+    setAberto((atual) => !atual);
+  };
+
+  const icone = transacao.plano_id
+    ? 'repeat'
+    : entrada
+      ? 'arrow-down'
+      : empresa
+        ? null
+        : 'arrow-up';
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.info}>
-          <Text style={styles.titulo}>{transacao.descricao}</Text>
-          <Text style={styles.meta}>
-            {formatarData(transacao.data)}
-            {empresa ? ` • ${empresa}` : ''}
-          </Text>
-
-          {previsto && (
-            <View style={styles.selo}>
-              <Ionicons name="time-outline" size={iconSize.sm} color={colors.info} />
-              <Text style={styles.seloTexto}>A vencer</Text>
-            </View>
+    <Pressable
+      onPress={temItens ? alternarItens : undefined}
+      disabled={!temItens}
+      style={styles.container}
+      accessibilityRole={temItens ? 'button' : undefined}
+      accessibilityState={temItens ? { expanded: aberto } : undefined}
+    >
+      <View style={styles.linha}>
+        <View style={[styles.avatar, entrada && styles.avatarEntrada]}>
+          {icone ? (
+            <Ionicons
+              name={icone}
+              size={iconSize.sm}
+              color={entrada ? colors.success : colors.primary}
+            />
+          ) : (
+            <Text style={styles.avatarLetra}>{empresa.charAt(0).toUpperCase()}</Text>
           )}
         </View>
 
-        <View style={styles.acoes}>
-          <Text
-            style={[
-              styles.valor,
-              transacao.valor < 0 ? sharedStyles.negative : sharedStyles.positive,
-            ]}
-          >
+        <View style={styles.info}>
+          <Text style={styles.titulo} numberOfLines={1}>
+            {transacao.descricao}
+          </Text>
+          <View style={styles.metaLinha}>
+            {previsto && (
+              <View style={styles.selo}>
+                <Text style={styles.seloTexto}>A vencer</Text>
+              </View>
+            )}
+            {empresa ? (
+              <Text style={styles.meta} numberOfLines={1}>
+                {empresa}
+              </Text>
+            ) : null}
+            {temItens && (
+              <Text style={styles.meta}>
+                {`${empresa ? '· ' : ''}${itens.length} ${itens.length === 1 ? 'item' : 'itens'}`}
+              </Text>
+            )}
+          </View>
+        </View>
+
+        <View style={styles.valorColuna}>
+          <Text style={[styles.valor, entrada ? styles.valorEntrada : null]}>
             {toCurrency(transacao.valor)}
           </Text>
-          <IconButton icon="trash" variant="danger" onPress={(): void => onRemover(transacao.id)} />
+          {temItens && (
+            <Ionicons
+              name={aberto ? 'chevron-up' : 'chevron-down'}
+              size={14}
+              color={colors.textSubtle}
+            />
+          )}
         </View>
       </View>
 
-      {itens.length > 0 && (
+      {aberto && (
         <View style={styles.itensLista}>
           {itens.map((item) => (
             <View key={item.id} style={styles.itemRow}>
               <Text style={styles.itemDescricao} numberOfLines={1}>
-                {`${formatarQuantidade(item.quantidade)}x ${item.descricao}`}
+                {`${formatarQuantidade(item.quantidade)}× ${item.descricao}`}
               </Text>
               <Text style={styles.itemValor}>{toCurrency(totalItemTransacao(item))}</Text>
             </View>
           ))}
         </View>
       )}
-    </View>
+    </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   container: {
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.divider,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
     gap: spacing.sm,
+    backgroundColor: colors.surface,
   },
-  header: {
+  linha: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     gap: spacing.md,
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarEntrada: {
+    backgroundColor: colors.successSoft,
+  },
+  avatarLetra: {
+    fontSize: fontSize.subtitle,
+    fontWeight: fontWeight.bold,
+    color: colors.primary,
   },
   info: {
     flex: 1,
     gap: 2,
   },
-  acoes: {
-    alignItems: 'flex-end',
-    gap: spacing.xs,
-  },
   titulo: {
     fontSize: fontSize.input,
     fontWeight: fontWeight.medium,
-    color: colors.textBody,
+    color: colors.textStrong,
+  },
+  metaLinha: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   meta: {
+    flexShrink: 1,
     fontSize: fontSize.caption,
     color: colors.textMuted,
   },
   selo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 2,
-    marginTop: 2,
     paddingHorizontal: spacing.sm,
     paddingVertical: 1,
     borderRadius: radius.pill,
     backgroundColor: colors.infoSoft,
-    borderWidth: 1,
-    borderColor: colors.infoBorder,
   },
   seloTexto: {
     fontSize: fontSize.micro,
     fontWeight: fontWeight.bold,
     color: colors.info,
   },
+  valorColuna: {
+    alignItems: 'flex-end',
+    gap: 2,
+  },
   valor: {
-    fontSize: fontSize.body,
+    fontSize: fontSize.input,
     fontWeight: fontWeight.bold,
-    color: colors.primaryDark,
+    color: colors.textStrong,
+  },
+  valorEntrada: {
+    color: colors.success,
   },
   itensLista: {
+    marginLeft: 40 + spacing.md,
+    paddingLeft: spacing.md,
     borderLeftWidth: 2,
     borderLeftColor: colors.border,
-    paddingLeft: spacing.md,
-    gap: 2,
+    gap: spacing.xs,
   },
   itemRow: {
     flexDirection: 'row',
@@ -152,6 +219,6 @@ const styles = StyleSheet.create({
   itemValor: {
     fontSize: fontSize.caption,
     fontWeight: fontWeight.medium,
-    color: colors.primaryDark,
+    color: colors.text,
   },
-});
+}));

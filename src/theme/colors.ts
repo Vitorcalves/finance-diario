@@ -1,50 +1,107 @@
 /**
- * Paleta unica do app. Nenhuma tela deve declarar cor em hexadecimal:
- * sempre consumir um token daqui para manter o padrao visual.
+ * Paletas do app. Nenhuma tela declara cor em hexadecimal: tudo vem de um
+ * token daqui, lido pelo `useTheme()` - e isso que permite o modo escuro sem
+ * mexer nas telas.
  */
-export const colors = {
+const paletaClara = {
   // Marca
   primary: '#0f7a5b',
-  primaryDark: '#0b3d2e',
-  primaryDeep: '#123a2d',
-  primarySoft: '#e6f4ed',
-  primarySurface: '#f0f7f4',
+  /** Marca mais intensa: destaque de "hoje" nos graficos e estados pressionados. */
+  primaryStrong: '#0a5640',
+  primarySoft: '#e2f2ea',
+  /** Texto e icone sobre fundo `primary`, `success` ou `danger`. */
+  onPrimary: '#ffffff',
 
   // Superficies
-  background: '#f4f6f5',
+  background: '#f2f5f3',
   surface: '#ffffff',
-  surfaceMuted: '#f9fdfb',
-  surfaceAlt: '#f8fbfa',
-  overlay: 'rgba(0, 0, 0, 0.35)',
-  overlayStrong: 'rgba(0, 0, 0, 0.5)',
+  surfaceMuted: '#f0f4f2',
+  overlay: 'rgba(10, 25, 20, 0.45)',
+  overlayStrong: 'rgba(0, 0, 0, 0.55)',
 
   // Bordas
-  border: '#deebe4',
-  borderStrong: '#d6dfdb',
-  divider: '#edf2ef',
+  border: '#e1e9e5',
+  borderStrong: '#cfdbd5',
+  divider: '#ebf0ed',
 
   // Texto
-  text: '#0b3d2e',
-  textStrong: '#0f2c23',
-  textBody: '#17342b',
+  textStrong: '#0e2a21',
+  text: '#1c3a30',
   textMuted: '#5b6f67',
-  textSubtle: '#8ba29a',
-  textInverse: '#ffffff',
-  placeholder: '#8ba29a',
+  textSubtle: '#8aa198',
+  placeholder: '#9aaea6',
 
   // Estados
   success: '#0d8f50',
-  successSoft: '#e6f4ed',
-  danger: '#c0352b',
-  dangerStrong: '#dc2626',
-  dangerSoft: '#fee2e2',
-  dangerBorder: '#fecaca',
-  dangerSurface: '#fff5f5',
+  successSoft: '#e2f4e9',
+  danger: '#c8382e',
+  dangerSoft: '#fdeeec',
+  dangerBorder: '#f6cbc6',
   warning: '#c98a05',
-  info: '#1d4ed8',
-  infoSoft: '#e0f2fe',
-  infoBorder: '#bfdbfe',
-  disabled: '#8ba29a',
-} as const;
+  warningSoft: '#fdf3dc',
+  info: '#2457d6',
+  infoSoft: '#e6eefe',
+  infoBorder: '#c5d6fa',
+  disabled: '#b7c6c0',
+  onDisabled: '#ffffff',
 
-export type ColorToken = keyof typeof colors;
+  // Cartao de destaque da Home (gradiente)
+  heroStart: '#12885f',
+  heroEnd: '#0a4a37',
+  onHero: '#ffffff',
+  onHeroMuted: 'rgba(255, 255, 255, 0.78)',
+  heroTrack: 'rgba(255, 255, 255, 0.22)',
+};
+
+export type Paleta = { [Token in keyof typeof paletaClara]: string };
+
+export type ColorToken = keyof Paleta;
+
+const paletaEscura: Paleta = {
+  primary: '#3cc495',
+  primaryStrong: '#7be0bb',
+  primarySoft: '#173a2e',
+  onPrimary: '#05170f',
+
+  background: '#0b1210',
+  surface: '#141d1a',
+  surfaceMuted: '#1b2622',
+  overlay: 'rgba(0, 0, 0, 0.6)',
+  overlayStrong: 'rgba(0, 0, 0, 0.7)',
+
+  border: '#24332e',
+  borderStrong: '#30433c',
+  divider: '#1f2b27',
+
+  textStrong: '#eef5f1',
+  text: '#d2dfd9',
+  textMuted: '#94a9a1',
+  textSubtle: '#6c837a',
+  placeholder: '#5c716a',
+
+  success: '#3fcf86',
+  successSoft: '#143325',
+  danger: '#f26b60',
+  dangerSoft: '#3a1b19',
+  dangerBorder: '#5e2a26',
+  warning: '#e8b03f',
+  warningSoft: '#3a2d10',
+  info: '#79a7ff',
+  infoSoft: '#162540',
+  infoBorder: '#27406d',
+  disabled: '#33433d',
+  onDisabled: '#7d8f88',
+
+  heroStart: '#137352',
+  heroEnd: '#0a352a',
+  onHero: '#ffffff',
+  onHeroMuted: 'rgba(255, 255, 255, 0.72)',
+  heroTrack: 'rgba(255, 255, 255, 0.18)',
+};
+
+export type EsquemaCor = 'light' | 'dark';
+
+export const paletas: Record<EsquemaCor, Paleta> = {
+  light: paletaClara,
+  dark: paletaEscura,
+};

@@ -1,13 +1,13 @@
 import { useMemo, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, View } from 'react-native';
 import BrazilianIntegerInput from '../../../components/BrazilianIntegerInput';
 import ScannerCodigoBarras from '../../../components/ScannerCodigoBarras';
 import SeletorMultiplo from '../../../components/SeletorMultiplo';
-import { Button, ChipSelector, IconButton } from '../../../components/ui';
+import { Button, ChipSelector, IconButton, Text } from '../../../components/ui';
 import type { HistoricoPreco } from '../../../models/historicoPreco';
 import type { Produto } from '../../../models/produtos';
 import type { ProdutoVariantes } from '../../../models/produtoVariantes';
-import { colors, fontSize, radius, sharedStyles, spacing } from '../../../theme';
+import { fontSize, makeStyles, radius, spacing, useTheme } from '../../../theme';
 import { formatarData, toCurrency } from '../../../utils/format';
 import { ehGranel, medidaGranel, rotuloQuantidade } from '../../../utils/variantes';
 import type { DadosItemOrcamento, ItemOrcamento } from '../types';
@@ -47,6 +47,8 @@ export default function ItemOrcamentoForm({
   onSalvar,
   onCancelar,
 }: ItemOrcamentoFormProps): React.ReactNode {
+  const { colors, sharedStyles } = useTheme();
+  const styles = useStyles();
   const [produtoId, setProdutoId] = useState<string | null>(itemInicial?.produtoId ?? null);
   const [varianteId, setVarianteId] = useState<string | null>(itemInicial?.varianteId ?? null);
   const [quantidade, setQuantidade] = useState(itemInicial ? String(itemInicial.quantidade) : '1');
@@ -131,8 +133,8 @@ export default function ItemOrcamentoForm({
 
     if (!variante) {
       Alert.alert(
-        'Codigo nao encontrado',
-        `Nenhuma variante cadastrada com o codigo ${codigoLimpo}`,
+        'Código não encontrado',
+        `Nenhuma variante cadastrada com o código ${codigoLimpo}`,
       );
       return;
     }
@@ -163,7 +165,7 @@ export default function ItemOrcamentoForm({
     }
 
     if (!Number.isFinite(precoNumero) || precoNumero <= 0) {
-      Alert.alert('Erro', 'Preco deve ser maior que zero');
+      Alert.alert('Erro', 'Preço deve ser maior que zero');
       return;
     }
 
@@ -197,7 +199,7 @@ export default function ItemOrcamentoForm({
           <Text style={sharedStyles.label}>Variante</Text>
           {variantesDoProduto.length === 0 ? (
             <Text style={sharedStyles.inlineEmptyText}>
-              Este produto ainda nao possui variantes cadastradas
+              Este produto ainda não possui variantes cadastradas
             </Text>
           ) : (
             <ChipSelector
@@ -217,19 +219,19 @@ export default function ItemOrcamentoForm({
         <View style={styles.referenciaBox}>
           <Text style={styles.referenciaTexto}>
             {referenciaMercado
-              ? `Ultimo preco em ${nomeEmpresa(empresaSelecionada)}: ${toCurrency(
+              ? `Último preço em ${nomeEmpresa(empresaSelecionada)}: ${toCurrency(
                   referenciaMercado.preco,
                 )} em ${formatarData(referenciaMercado.data)}`
               : empresaSelecionada
-                ? 'Sem preco registrado neste mercado ainda'
-                : 'Selecione o mercado para ver o preco de referencia'}
+                ? 'Sem preço registrado neste mercado ainda'
+                : 'Selecione o mercado para ver o preço de referência'}
           </Text>
           <Text style={styles.referenciaTexto}>
             {referenciaMenor
-              ? `Menor preco ja visto: ${toCurrency(referenciaMenor.preco)} em ${nomeEmpresa(
+              ? `Menor preço já visto: ${toCurrency(referenciaMenor.preco)} em ${nomeEmpresa(
                   referenciaMenor.empresa_id,
                 )}`
-              : 'Nenhum preco no historico para esta variante'}
+              : 'Nenhum preço no histórico para esta variante'}
           </Text>
         </View>
       )}
@@ -245,7 +247,7 @@ export default function ItemOrcamentoForm({
       />
 
       <Text style={sharedStyles.label}>
-        {granel ? `Preco pesquisado por ${medida} (R$)` : 'Preco pesquisado (R$)'}
+        {granel ? `Preço pesquisado por ${medida} (R$)` : 'Preço pesquisado (R$)'}
       </Text>
       <BrazilianIntegerInput
         value={preco}
@@ -265,13 +267,13 @@ export default function ItemOrcamentoForm({
       )}
 
       <View style={sharedStyles.actionsRow}>
+        {editando && <Button label="Cancelar" variant="secondary" flex onPress={onCancelar} />}
         <Button
           label={editando ? 'Salvar item' : 'Adicionar item'}
-          variant="secondary"
+          icon={editando ? 'checkmark' : 'add'}
           flex
           onPress={salvar}
         />
-        {editando && <Button label="Cancelar" variant="secondary" flex onPress={onCancelar} />}
       </View>
 
       {scannerAberto && (
@@ -284,12 +286,10 @@ export default function ItemOrcamentoForm({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   referenciaBox: {
     backgroundColor: colors.surface,
     borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
     padding: spacing.md,
     marginBottom: spacing.md,
     gap: spacing.xs,
@@ -298,4 +298,4 @@ const styles = StyleSheet.create({
     fontSize: fontSize.caption,
     color: colors.textMuted,
   },
-});
+}));

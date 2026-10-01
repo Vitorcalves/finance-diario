@@ -69,6 +69,37 @@ export const saveLocalPadrao = async (id: number): Promise<void> => {
   );
 };
 
+const TEMA_KEY = 'tema';
+
+/** Modo de cor escolhido no menu; `sistema` segue o claro/escuro do aparelho. */
+export type TemaPreferido = 'sistema' | 'claro' | 'escuro';
+
+const TEMAS_VALIDOS: TemaPreferido[] = ['sistema', 'claro', 'escuro'];
+
+export const getTemaPreferido = async (): Promise<TemaPreferido> => {
+  const db = await getConnection();
+
+  const row = await db.getFirstAsync<SettingRow>('SELECT value FROM settings WHERE key = ?', [
+    TEMA_KEY,
+  ]);
+
+  const valor = row?.value as TemaPreferido | undefined;
+  return valor && TEMAS_VALIDOS.includes(valor) ? valor : 'sistema';
+};
+
+export const saveTemaPreferido = async (tema: TemaPreferido): Promise<void> => {
+  const db = await getConnection();
+
+  await db.runAsync(
+    `
+        INSERT INTO settings (key, value)
+        VALUES (?, ?)
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value
+    `,
+    [TEMA_KEY, tema],
+  );
+};
+
 const API_URL_KEY = 'api_url';
 const API_TOKEN_KEY = 'api_token';
 

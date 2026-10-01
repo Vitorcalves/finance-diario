@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   formatarData,
   formatarDataHora,
+  formatarDiaRelativo,
   toCurrency,
   toCurrencyCurto,
   toCurrencyPorUnidade,
@@ -84,5 +85,27 @@ describe('formatarData', () => {
 
   test('formatarDataHora inclui o horario', () => {
     assert.equal(formatarDataHora('2026-09-08T14:30:00'), '08/09/2026 14:30');
+  });
+});
+
+describe('formatarDiaRelativo', () => {
+  const hoje = '2026-09-30';
+
+  test('hoje, ontem e amanha por extenso', () => {
+    assert.equal(formatarDiaRelativo('2026-09-30', hoje), 'Hoje');
+    assert.equal(formatarDiaRelativo('2026-09-29', hoje), 'Ontem');
+    assert.equal(formatarDiaRelativo('2026-10-01', hoje), 'Amanhã');
+  });
+
+  test('demais dias com dia da semana e mes abreviados', () => {
+    assert.equal(formatarDiaRelativo('2026-09-24', hoje), 'Qui, 24 set');
+  });
+
+  test('ano diferente do atual aparece no texto', () => {
+    assert.equal(formatarDiaRelativo('2025-12-31', hoje), 'Qua, 31 dez 2025');
+  });
+
+  test('data com hora conta pelo dia', () => {
+    assert.equal(formatarDiaRelativo('2026-09-29T22:15:00', hoje), 'Ontem');
   });
 });

@@ -1,28 +1,29 @@
 import { useState } from 'react';
-import { StatusBar } from 'expo-status-bar';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { EmptyState, IconButton, LoadingState, ScreenHeader } from '../../components/ui';
+import { EmptyState, IconButton, LoadingState, ScreenHeader, Text } from '../../components/ui';
 import type { Marca } from '../../models/marcas';
-import { sharedStyles } from '../../theme';
+import { useTheme } from '../../theme';
 import MarcaFormModal from './components/MarcaFormModal';
 import { useMarcas } from './useMarcas';
 
 /** Cadastro de marcas usadas nas variantes de produto. */
 export default function MarcasView(): React.ReactNode {
+  const { sharedStyles } = useTheme();
   const { marcas, loading, salvar, deletar } = useMarcas();
   const [showForm, setShowForm] = useState(false);
+  /** Nova chave a cada abertura: o formulario nasce limpo. */
+  const [formKey, setFormKey] = useState(0);
   const [marcaEditando, setMarcaEditando] = useState<Marca | null>(null);
 
   const abrirFormulario = (marca: Marca | null): void => {
     setMarcaEditando(marca);
+    setFormKey((atual) => atual + 1);
     setShowForm(true);
   };
 
   return (
     <SafeAreaView style={sharedStyles.screen}>
-      <StatusBar style="dark" />
-
       <ScreenHeader title="Marcas" onAdd={(): void => abrirFormulario(null)} />
 
       {loading ? (
@@ -58,13 +59,13 @@ export default function MarcasView(): React.ReactNode {
         </ScrollView>
       )}
 
-      {showForm && (
-        <MarcaFormModal
-          marca={marcaEditando}
-          onFechar={(): void => setShowForm(false)}
-          onSalvar={salvar}
-        />
-      )}
+      <MarcaFormModal
+        key={formKey}
+        visivel={showForm}
+        marca={marcaEditando}
+        onFechar={(): void => setShowForm(false)}
+        onSalvar={salvar}
+      />
     </SafeAreaView>
   );
 }

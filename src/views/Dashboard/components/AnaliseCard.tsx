@@ -1,55 +1,74 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ComponentProps } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { View } from 'react-native';
+import { PressableScale, Text } from '../../../components/ui';
 import {
-  colors,
   fontSize,
   fontWeight,
   iconSize,
+  makeStyles,
   radius,
-  sharedStyles,
   spacing,
+  useTheme,
 } from '../../../theme';
 
 type AnaliseCardProps = {
   titulo: string;
   descricao: string;
   icone: ComponentProps<typeof Ionicons>['name'];
+  /** Cor de destaque do icone; padrao e a cor da marca. */
+  tom?: 'primary' | 'info' | 'warning';
   onPress: () => void;
 };
 
-/** Atalho de uma analise no hub do dashboard. */
+/** Atalho de uma analise no hub da aba Analises. */
 export default function AnaliseCard({
   titulo,
   descricao,
   icone,
+  tom = 'primary',
   onPress,
 }: AnaliseCardProps): React.ReactNode {
+  const { colors, sharedStyles } = useTheme();
+  const styles = useStyles();
+
+  const cores = {
+    primary: { fundo: colors.primarySoft, icone: colors.primary },
+    info: { fundo: colors.infoSoft, icone: colors.info },
+    warning: { fundo: colors.warningSoft, icone: colors.warning },
+  }[tom];
+
   return (
-    <Pressable style={[sharedStyles.card, styles.card]} onPress={onPress}>
-      <View style={styles.iconeBadge}>
-        <Ionicons name={icone} size={iconSize.lg} color={colors.primary} />
+    <PressableScale
+      style={[sharedStyles.card, styles.card]}
+      onPress={onPress}
+      escala={0.98}
+      vibrar
+      accessibilityRole="button"
+      accessibilityLabel={titulo}
+    >
+      <View style={[styles.iconeBadge, { backgroundColor: cores.fundo }]}>
+        <Ionicons name={icone} size={iconSize.lg} color={cores.icone} />
       </View>
       <View style={styles.info}>
         <Text style={styles.titulo}>{titulo}</Text>
         <Text style={styles.descricao}>{descricao}</Text>
       </View>
       <Ionicons name="chevron-forward" size={iconSize.md} color={colors.textSubtle} />
-    </Pressable>
+    </PressableScale>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
   },
   iconeBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.xl,
-    backgroundColor: colors.primarySoft,
+    width: 48,
+    height: 48,
+    borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -60,10 +79,10 @@ const styles = StyleSheet.create({
   titulo: {
     fontSize: fontSize.subtitle,
     fontWeight: fontWeight.bold,
-    color: colors.primaryDark,
+    color: colors.textStrong,
   },
   descricao: {
     fontSize: fontSize.caption,
     color: colors.textMuted,
   },
-});
+}));

@@ -1,4 +1,3 @@
-import { StatusBar } from 'expo-status-bar';
 import { ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -9,16 +8,20 @@ import {
   LoadingState,
   ScreenHeader,
 } from '../../components/ui';
-import type { MenuStackParamList } from '../../routes/types';
-import { sharedStyles } from '../../theme';
+import type { DashboardStackParamList } from '../../routes/types';
+import { useTheme } from '../../theme';
 import FiltrosHistorico from './components/FiltrosHistorico';
 import GrupoPrecoCard from './components/GrupoPrecoCard';
 import { useHistoricoPrecos } from './useHistoricoPrecos';
 
-type HistoricoPrecosNavigation = NativeStackNavigationProp<MenuStackParamList, 'HistoricoPrecos'>;
+type HistoricoPrecosNavigation = NativeStackNavigationProp<
+  DashboardStackParamList,
+  'HistoricoPrecos'
+>;
 
 /** Comparativo dos precos ja registrados, agrupados por variante ou produto. */
 export default function HistoricoPrecosView(): React.ReactNode {
+  const { sharedStyles } = useTheme();
   const navigation = useNavigation<HistoricoPrecosNavigation>();
   const {
     loading,
@@ -44,9 +47,7 @@ export default function HistoricoPrecosView(): React.ReactNode {
 
   return (
     <SafeAreaView style={sharedStyles.screen}>
-      <StatusBar style="dark" />
-
-      <ScreenHeader title="Historico de Precos" onBack={(): void => navigation.goBack()} />
+      <ScreenHeader title="Histórico de Preços" onBack={(): void => navigation.goBack()} />
 
       {loading ? (
         <LoadingState />
@@ -77,10 +78,10 @@ export default function HistoricoPrecosView(): React.ReactNode {
                 icon="time-outline"
                 message={
                   produtoFiltro || varianteFiltro
-                    ? 'Nenhum preco registrado para este filtro'
-                    : 'Nenhum preco registrado ainda'
+                    ? 'Nenhum preço registrado para este filtro'
+                    : 'Nenhum preço registrado ainda'
                 }
-                hint="Os precos sao registrados ao lancar itens com variante na tela inicial."
+                hint="Os preços são registrados ao lançar itens com variante na tela inicial."
               />
             ) : (
               grupos.map((grupo) => (

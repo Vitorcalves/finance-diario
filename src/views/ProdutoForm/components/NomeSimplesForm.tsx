@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { TextInput, View } from 'react-native';
-import { Button } from '../../../components/ui';
-import { colors, sharedStyles } from '../../../theme';
+import { View } from 'react-native';
+import { Button, TextInput } from '../../../components/ui';
+import { useTheme } from '../../../theme';
 
 type NomeSimplesFormProps = {
   placeholder: string;
@@ -19,6 +19,7 @@ export default function NomeSimplesForm({
   onSalvar,
   onCancelar,
 }: NomeSimplesFormProps): React.ReactNode {
+  const { colors, sharedStyles } = useTheme();
   const [nome, setNome] = useState('');
 
   const salvar = (): void => {
@@ -41,8 +42,8 @@ export default function NomeSimplesForm({
       />
 
       <View style={sharedStyles.actionsRow}>
-        <Button label="Salvar" variant="secondary" flex onPress={salvar} />
         <Button label="Cancelar" variant="secondary" flex onPress={onCancelar} />
+        <Button label="Salvar" icon="checkmark" flex onPress={salvar} />
       </View>
     </View>
   );

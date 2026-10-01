@@ -1,17 +1,18 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type dayjs from 'dayjs';
-import { StyleSheet, Text, View } from 'react-native';
+import { View } from 'react-native';
 import {
-  colors,
   fontSize,
   fontWeight,
   iconSize,
+  makeStyles,
   radius,
-  sharedStyles,
   spacing,
+  useTheme,
 } from '../../../theme';
 import { toCurrency } from '../../../utils/format';
 import type { ComparativoMes, ResumoMes as ResumoMesModel } from '../types';
+import { Text } from '../../../components/ui';
 
 type ResumoMesProps = {
   resumo: ResumoMesModel;
@@ -31,13 +32,15 @@ export default function ResumoMes({
   mesFuturo,
   diasDecorridos,
 }: ResumoMesProps): React.ReactNode {
+  const { colors, sharedStyles } = useTheme();
+  const styles = useStyles();
   return (
     <View style={sharedStyles.card}>
-      <Text style={styles.label}>{mesCorrente ? 'Gasto ate hoje' : 'Gasto no mes'}</Text>
+      <Text style={styles.label}>{mesCorrente ? 'Gasto até hoje' : 'Gasto no mês'}</Text>
       <Text style={styles.valor}>{toCurrency(resumo.gastoTotal)}</Text>
       <Text style={styles.periodo}>
         {mesFuturo
-          ? `${resumo.diasComGasto} dia(s) com gasto ja lancado`
+          ? `${resumo.diasComGasto} dia(s) com gasto já lançado`
           : `1 a ${diasDecorridos} de ${mes.format('MMMM')} - ${resumo.diasComGasto} dia(s) com gasto`}
       </Text>
 
@@ -57,25 +60,25 @@ export default function ResumoMes({
             {`${comparativo.variacao >= 0 ? '+' : ''}${comparativo.variacao.toFixed(0)}%`}
           </Text>
           <Text style={styles.variacaoDetalhe}>
-            {`vs. ${toCurrency(comparativo.ateMesmoDia)} no mesmo periodo do mes passado`}
+            {`vs. ${toCurrency(comparativo.ateMesmoDia)} no mesmo período do mês passado`}
           </Text>
         </View>
       )}
 
       {resumo.comprometido > 0 && (
         <Text style={styles.comprometido}>
-          {`+ ${toCurrency(resumo.comprometido)} em parcelas e assinaturas a vencer neste mes`}
+          {`+ ${toCurrency(resumo.comprometido)} em parcelas e assinaturas a vencer neste mês`}
         </Text>
       )}
 
       <View style={styles.statsRow}>
         <View style={styles.statBox}>
-          <Text style={styles.statLabel}>Media por dia</Text>
+          <Text style={styles.statLabel}>Média por dia</Text>
           <Text style={styles.statValue}>{toCurrency(resumo.mediaDiaria)}</Text>
         </View>
         <View style={styles.statBox}>
           <Text style={styles.statLabel}>
-            {mesCorrente || mesFuturo ? 'Projecao do mes' : 'Entradas'}
+            {mesCorrente || mesFuturo ? 'Projeção do mês' : 'Entradas'}
           </Text>
           <Text style={styles.statValue}>
             {toCurrency(mesCorrente || mesFuturo ? resumo.projecao : resumo.entradaTotal)}
@@ -86,7 +89,7 @@ export default function ResumoMes({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   label: {
     fontSize: fontSize.caption,
     color: colors.textMuted,
@@ -94,7 +97,7 @@ const styles = StyleSheet.create({
   valor: {
     fontSize: fontSize.display,
     fontWeight: fontWeight.heavy,
-    color: colors.primaryDark,
+    color: colors.textStrong,
   },
   periodo: {
     fontSize: fontSize.caption,
@@ -126,10 +129,8 @@ const styles = StyleSheet.create({
   },
   statBox: {
     flex: 1,
-    backgroundColor: colors.primarySurface,
+    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
     padding: spacing.md,
   },
   statLabel: {
@@ -142,4 +143,4 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
     color: colors.textStrong,
   },
-});
+}));

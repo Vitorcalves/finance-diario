@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Alert, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, View } from 'react-native';
 import BrazilianIntegerInput from '../../../components/BrazilianIntegerInput';
 import ScannerCodigoBarras from '../../../components/ScannerCodigoBarras';
 import SeletorMultiplo from '../../../components/SeletorMultiplo';
-import { Button, IconButton } from '../../../components/ui';
+import { Button, IconButton, Text, TextInput } from '../../../components/ui';
 import type { Marca } from '../../../models/marcas';
-import { colors, sharedStyles, spacing } from '../../../theme';
+import { makeStyles, spacing, useTheme } from '../../../theme';
 import { Unidades } from '../../../utils/unidades';
 import type { DadosVariante, VarianteFormItem } from '../types';
 import NomeSimplesForm from './NomeSimplesForm';
@@ -34,6 +34,8 @@ export default function VarianteForm({
   onCancelar,
   onCriarMarca,
 }: VarianteFormProps): React.ReactNode {
+  const { colors, sharedStyles } = useTheme();
+  const styles = useStyles();
   const [marcaId, setMarcaId] = useState<number | null>(varianteInicial?.marcaId ?? null);
   const [unidadeId, setUnidadeId] = useState<number | null>(varianteInicial?.unidadeId ?? null);
   const [quantidade, setQuantidade] = useState(varianteInicial?.quantidade ?? '');
@@ -95,7 +97,7 @@ export default function VarianteForm({
       <SeletorUnidade valor={unidadeId} onSelecionar={setUnidadeId} />
       {granel && (
         <Text style={[sharedStyles.sectionHint, sharedStyles.inputSpaced]}>
-          {`Venda a granel: o preco e por ${medidaGranel} e, no lancamento, voce informa o peso comprado (ex.: 0,750 kg). Deixe a quantidade vazia para preco por ${
+          {`Venda a granel: o preço é por ${medidaGranel} e, no lançamento, você informa o peso comprado (ex.: 0,750 kg). Deixe a quantidade vazia para preço por ${
             Unidades.porId(unidadeId)?.sigla ?? ''
           }.`}
         </Text>
@@ -135,13 +137,13 @@ export default function VarianteForm({
       />
 
       <View style={sharedStyles.actionsRow}>
+        {editando && <Button label="Cancelar" variant="secondary" flex onPress={onCancelar} />}
         <Button
-          label={editando ? 'Salvar Variante' : 'Adicionar Variante'}
-          variant="secondary"
+          label={editando ? 'Salvar variante' : 'Adicionar variante'}
+          icon={editando ? 'checkmark' : 'add'}
           flex
           onPress={salvar}
         />
-        {editando && <Button label="Cancelar" variant="secondary" flex onPress={onCancelar} />}
       </View>
 
       {scannerAberto && (
@@ -157,7 +159,7 @@ export default function VarianteForm({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(() => ({
   codigoRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -167,4 +169,4 @@ const styles = StyleSheet.create({
   codigoInput: {
     flex: 1,
   },
-});
+}));

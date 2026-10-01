@@ -1,6 +1,6 @@
-import { Text, View } from 'react-native';
-import { IconButton } from '../../../components/ui';
-import { iconSize, sharedStyles } from '../../../theme';
+import { View } from 'react-native';
+import { IconButton, Text } from '../../../components/ui';
+import { iconSize, useTheme } from '../../../theme';
 import { toCurrency } from '../../../utils/format';
 import { Unidades } from '../../../utils/unidades';
 import type { VarianteFormItem } from '../types';
@@ -19,6 +19,7 @@ export default function VarianteCard({
   onEditar,
   onRemover,
 }: VarianteCardProps): React.ReactNode {
+  const { sharedStyles } = useTheme();
   return (
     <View style={sharedStyles.listCard}>
       <View style={sharedStyles.listCardInfo}>

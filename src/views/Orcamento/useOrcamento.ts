@@ -3,6 +3,8 @@ import { Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import dayjs from 'dayjs';
 import { v4 as uuidv4 } from 'uuid';
+import { useToast } from '../../components/ui';
+import { emTransacao } from '../../models/database';
 import { type Empresa, listEmpresas } from '../../models/empresas';
 import { type HistoricoPreco, listHistoricoPreco } from '../../models/historicoPreco';
 import { listMarcas, type Marca } from '../../models/marcas';
@@ -85,6 +87,7 @@ export type UseOrcamento = {
 
 /** Estado do orcamento e comparacao dos precos entre mercados. */
 export function useOrcamento(): UseOrcamento {
+  const toast = useToast();
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [variantes, setVariantes] = useState<ProdutoVariantes[]>([]);
@@ -100,9 +103,12 @@ export function useOrcamento(): UseOrcamento {
   const [dataInputKey, setDataInputKey] = useState(0);
   const [itens, setItens] = useState<ItemOrcamento[]>([]);
 
+  /**
+   * Recarrega os cadastros a cada foco sem trocar a tela pelo indicador de
+   * carregamento: o item que estava sendo digitado continua no formulario.
+   */
   const carregarDados = useCallback(async (): Promise<void> => {
     try {
-      setLoading(true);
       const [
         empresasDoBanco,
         produtosDoBanco,
@@ -127,7 +133,7 @@ export function useOrcamento(): UseOrcamento {
       setLocalPadrao(localPadraoDoBanco);
     } catch (error: unknown) {
       console.error('Erro ao carregar dados do orcamento:', error);
-      Alert.alert('Erro', 'Nao foi possivel carregar os dados do orcamento');
+      Alert.alert('Erro', 'Não foi possível carregar os dados do orçamento');
     } finally {
       setLoading(false);
     }
@@ -348,7 +354,7 @@ export function useOrcamento(): UseOrcamento {
       const duplicado = itens.findIndex((item) => item.varianteId === dados.varianteId);
 
       if (duplicado !== -1 && duplicado !== index) {
-        Alert.alert('Erro', 'Esta variante ja esta no orcamento. Edite o item existente.');
+        Alert.alert('Erro', 'Esta variante já está no orçamento. Edite o item existente.');
         return false;
       }
 
@@ -385,52 +391,61 @@ export function useOrcamento(): UseOrcamento {
 
   const registrarPrecos = useCallback(async (): Promise<void> => {
     if (!empresaSelecionada) {
-      Alert.alert('Erro', 'Selecione o mercado onde os precos foram pesquisados');
+      Alert.alert('Erro', 'Selecione o mercado onde os preços foram pesquisados');
       return;
     }
 
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dataOrcamento)) {
-      Alert.alert('Erro', 'Informe uma data valida');
+      Alert.alert('Erro', 'Informe uma data válida');
       return;
     }
 
     if (itens.length === 0) {
-      Alert.alert('Erro', 'Adicione ao menos um item ao orcamento');
+      Alert.alert('Erro', 'Adicione ao menos um item ao orçamento');
       return;
     }
 
     try {
       setSalvando(true);
 
-      for (const item of itens) {
-        await registrarPrecoVariante({
-          produtoId: item.produtoId,
-          varianteId: item.varianteId,
-          empresaId: empresaSelecionada,
-          preco: item.preco,
-          data: dataOrcamento,
-          local: localPadrao,
-        });
-      }
+      // Ou todos os precos entram no historico, ou nenhum.
+      await emTransacao(async () => {
+        for (const item of itens) {
+          await registrarPrecoVariante({
+            produtoId: item.produtoId,
+            varianteId: item.varianteId,
+            empresaId: empresaSelecionada,
+            preco: item.preco,
+            data: dataOrcamento,
+            local: localPadrao,
+          });
+        }
+      });
 
       const quantidadeRegistrada = itens.length;
 
       limpar();
       await carregarDados();
 
-      Alert.alert(
-        'Precos registrados',
-        `${quantidadeRegistrada} preco(s) enviados ao historico de ${nomeEmpresa(
-          empresaSelecionada,
-        )}. Nenhum lancamento financeiro foi criado.`,
+      toast.mostrar(
+        `${quantidadeRegistrada} ${quantidadeRegistrada === 1 ? 'preço registrado' : 'preços registrados'} no histórico de ${nomeEmpresa(empresaSelecionada)}`,
       );
     } catch (error: unknown) {
       console.error('Erro ao registrar precos do orcamento:', error);
-      Alert.alert('Erro', 'Nao foi possivel registrar os precos no historico');
+      Alert.alert('Erro', 'Não foi possível registrar os preços no histórico');
     } finally {
       setSalvando(false);
     }
-  }, [empresaSelecionada, localPadrao, dataOrcamento, itens, limpar, carregarDados, nomeEmpresa]);
+  }, [
+    empresaSelecionada,
+    localPadrao,
+    dataOrcamento,
+    itens,
+    limpar,
+    carregarDados,
+    nomeEmpresa,
+    toast,
+  ]);
 
   return {
     loading,

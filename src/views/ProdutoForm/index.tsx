@@ -1,14 +1,20 @@
 import { useState } from 'react';
-import { StatusBar } from 'expo-status-bar';
-import { ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { ScrollView, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { type RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import BrazilianIntegerInput from '../../components/BrazilianIntegerInput';
 import SeletorMultiplo from '../../components/SeletorMultiplo';
-import { Button, KeyboardAvoidingScreen, LoadingState, ScreenHeader } from '../../components/ui';
+import {
+  Button,
+  KeyboardAvoidingScreen,
+  LoadingState,
+  ScreenHeader,
+  Text,
+  TextInput,
+} from '../../components/ui';
 import type { ProdutosStackParamList } from '../../routes/types';
-import { colors, fontSize, sharedStyles, spacing } from '../../theme';
+import { fontSize, makeStyles, spacing, useTheme } from '../../theme';
 import NomeSimplesForm from './components/NomeSimplesForm';
 import SeletorUnidade from './components/SeletorUnidade';
 import VarianteCard from './components/VarianteCard';
@@ -21,6 +27,8 @@ type ProdutoFormRoute = RouteProp<ProdutosStackParamList, 'ProdutoForm'>;
 
 /** Cadastro e edicao de um produto, suas categorias e suas variantes. */
 export default function ProdutoFormView(): React.ReactNode {
+  const { colors, sharedStyles } = useTheme();
+  const styles = useStyles();
   const navigation = useNavigation<ProdutoFormNavigation>();
   const route = useRoute<ProdutoFormRoute>();
   const form = useProdutoForm(route.params?.produtoId);
@@ -47,9 +55,19 @@ export default function ProdutoFormView(): React.ReactNode {
     }
   };
 
+  const [salvando, setSalvando] = useState(false);
+
   const salvarProduto = (): void => {
+    if (salvando) {
+      return;
+    }
+
     void (async (): Promise<void> => {
-      if (await form.salvar()) {
+      setSalvando(true);
+      const salvou = await form.salvar();
+      setSalvando(false);
+
+      if (salvou) {
         navigation.goBack();
       }
     })();
@@ -58,7 +76,6 @@ export default function ProdutoFormView(): React.ReactNode {
   if (form.carregando) {
     return (
       <SafeAreaView style={sharedStyles.screen}>
-        <StatusBar style="dark" />
         <LoadingState />
       </SafeAreaView>
     );
@@ -66,8 +83,6 @@ export default function ProdutoFormView(): React.ReactNode {
 
   return (
     <SafeAreaView style={sharedStyles.screen}>
-      <StatusBar style="dark" />
-
       <ScreenHeader
         title={form.editando ? 'Editar Produto' : 'Novo Produto'}
         onBack={(): void => navigation.goBack()}
@@ -115,7 +130,7 @@ export default function ProdutoFormView(): React.ReactNode {
             <View style={styles.textoSwitch}>
               <Text style={sharedStyles.label}>Compra eventual</Text>
               <Text style={styles.ajuda}>
-                Comprado raramente (ex.: mouse). Some da lista padrao e so aparece no lancamento
+                Comprado raramente (ex.: mouse). Some da lista padrão e só aparece no lançamento
                 quando buscado.
               </Text>
             </View>
@@ -123,7 +138,7 @@ export default function ProdutoFormView(): React.ReactNode {
               value={form.eventual}
               onValueChange={form.setEventual}
               trackColor={{ false: colors.borderStrong, true: colors.primary }}
-              thumbColor={colors.surface}
+              thumbColor={colors.onHero}
             />
           </View>
 
@@ -180,12 +195,18 @@ export default function ProdutoFormView(): React.ReactNode {
           </View>
 
           <View style={sharedStyles.actionsRow}>
-            <Button label="Salvar Produto" flex onPress={salvarProduto} />
             <Button
               label="Cancelar"
               variant="secondary"
               flex
               onPress={(): void => navigation.goBack()}
+            />
+            <Button
+              label="Salvar produto"
+              icon="checkmark"
+              loading={salvando}
+              flex
+              onPress={salvarProduto}
             />
           </View>
         </ScrollView>
@@ -194,7 +215,7 @@ export default function ProdutoFormView(): React.ReactNode {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   linhaSwitch: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -208,4 +229,4 @@ const styles = StyleSheet.create({
     fontSize: fontSize.caption,
     color: colors.textSubtle,
   },
-});
+}));

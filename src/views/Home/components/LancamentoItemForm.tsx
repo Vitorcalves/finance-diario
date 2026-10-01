@@ -1,13 +1,13 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, Text, TextInput, View } from 'react-native';
+import { Alert, View } from 'react-native';
 import BrazilianIntegerInput from '../../../components/BrazilianIntegerInput';
 import ScannerCodigoBarras from '../../../components/ScannerCodigoBarras';
 import SeletorMultiplo from '../../../components/SeletorMultiplo';
-import { Button, ChipSelector, IconButton } from '../../../components/ui';
+import { Button, ChipSelector, IconButton, Text, TextInput } from '../../../components/ui';
 import type { Marca } from '../../../models/marcas';
 import type { Produto } from '../../../models/produtos';
 import type { ProdutoVariantes } from '../../../models/produtoVariantes';
-import { colors, sharedStyles } from '../../../theme';
+import { useTheme } from '../../../theme';
 import { toCurrency } from '../../../utils/format';
 import { ehGranel, medidaGranel, rotuloQuantidade, rotuloVariante } from '../../../utils/variantes';
 import type { ItemLancamento } from '../types';
@@ -38,6 +38,7 @@ export default function LancamentoItemForm({
   onSalvar,
   onCancelar,
 }: LancamentoItemFormProps): React.ReactNode {
+  const { colors, sharedStyles } = useTheme();
   const [produtoId, setProdutoId] = useState<string | null>(itemInicial?.produtoId ?? null);
   const [varianteId, setVarianteId] = useState<string | null>(itemInicial?.varianteId ?? null);
   const [descricao, setDescricao] = useState(itemInicial?.descricao ?? '');
@@ -130,8 +131,8 @@ export default function LancamentoItemForm({
 
     if (!variante) {
       Alert.alert(
-        'Codigo nao encontrado',
-        `Nenhuma variante cadastrada com o codigo ${codigoLimpo}`,
+        'Código não encontrado',
+        `Nenhuma variante cadastrada com o código ${codigoLimpo}`,
       );
       return;
     }
@@ -145,7 +146,7 @@ export default function LancamentoItemForm({
     const precoNumero = Number(preco);
 
     if (!descricaoLimpa) {
-      Alert.alert('Erro', 'Informe a descricao do item ou selecione um produto');
+      Alert.alert('Erro', 'Informe a descrição do item ou selecione um produto');
       return;
     }
 
@@ -160,7 +161,7 @@ export default function LancamentoItemForm({
     }
 
     if (!Number.isFinite(precoNumero) || precoNumero <= 0) {
-      Alert.alert('Erro', 'Preco unitario do item deve ser maior que zero');
+      Alert.alert('Erro', 'Preço unitário do item deve ser maior que zero');
       return;
     }
 
@@ -190,7 +191,13 @@ export default function LancamentoItemForm({
         textoTrigger="Selecionar produto"
         textoVazio="Nenhum produto cadastrado"
         textoNenhumEncontrado="Nenhum produto encontrado"
-        extra={<IconButton icon="barcode-outline" onPress={(): void => setScannerAberto(true)} />}
+        extra={
+          <IconButton
+            icon="barcode-outline"
+            onPress={(): void => setScannerAberto(true)}
+            accessibilityLabel="Ler código de barras"
+          />
+        }
       />
 
       {produtoId !== null && (
@@ -198,7 +205,7 @@ export default function LancamentoItemForm({
           <Text style={sharedStyles.label}>Variante</Text>
           {variantesDoProduto.length === 0 ? (
             <Text style={sharedStyles.inlineEmptyText}>
-              Este produto ainda nao possui variantes cadastradas
+              Este produto ainda não possui variantes cadastradas
             </Text>
           ) : (
             <ChipSelector
@@ -214,7 +221,7 @@ export default function LancamentoItemForm({
         </>
       )}
 
-      <Text style={sharedStyles.label}>Descricao do item</Text>
+      <Text style={sharedStyles.label}>Descrição do item</Text>
       <TextInput
         value={descricao}
         onChangeText={setDescricao}
@@ -234,7 +241,7 @@ export default function LancamentoItemForm({
       />
 
       <Text style={sharedStyles.label}>
-        {granel ? `Preco por ${medida} (R$)` : 'Preco unitario (R$)'}
+        {granel ? `Preço por ${medida} (R$)` : 'Preço unitário (R$)'}
       </Text>
       <BrazilianIntegerInput
         value={preco}
@@ -254,13 +261,13 @@ export default function LancamentoItemForm({
       )}
 
       <View style={sharedStyles.actionsRow}>
+        <Button label="Cancelar" variant="secondary" flex onPress={onCancelar} />
         <Button
           label={editando ? 'Salvar item' : 'Adicionar item'}
-          variant="secondary"
+          icon={editando ? 'checkmark' : 'add'}
           flex
           onPress={salvar}
         />
-        {editando && <Button label="Cancelar" variant="secondary" flex onPress={onCancelar} />}
       </View>
 
       {scannerAberto && (

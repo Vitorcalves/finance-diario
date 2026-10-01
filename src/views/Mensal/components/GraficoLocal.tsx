@@ -1,8 +1,9 @@
-import { StyleSheet, Text, View } from 'react-native';
-import { colors, fontSize, fontWeight, radius, sharedStyles, spacing } from '../../../theme';
+import { View } from 'react-native';
+import { fontSize, fontWeight, makeStyles, type Paleta, spacing, useTheme } from '../../../theme';
 import { toCurrency } from '../../../utils/format';
 import { Locais } from '../../../utils/local';
 import type { GastoPorLocal } from '../types';
+import { BarraProgresso, Text } from '../../../components/ui';
 
 type GraficoLocalProps = {
   gastoPorLocal: GastoPorLocal[];
@@ -12,15 +13,16 @@ type GraficoLocalProps = {
  * Cor fixa por local, nunca pela posicao no ranking do mes - senao a cor de
  * cada barra trocaria de mes a mes conforme o gasto sobe ou desce.
  */
-const CORES_POR_INDICE = [colors.primary, colors.info, colors.warning, colors.textMuted];
-
-const corDoLocal = (localId: number): string => {
+const corDoLocal = (localId: number, colors: Paleta): string => {
+  const cores = [colors.primary, colors.info, colors.warning, colors.textMuted];
   const indice = Locais.listar().findIndex((local) => local.id === localId);
-  return CORES_POR_INDICE[indice % CORES_POR_INDICE.length] ?? colors.primary;
+  return cores[indice % cores.length] ?? colors.primary;
 };
 
 /** Gasto do mes somado por local de compra, em barras horizontais. */
 export default function GraficoLocal({ gastoPorLocal }: GraficoLocalProps): React.ReactNode {
+  const { colors, sharedStyles } = useTheme();
+  const styles = useStyles();
   if (gastoPorLocal.length === 0) {
     return null;
   }
@@ -34,7 +36,6 @@ export default function GraficoLocal({ gastoPorLocal }: GraficoLocalProps): Reac
 
       {gastoPorLocal.map((item) => {
         const percentual = total > 0 ? (item.gasto / total) * 100 : 0;
-        const largura = `${Math.max(4, (item.gasto / maximo) * 100)}%` as const;
 
         return (
           <View key={item.localId} style={styles.linha}>
@@ -43,16 +44,13 @@ export default function GraficoLocal({ gastoPorLocal }: GraficoLocalProps): Reac
               <Text style={styles.valor}>{toCurrency(item.gasto)}</Text>
             </View>
 
-            <View style={styles.barraFundo}>
-              <View
-                style={[
-                  styles.barraPreenchida,
-                  { width: largura, backgroundColor: corDoLocal(item.localId) },
-                ]}
-              />
-            </View>
+            <BarraProgresso
+              total={maximo}
+              altura={10}
+              segmentos={[{ valor: item.gasto, cor: corDoLocal(item.localId, colors) }]}
+            />
 
-            <Text style={styles.percentual}>{`${Math.round(percentual)}% do gasto do mes`}</Text>
+            <Text style={styles.percentual}>{`${Math.round(percentual)}% do gasto do mês`}</Text>
           </View>
         );
       })}
@@ -60,7 +58,7 @@ export default function GraficoLocal({ gastoPorLocal }: GraficoLocalProps): Reac
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   linha: {
     gap: spacing.xs,
   },
@@ -72,25 +70,15 @@ const styles = StyleSheet.create({
   nome: {
     fontSize: fontSize.body,
     fontWeight: fontWeight.medium,
-    color: colors.textBody,
+    color: colors.text,
   },
   valor: {
     fontSize: fontSize.body,
     fontWeight: fontWeight.bold,
-    color: colors.primaryDark,
-  },
-  barraFundo: {
-    height: 10,
-    borderRadius: radius.sm,
-    backgroundColor: colors.surfaceMuted,
-    overflow: 'hidden',
-  },
-  barraPreenchida: {
-    height: '100%',
-    borderRadius: radius.sm,
+    color: colors.textStrong,
   },
   percentual: {
     fontSize: fontSize.micro,
     color: colors.textSubtle,
   },
-});
+}));

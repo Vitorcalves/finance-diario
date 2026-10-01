@@ -1,8 +1,17 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { StyleSheet, Text, View } from 'react-native';
-import { IconButton } from '../../../components/ui';
+import { View } from 'react-native';
+import { IconButton, Text } from '../../../components/ui';
 import type { Categoria } from '../../../models/categorias';
-import { colors, fontSize, fontWeight, iconSize, radius, spacing } from '../../../theme';
+import {
+  fontSize,
+  fontWeight,
+  iconSize,
+  makeStyles,
+  radius,
+  shadows,
+  spacing,
+  useTheme,
+} from '../../../theme';
 
 type CategoriaCardProps = {
   categoria: Categoria;
@@ -14,6 +23,8 @@ export default function CategoriaCard({
   categoria,
   onDeletar,
 }: CategoriaCardProps): React.ReactNode {
+  const { colors } = useTheme();
+  const styles = useStyles();
   return (
     <View style={styles.card}>
       <View style={styles.info}>
@@ -30,7 +41,7 @@ export default function CategoriaCard({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -38,8 +49,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     backgroundColor: colors.surface,
     borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
+    ...shadows.card,
     padding: spacing.md,
   },
   info: {
@@ -60,6 +70,6 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontSize: fontSize.input,
     fontWeight: fontWeight.bold,
-    color: colors.primaryDark,
+    color: colors.textStrong,
   },
-});
+}));

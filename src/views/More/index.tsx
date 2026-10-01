@@ -1,9 +1,10 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState, ScreenHeader } from '../../components/ui';
-import { sharedStyles } from '../../theme';
+import { useTheme } from '../../theme';
 
 /** Placeholder para funcionalidades futuras; ainda nao esta em nenhuma rota. */
 export default function MoreView(): React.ReactNode {
+  const { sharedStyles } = useTheme();
   return (
     <SafeAreaView style={sharedStyles.screen}>
       <ScreenHeader title="Mais funcionalidades" />

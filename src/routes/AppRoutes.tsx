@@ -1,7 +1,8 @@
-import { NavigationContainer } from '@react-navigation/native';
+import { useMemo } from 'react';
+import { DarkTheme, DefaultTheme, NavigationContainer, type Theme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { colors } from '../theme';
+import { fontes, fontSize, useTheme } from '../theme';
 import AnalisePrecosView from '../views/AnalisePrecos';
 import CategoriasView from '../views/Categorias';
 import DashboardHomeView from '../views/Dashboard';
@@ -29,7 +30,7 @@ const MenuStackNav = createNativeStackNavigator<MenuStackParamList>();
 const ProdutosStackNav = createNativeStackNavigator<ProdutosStackParamList>();
 const DashboardStackNav = createNativeStackNavigator<DashboardStackParamList>();
 
-/** Cadastros e ferramentas acessados pela aba Menu. */
+/** Cadastros, financeiro e sistema acessados pela aba Menu. */
 function MenuStack(): React.ReactNode {
   return (
     <MenuStackNav.Navigator screenOptions={{ headerShown: false }}>
@@ -37,8 +38,6 @@ function MenuStack(): React.ReactNode {
       <MenuStackNav.Screen name="Categorias" component={CategoriasView} />
       <MenuStackNav.Screen name="Empresas" component={EmpresasView} />
       <MenuStackNav.Screen name="Marcas" component={MarcasView} />
-      <MenuStackNav.Screen name="HistoricoPrecos" component={HistoricoPrecosView} />
-      <MenuStackNav.Screen name="Orcamento" component={OrcamentoView} />
       <MenuStackNav.Screen name="Planos" component={PlanosView} />
       <MenuStackNav.Screen name="Integracao" component={IntegracaoView} />
     </MenuStackNav.Navigator>
@@ -55,19 +54,49 @@ function ProdutosStack(): React.ReactNode {
   );
 }
 
-/** Paineis de analise: hub com a lista de telas e cada analise em si. */
+/** Aba Analises: hub com as telas de precos e cada uma delas. */
 function DashboardStack(): React.ReactNode {
   return (
     <DashboardStackNav.Navigator screenOptions={{ headerShown: false }}>
       <DashboardStackNav.Screen name="DashboardHome" component={DashboardHomeView} />
       <DashboardStackNav.Screen name="AnalisePrecos" component={AnalisePrecosView} />
+      <DashboardStackNav.Screen name="HistoricoPrecos" component={HistoricoPrecosView} />
+      <DashboardStackNav.Screen name="Orcamento" component={OrcamentoView} />
     </DashboardStackNav.Navigator>
   );
 }
 
 export default function AppRoutes(): React.ReactNode {
+  const { colors, escuro, fontesCarregadas } = useTheme();
+
+  /** Fundo das transicoes e cores padrao da navegacao seguem o tema do app. */
+  const temaNavegacao = useMemo((): Theme => {
+    const base = escuro ? DarkTheme : DefaultTheme;
+
+    return {
+      ...base,
+      colors: {
+        ...base.colors,
+        primary: colors.primary,
+        background: colors.background,
+        card: colors.surface,
+        text: colors.textStrong,
+        border: colors.border,
+        notification: colors.danger,
+      },
+      fonts: fontesCarregadas
+        ? {
+            regular: { fontFamily: fontes.regular, fontWeight: 'normal' },
+            medium: { fontFamily: fontes.medium, fontWeight: 'normal' },
+            bold: { fontFamily: fontes.bold, fontWeight: 'normal' },
+            heavy: { fontFamily: fontes.heavy, fontWeight: 'normal' },
+          }
+        : base.fonts,
+    };
+  }, [colors, escuro, fontesCarregadas]);
+
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={temaNavegacao}>
       <Tab.Navigator
         initialRouteName="Home"
         screenOptions={({ route }) => ({
@@ -76,6 +105,10 @@ export default function AppRoutes(): React.ReactNode {
           headerShown: false,
           tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.textSubtle,
+          tabBarLabelStyle: {
+            fontSize: fontSize.micro,
+            fontFamily: fontesCarregadas ? fontes.medium : undefined,
+          },
           tabBarStyle: {
             backgroundColor: colors.surface,
             borderTopColor: colors.border,
@@ -85,19 +118,19 @@ export default function AppRoutes(): React.ReactNode {
             paddingTop: 6,
           },
           tabBarIcon: ({ color, size, focused }) => (
-            <TabIcon routeName={route.name} color={color} size={focused ? size + 1 : size} />
+            <TabIcon routeName={route.name} color={color} size={size} focused={focused} />
           ),
         })}
       >
         <Tab.Screen
           name="Home"
           component={HomeView}
-          options={{ title: 'Finance Diario', tabBarLabel: 'Home' }}
+          options={{ title: 'Finance Diário', tabBarLabel: 'Início' }}
         />
         <Tab.Screen
           name="GastosMensais"
           component={MensalView}
-          options={{ title: 'Gastos Mensais', tabBarLabel: 'Mes' }}
+          options={{ title: 'Gastos do mês', tabBarLabel: 'Mês' }}
         />
         <Tab.Screen
           name="Produtos"
@@ -107,7 +140,7 @@ export default function AppRoutes(): React.ReactNode {
         <Tab.Screen
           name="Dashboard"
           component={DashboardStack}
-          options={{ title: 'Dashboard', tabBarLabel: 'Dashboard' }}
+          options={{ title: 'Análises', tabBarLabel: 'Análises' }}
         />
         <Tab.Screen
           name="Menu"

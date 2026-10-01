@@ -1,9 +1,10 @@
 import dayjs from 'dayjs';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import BrazilianDateInput from '../../../components/BrazilianDateInput';
 import SeletorMultiplo from '../../../components/SeletorMultiplo';
 import type { Empresa } from '../../../models/empresas';
-import { colors, sharedStyles } from '../../../theme';
+import { useTheme } from '../../../theme';
+import { Text } from '../../../components/ui';
 
 type DadosPesquisaProps = {
   empresas: Empresa[];
@@ -24,6 +25,7 @@ export default function DadosPesquisa({
   onTrocarData,
   dataInputKey,
 }: DadosPesquisaProps): React.ReactNode {
+  const { colors, sharedStyles } = useTheme();
   return (
     <View style={sharedStyles.card}>
       <SeletorMultiplo

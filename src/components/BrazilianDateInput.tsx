@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { TextInput, type StyleProp, type TextInputProps, type TextStyle } from 'react-native';
+import { type StyleProp, type TextInputProps, type TextStyle } from 'react-native';
+import { TextInput } from './ui';
 
 type BrazilianDateInputProps = Omit<TextInputProps, 'value' | 'onChangeText'> & {
   defaultValue?: string;

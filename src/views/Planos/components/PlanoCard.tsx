@@ -1,15 +1,14 @@
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { IconButton } from '../../../components/ui';
+import { View } from 'react-native';
+import { BarraProgresso, Button, Text } from '../../../components/ui';
 import {
-  colors,
   fontSize,
   fontWeight,
   iconSize,
+  makeStyles,
   radius,
-  sharedStyles,
   spacing,
+  useTheme,
 } from '../../../theme';
 import { formatarData, toCurrency } from '../../../utils/format';
 import { ROTULO_FREQUENCIA } from '../../../utils/parcelas';
@@ -21,77 +20,91 @@ type PlanoCardProps = {
   onExcluir: () => void;
 };
 
-/** Cartao de uma assinatura ou de um parcelamento em andamento. */
+/** Cartao de uma assinatura ou de um parcelamento, com o progresso das parcelas. */
 export default function PlanoCard({
   item,
   onEncerrar,
   onExcluir,
 }: PlanoCardProps): React.ReactNode {
+  const { colors, sharedStyles } = useTheme();
+  const styles = useStyles();
   const { plano } = item;
   const assinatura = plano.tipo === 'assinatura';
   const ativo = item.emAndamento;
+  const totalParcelas = plano.total_parcelas ?? null;
 
   const ritmo = assinatura
     ? ROTULO_FREQUENCIA[plano.frequencia]
-    : `${plano.total_parcelas}x de ${toCurrency(item.valorParcela)}`;
+    : `${totalParcelas}x de ${toCurrency(item.valorParcela)}`;
 
   return (
     <View style={[sharedStyles.card, !ativo && styles.cardEncerrado]}>
       <View style={styles.header}>
-        <View style={styles.info}>
-          <View style={styles.tituloRow}>
-            <Ionicons
-              name={assinatura ? 'repeat' : 'card-outline'}
-              size={iconSize.sm}
-              color={colors.primary}
-            />
-            <Text style={sharedStyles.listCardTitle}>{plano.descricao}</Text>
-          </View>
+        <View style={[styles.icone, !ativo && styles.iconeEncerrado]}>
+          <Ionicons
+            name={assinatura ? 'repeat' : 'card-outline'}
+            size={iconSize.md}
+            color={ativo ? colors.primary : colors.textMuted}
+          />
+        </View>
 
-          <Text style={styles.meta}>
+        <View style={styles.info}>
+          <Text style={sharedStyles.listCardTitle} numberOfLines={1}>
+            {plano.descricao}
+          </Text>
+          <Text style={styles.meta} numberOfLines={1}>
             {ritmo}
-            {item.empresa ? ` • ${item.empresa}` : ''}
+            {item.empresa ? ` · ${item.empresa}` : ''}
           </Text>
         </View>
 
-        <View style={sharedStyles.iconButtonRow}>
-          {ativo && <IconButton icon="stop-circle" variant="info" onPress={onEncerrar} />}
-          <IconButton icon="trash" variant="danger" onPress={onExcluir} />
-        </View>
+        <Text style={styles.valorParcela}>{toCurrency(item.valorParcela)}</Text>
       </View>
 
-      <View style={styles.linhas}>
-        <View style={styles.linha}>
-          <Text style={styles.rotulo}>{assinatura ? 'Por cobranca' : 'Valor da parcela'}</Text>
-          <Text style={styles.valor}>{toCurrency(item.valorParcela)}</Text>
+      {totalParcelas !== null && (
+        <View style={styles.progresso}>
+          <BarraProgresso
+            total={totalParcelas}
+            segmentos={[
+              {
+                valor: item.cobrancasPagas,
+                cor: item.concluido ? colors.success : colors.primary,
+              },
+            ]}
+          />
+          <View style={styles.linha}>
+            <Text style={styles.rotulo}>
+              {`${item.cobrancasPagas} de ${totalParcelas} pagas · ${toCurrency(item.totalPago)}`}
+            </Text>
+            {plano.valor_total !== null && plano.valor_total !== undefined && (
+              <Text
+                style={styles.rotulo}
+              >{`Total ${toCurrency(Math.abs(plano.valor_total))}`}</Text>
+            )}
+          </View>
         </View>
+      )}
 
+      <View style={styles.linhas}>
         {assinatura && plano.frequencia !== 'mensal' && (
           <View style={styles.linha}>
-            <Text style={styles.rotulo}>Equivale por mes</Text>
+            <Text style={styles.rotulo}>Equivale por mês</Text>
             <Text style={styles.valor}>{toCurrency(item.custoMensal)}</Text>
           </View>
         )}
 
-        {!assinatura && plano.valor_total !== null && plano.valor_total !== undefined && (
+        {assinatura && (
           <View style={styles.linha}>
-            <Text style={styles.rotulo}>Total da compra</Text>
-            <Text style={styles.valor}>{toCurrency(Math.abs(plano.valor_total))}</Text>
+            <Text style={styles.rotulo}>Já pago</Text>
+            <Text style={styles.valor}>
+              {`${item.cobrancasPagas} ${item.cobrancasPagas === 1 ? 'cobrança' : 'cobranças'} · ${toCurrency(item.totalPago)}`}
+            </Text>
           </View>
         )}
 
         <View style={styles.linha}>
-          <Text style={styles.rotulo}>Ja pago</Text>
-          <Text style={styles.valor}>
-            {plano.total_parcelas
-              ? `${item.cobrancasPagas}/${plano.total_parcelas} • ${toCurrency(item.totalPago)}`
-              : `${item.cobrancasPagas} cobranca(s) • ${toCurrency(item.totalPago)}`}
-          </Text>
-        </View>
-
-        <View style={styles.linha}>
           <Text style={styles.rotulo}>
-            {ativo ? 'Proxima cobranca' : item.concluido ? 'Quitado' : 'Encerrado em'}
+            {ativo ? 'Próxima cobrança' : item.concluido ? 'Quitado' : 'Encerrado em'}
           </Text>
           <Text style={[styles.valor, ativo && styles.valorDestaque]}>
             {ativo && item.proximaCobranca
@@ -102,33 +115,67 @@ export default function PlanoCard({
           </Text>
         </View>
       </View>
+
+      <View style={styles.acoes}>
+        {ativo && (
+          <Button
+            label="Encerrar"
+            icon="stop-circle-outline"
+            variant="secondary"
+            size="sm"
+            flex
+            onPress={onEncerrar}
+          />
+        )}
+        <Button
+          label="Excluir"
+          icon="trash-outline"
+          variant="danger"
+          size="sm"
+          flex
+          onPress={onExcluir}
+        />
+      </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   cardEncerrado: {
-    backgroundColor: colors.surfaceAlt,
-    borderStyle: 'dashed',
+    backgroundColor: colors.surfaceMuted,
+    opacity: 0.85,
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
+    alignItems: 'center',
     gap: spacing.md,
+  },
+  icone: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.lg,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconeEncerrado: {
+    backgroundColor: colors.surface,
   },
   info: {
     flex: 1,
     gap: 2,
   },
-  tituloRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
   meta: {
     fontSize: fontSize.caption,
     color: colors.textMuted,
+  },
+  valorParcela: {
+    fontSize: fontSize.subtitle,
+    fontWeight: fontWeight.bold,
+    color: colors.textStrong,
+  },
+  progresso: {
+    gap: spacing.xs,
   },
   linhas: {
     borderTopWidth: 1,
@@ -149,11 +196,15 @@ const styles = StyleSheet.create({
   valor: {
     fontSize: fontSize.small,
     fontWeight: fontWeight.medium,
-    color: colors.textBody,
+    color: colors.text,
   },
   valorDestaque: {
     color: colors.primary,
     fontWeight: fontWeight.bold,
-    borderRadius: radius.sm,
   },
-});
+  acoes: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+}));

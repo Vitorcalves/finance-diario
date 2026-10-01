@@ -22,12 +22,15 @@ const isInvalidNativeConnectionError = (error: unknown): boolean => {
   );
 };
 
-export const getConnection = async (): Promise<SQLite.SQLiteDatabase> => {
-  if (!dbPromise) {
-    dbPromise = openConnection();
-  }
-
-  let db = await dbPromise;
+/**
+ * Abre a conexao e confere uma unica vez que ela responde.
+ *
+ * Depois de um reload do app o modulo nativo pode devolver uma conexao ja
+ * fechada; nesse caso uma nova e aberta. A conferencia fica so na abertura:
+ * repeti-la antes de toda consulta dobrava as idas ao banco.
+ */
+const abrirConexaoValidada = async (): Promise<SQLite.SQLiteDatabase> => {
+  const db = await openConnection();
 
   try {
     await db.getFirstAsync<{ ok: number }>('SELECT 1 AS ok');
@@ -37,11 +40,57 @@ export const getConnection = async (): Promise<SQLite.SQLiteDatabase> => {
       throw error;
     }
 
-    dbPromise = openConnection();
-    db = await dbPromise;
-    await db.getFirstAsync<{ ok: number }>('SELECT 1 AS ok');
-    return db;
+    const nova = await openConnection();
+    await nova.getFirstAsync<{ ok: number }>('SELECT 1 AS ok');
+    return nova;
   }
+};
+
+export const getConnection = async (): Promise<SQLite.SQLiteDatabase> => {
+  if (!dbPromise) {
+    const abertura = abrirConexaoValidada();
+    dbPromise = abertura;
+
+    // Falhou ao abrir: a proxima chamada tenta de novo em vez de herdar o erro.
+    abertura.catch(() => {
+      if (dbPromise === abertura) {
+        dbPromise = null;
+      }
+    });
+  }
+
+  return dbPromise;
+};
+
+let profundidadeTransacao = 0;
+
+/**
+ * Roda `operacao` dentro de uma transacao: se qualquer passo falhar, nada do
+ * que ela gravou fica no banco (ex.: compra parcelada sem parcelas, produto sem
+ * as variantes).
+ *
+ * Chamadas aninhadas reaproveitam a transacao de fora - o SQLite nao aceita um
+ * BEGIN dentro de outro.
+ */
+export const emTransacao = async <T>(operacao: () => Promise<T>): Promise<T> => {
+  if (profundidadeTransacao > 0) {
+    return operacao();
+  }
+
+  const db = await getConnection();
+  let resultado: T | undefined;
+
+  profundidadeTransacao += 1;
+
+  try {
+    await db.withTransactionAsync(async () => {
+      resultado = await operacao();
+    });
+  } finally {
+    profundidadeTransacao -= 1;
+  }
+
+  return resultado as T;
 };
 
 export const initializeDatabase = async (): Promise<void> => {

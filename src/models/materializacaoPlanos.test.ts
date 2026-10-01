@@ -163,7 +163,7 @@ describe('criarAssinatura', () => {
     const planoId = await criarAssinatura(dados, '2026-02-28');
     const descricoes = (await parcelasDo(planoId)).map((p) => p.descricao).sort();
 
-    assert.deepEqual(descricoes, ['Streaming (1a cobranca)', 'Streaming (2a cobranca)']);
+    assert.deepEqual(descricoes, ['Streaming (1ª cobrança)', 'Streaming (2ª cobrança)']);
   });
 
   test('assinatura com fim previsto para de gerar', async () => {

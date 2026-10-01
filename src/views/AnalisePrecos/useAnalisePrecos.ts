@@ -70,7 +70,7 @@ export function useAnalisePrecos(produtoInicial?: string): UseAnalisePrecos {
       );
     } catch (error: unknown) {
       console.error('Erro ao carregar produtos do dashboard:', error);
-      Alert.alert('Erro', 'Nao foi possivel carregar os produtos');
+      Alert.alert('Erro', 'Não foi possível carregar os produtos');
     } finally {
       setLoading(false);
     }
@@ -102,7 +102,7 @@ export function useAnalisePrecos(produtoInicial?: string): UseAnalisePrecos {
         }
       } catch (error: unknown) {
         console.error('Erro ao carregar series de preco:', error);
-        Alert.alert('Erro', 'Nao foi possivel carregar os precos do produto');
+        Alert.alert('Erro', 'Não foi possível carregar os preços do produto');
       } finally {
         if (ativo) {
           setCarregandoSeries(false);
@@ -156,7 +156,7 @@ export function useAnalisePrecos(produtoInicial?: string): UseAnalisePrecos {
       : historico;
 
     return [
-      { id: 'historico', rotulo: 'Historico de precos', pontos: agruparPorDia(historicoFiltrado) },
+      { id: 'historico', rotulo: 'Histórico de preços', pontos: agruparPorDia(historicoFiltrado) },
       { id: 'pago', rotulo: 'Valor pago', pontos: agruparPorDia(pagosFiltrados) },
     ];
   }, [pagos, historico, varianteId]);

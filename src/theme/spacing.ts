@@ -12,10 +12,12 @@ export const spacing = {
 /** Raios de canto padronizados por tipo de elemento. */
 export const radius = {
   sm: 6,
-  md: 8,
-  lg: 10,
-  xl: 12,
-  xxl: 16,
+  md: 10,
+  lg: 12,
+  /** Cartoes. */
+  xl: 16,
+  /** Paineis e janelas flutuantes. */
+  xxl: 20,
   pill: 999,
 } as const;
 

@@ -1,47 +1,62 @@
-import React, { useMemo, useState } from 'react';
-import {
-  Alert,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Alert, View } from 'react-native';
 import dayjs from 'dayjs';
 import { v4 as uuidv4 } from 'uuid';
 import BrazilianDateInput from '../../../components/BrazilianDateInput';
 import BrazilianIntegerInput from '../../../components/BrazilianIntegerInput';
 import SeletorMultiplo from '../../../components/SeletorMultiplo';
-import { Button } from '../../../components/ui';
-import { colors, radius, shadows, sharedStyles, spacing } from '../../../theme';
+import {
+  BottomSheet,
+  Button,
+  ChipSelector,
+  SegmentedControl,
+  Text,
+  TextInput,
+  useToast,
+} from '../../../components/ui';
+import { fontSize, fontWeight, makeStyles, radius, spacing, useTheme } from '../../../theme';
 import { toCurrency } from '../../../utils/format';
+import { vibrarAviso } from '../../../utils/haptics';
 import { useCatalogoLancamento } from '../useCatalogoLancamento';
 import type { ItemLancamento, NovoLancamento, TipoLancamento } from '../types';
 import LancamentoItemCard from './LancamentoItemCard';
 import LancamentoItemForm, { type DadosItemLancamento } from './LancamentoItemForm';
-import LancamentoTipoSelector from './LancamentoTipoSelector';
 import ParcelamentoSelector from './ParcelamentoSelector';
 
 const todayIso = (): string => dayjs().format('YYYY-MM-DD');
+const ontemIso = (): string => dayjs().subtract(1, 'day').format('YYYY-MM-DD');
+
+type AtalhoData = 'hoje' | 'ontem';
+
+/** Mostra o erro de validacao sem fechar o painel. */
+const avisar = (mensagem: string): void => {
+  vibrarAviso();
+  Alert.alert('Confira o lançamento', mensagem);
+};
 
 type NovoLancamentoFormProps = {
+  visivel: boolean;
+  onFechar: () => void;
   onAddLancamento: (lancamento: NovoLancamento) => Promise<void>;
 };
 
 /**
- * Botao + modal de novo lancamento.
+ * Painel de novo lancamento: valor em destaque no topo, tipo, descricao,
+ * data, empresa, itens e parcelamento.
  *
  * Guarda apenas o cabecalho do lancamento e a lista de itens; a edicao de um
  * item fica em `LancamentoItemForm`.
  */
 export default function NovoLancamentoForm({
+  visivel,
+  onFechar,
   onAddLancamento,
 }: NovoLancamentoFormProps): React.ReactNode {
+  const { colors, sharedStyles } = useTheme();
+  const styles = useStyles();
+  const toast = useToast();
   const catalogo = useCatalogoLancamento();
-
-  const [modalVisible, setModalVisible] = useState(false);
+  const { carregar } = catalogo;
 
   const [tipo, setTipo] = useState<TipoLancamento>('saida');
   const [empresaId, setEmpresaId] = useState<string | null>(null);
@@ -49,6 +64,7 @@ export default function NovoLancamentoForm({
   const [data, setData] = useState(todayIso());
   const [dataInputKey, setDataInputKey] = useState(0);
   const [valorManual, setValorManual] = useState('');
+  const [salvando, setSalvando] = useState(false);
 
   const [parcelado, setParcelado] = useState(false);
   const [parcelas, setParcelas] = useState(2);
@@ -56,9 +72,18 @@ export default function NovoLancamentoForm({
   const [parcelaDataKey, setParcelaDataKey] = useState(0);
 
   const [itens, setItens] = useState<ItemLancamento[]>([]);
+  /** O mini formulario de item so aparece quando o usuario pede. */
+  const [formItemAberto, setFormItemAberto] = useState(false);
   const [itemEditIndex, setItemEditIndex] = useState<number | null>(null);
   /** Trocada a cada edicao/salvamento para remontar o mini formulario limpo. */
   const [itemFormKey, setItemFormKey] = useState(0);
+
+  // Cadastros frescos a cada abertura: um produto criado agora ja aparece.
+  useEffect(() => {
+    if (visivel) {
+      carregar();
+    }
+  }, [visivel, carregar]);
 
   const totalItens = useMemo(
     () => itens.reduce((soma, item) => soma + item.quantidade * item.precoUnitario, 0),
@@ -70,6 +95,14 @@ export default function NovoLancamentoForm({
   /** Entrada parcelada nao faz sentido aqui: o parcelamento e do que se compra. */
   const permiteParcelar = tipo === 'saida';
 
+  const atalhoData: AtalhoData | null =
+    data === todayIso() ? 'hoje' : data === ontemIso() ? 'ontem' : null;
+
+  const escolherData = (atalho: AtalhoData): void => {
+    setData(atalho === 'hoje' ? todayIso() : ontemIso());
+    setDataInputKey((atual) => atual + 1);
+  };
+
   const alternarParcelamento = (ativo: boolean): void => {
     setParcelado(ativo);
 
@@ -80,16 +113,15 @@ export default function NovoLancamentoForm({
     }
   };
 
-  const abrirModal = (): void => {
-    catalogo.carregar();
-    setModalVisible(true);
-  };
-
-  const fecharModal = (): void => setModalVisible(false);
-
-  const reiniciarItemForm = (index: number | null): void => {
+  const abrirFormItem = (index: number | null): void => {
     setItemEditIndex(index);
     setItemFormKey((atual) => atual + 1);
+    setFormItemAberto(true);
+  };
+
+  const fecharFormItem = (): void => {
+    setItemEditIndex(null);
+    setFormItemAberto(false);
   };
 
   const limparFormulario = (): void => {
@@ -104,7 +136,7 @@ export default function NovoLancamentoForm({
     setPrimeiraParcela(todayIso());
     setParcelaDataKey((atual) => atual + 1);
     setItens([]);
-    reiniciarItemForm(null);
+    fecharFormItem();
   };
 
   const salvarItem = (dados: DadosItemLancamento): void => {
@@ -118,49 +150,56 @@ export default function NovoLancamentoForm({
       return copia;
     });
 
-    reiniciarItemForm(null);
+    fecharFormItem();
   };
 
   const removerItem = (index: number): void => {
     setItens((prev) => prev.filter((_, posicao) => posicao !== index));
 
     if (itemEditIndex === index) {
-      reiniciarItemForm(null);
+      fecharFormItem();
     }
   };
 
   const salvarLancamento = async (): Promise<void> => {
+    // Um segundo toque enquanto grava criaria o lancamento em dobro.
+    if (salvando) {
+      return;
+    }
+
     const descricaoFinal = descricao.trim() || itens[0]?.descricao || '';
     const dataFinal = data.trim();
 
     if (!descricaoFinal) {
-      Alert.alert('Erro', 'Descricao do lancamento e obrigatoria');
+      avisar('Informe a descrição do lançamento.');
       return;
     }
 
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dataFinal)) {
-      Alert.alert('Erro', 'Informe uma data valida');
+      avisar('Informe uma data válida.');
       return;
     }
 
     if (totalLancamento <= 0) {
-      Alert.alert('Erro', 'Adicione ao menos um item ou informe o valor do lancamento');
+      avisar('Informe o valor ou adicione ao menos um item.');
       return;
     }
 
     const parcelandoAgora = permiteParcelar && parcelado;
 
     if (parcelandoAgora && parcelas < 2) {
-      Alert.alert('Erro', 'Uma compra parcelada precisa de ao menos 2 parcelas');
+      avisar('Uma compra parcelada precisa de ao menos 2 parcelas.');
       return;
     }
 
     if (parcelandoAgora && !/^\d{4}-\d{2}-\d{2}$/.test(primeiraParcela)) {
-      Alert.alert('Erro', 'Informe uma data valida para a 1a parcela');
+      avisar('Informe uma data válida para a 1ª parcela.');
       return;
     }
 
     try {
+      setSalvando(true);
+
       await onAddLancamento({
         tipo,
         descricao: descricaoFinal,
@@ -171,186 +210,224 @@ export default function NovoLancamentoForm({
         parcelamento: parcelandoAgora ? { parcelas, primeiraParcela } : null,
       });
 
+      const mensagem = parcelandoAgora
+        ? `Compra parcelada em ${parcelas}x registrada`
+        : `${tipo === 'saida' ? 'Saída' : 'Entrada'} de ${toCurrency(totalLancamento)} registrada`;
+
       limparFormulario();
-      fecharModal();
+      onFechar();
+      toast.mostrar(mensagem);
     } catch (error: unknown) {
       console.error('Erro ao adicionar lancamento', error);
-      Alert.alert('Erro', 'Nao foi possivel salvar o lancamento');
+      Alert.alert('Erro', 'Não foi possível salvar o lançamento. Nada foi gravado.');
+    } finally {
+      setSalvando(false);
     }
   };
 
+  const corTotal = tipo === 'saida' ? colors.danger : colors.success;
+
   return (
-    <>
-      <Button label="Novo lancamento" onPress={abrirModal} />
-
-      <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={fecharModal}>
-        <View style={styles.overlay}>
-          <Pressable style={styles.backdrop} onPress={fecharModal} />
-
-          <View style={styles.card}>
-            <Text style={sharedStyles.sectionTitle}>Novo lancamento</Text>
-
-            <ScrollView style={styles.cardScroll} nestedScrollEnabled>
-              <LancamentoTipoSelector tipo={tipo} onChange={setTipo} />
-
-              <SeletorMultiplo
-                label="Empresa"
-                opcoes={catalogo.empresas.map((empresa) => ({
-                  id: empresa.id,
-                  nome: empresa.nome,
-                }))}
-                selecionados={empresaId ? [empresaId] : []}
-                onToggle={(id): void => setEmpresaId((atual) => (atual === id ? null : id))}
-                placeholderBusca="Buscar empresa"
-                textoTrigger="Selecionar empresa"
-                textoVazio="Nenhuma empresa cadastrada"
-                textoNenhumEncontrado="Nenhuma empresa encontrada"
-              />
-
-              <Text style={sharedStyles.label}>Descricao</Text>
-              <TextInput
-                value={descricao}
-                onChangeText={setDescricao}
-                placeholder="Ex.: Mercado"
-                placeholderTextColor={colors.placeholder}
-                style={[sharedStyles.input, sharedStyles.inputSpaced]}
-              />
-
-              <Text style={sharedStyles.label}>Data (DD/MM/AAAA)</Text>
-              <BrazilianDateInput
-                key={`data-${dataInputKey}`}
-                defaultValue={data}
-                onChangeValue={setData}
-                placeholder={dayjs().format('DD/MM/YYYY')}
-                placeholderTextColor={colors.placeholder}
-                style={[sharedStyles.input, sharedStyles.inputSpaced]}
-              />
-
-              <Text style={sharedStyles.label}>Itens</Text>
-
-              {itens.length === 0 ? (
-                <Text style={sharedStyles.inlineEmptyText}>
-                  Nenhum item adicionado. Use o valor abaixo para um lancamento sem produtos.
-                </Text>
-              ) : (
-                itens.map((item, index) => (
-                  <LancamentoItemCard
-                    key={item.localId}
-                    item={item}
-                    variante={catalogo.variantes.find(
-                      (variante) => variante.id === item.varianteId,
-                    )}
-                    onEditar={(): void => reiniciarItemForm(index)}
-                    onRemover={(): void => removerItem(index)}
-                  />
-                ))
-              )}
-
-              <LancamentoItemForm
-                key={`item-${itemFormKey}`}
-                produtos={catalogo.produtos}
-                variantes={catalogo.variantes}
-                marcas={catalogo.marcas}
-                itemInicial={itemEditIndex !== null ? itens[itemEditIndex] : null}
-                onSalvar={salvarItem}
-                onCancelar={(): void => reiniciarItemForm(null)}
-              />
-
-              {itens.length === 0 && (
-                <>
-                  <Text style={sharedStyles.label}>Valor (R$)</Text>
-                  <BrazilianIntegerInput
-                    value={valorManual}
-                    onChangeValue={setValorManual}
-                    decimalScale={2}
-                    placeholder="Ex.: 43,90"
-                    placeholderTextColor={colors.placeholder}
-                    style={[sharedStyles.input, sharedStyles.inputSpaced]}
-                  />
-                </>
-              )}
-              {permiteParcelar && (
-                <ParcelamentoSelector
-                  ativo={parcelado}
-                  onAlternar={alternarParcelamento}
-                  parcelas={parcelas}
-                  onChangeParcelas={setParcelas}
-                  primeiraParcela={primeiraParcela}
-                  onChangePrimeiraParcela={setPrimeiraParcela}
-                  dataInputKey={parcelaDataKey}
-                  total={totalLancamento}
-                />
-              )}
-            </ScrollView>
-
-            <View style={styles.totalRow}>
-              <Text style={sharedStyles.totalLabel}>Total</Text>
-              <Text
-                style={[
-                  sharedStyles.totalValue,
-                  tipo === 'saida' ? sharedStyles.negative : sharedStyles.positive,
-                ]}
-              >
-                {toCurrency(tipo === 'saida' ? -totalLancamento : totalLancamento)}
-              </Text>
-            </View>
-
-            <View style={sharedStyles.actionsRow}>
-              <Button label="Cancelar" variant="secondary" flex onPress={fecharModal} />
-              <Button
-                label={
-                  permiteParcelar && parcelado
-                    ? `Parcelar em ${parcelas}x`
-                    : tipo === 'saida'
-                      ? 'Adicionar saida'
-                      : 'Adicionar entrada'
-                }
-                flex
-                style={tipo === 'entrada' ? styles.buttonEntrada : undefined}
-                onPress={(): void => {
-                  void salvarLancamento();
-                }}
-              />
-            </View>
-          </View>
+    <BottomSheet
+      visivel={visivel}
+      onFechar={onFechar}
+      titulo="Novo lançamento"
+      rodape={
+        <View style={sharedStyles.actionsRow}>
+          <Button label="Cancelar" variant="secondary" flex onPress={onFechar} />
+          <Button
+            label={
+              permiteParcelar && parcelado
+                ? `Parcelar em ${parcelas}x`
+                : tipo === 'saida'
+                  ? 'Adicionar saída'
+                  : 'Adicionar entrada'
+            }
+            variant={tipo === 'entrada' ? 'success' : 'primary'}
+            icon="checkmark"
+            loading={salvando}
+            flex
+            onPress={(): void => {
+              void salvarLancamento();
+            }}
+          />
         </View>
-      </Modal>
-    </>
+      }
+    >
+      <SegmentedControl
+        opcoes={[
+          { valor: 'saida', rotulo: 'Saída', cor: colors.danger },
+          { valor: 'entrada', rotulo: 'Entrada', cor: colors.success },
+        ]}
+        valor={tipo}
+        onChange={setTipo}
+      />
+
+      <View style={styles.valorBloco}>
+        {itens.length === 0 ? (
+          <>
+            <Text style={styles.valorRotulo}>Valor</Text>
+            <BrazilianIntegerInput
+              value={valorManual}
+              onChangeValue={setValorManual}
+              decimalScale={2}
+              placeholder="0,00"
+              style={[styles.valorInput, { color: corTotal }]}
+              accessibilityLabel="Valor do lançamento"
+            />
+          </>
+        ) : (
+          <>
+            <Text style={styles.valorRotulo}>
+              {`Soma de ${itens.length} ${itens.length === 1 ? 'item' : 'itens'}`}
+            </Text>
+            <Text style={[styles.valorTotal, { color: corTotal }]}>
+              {toCurrency(totalLancamento)}
+            </Text>
+          </>
+        )}
+      </View>
+
+      <Text style={sharedStyles.label}>Descrição</Text>
+      <TextInput
+        value={descricao}
+        onChangeText={setDescricao}
+        placeholder={itens[0]?.descricao ?? 'Ex.: Mercado'}
+        style={[sharedStyles.input, sharedStyles.inputSpaced]}
+      />
+
+      <Text style={sharedStyles.label}>Data</Text>
+      <View style={styles.dataLinha}>
+        <ChipSelector
+          opcoes={[
+            { valor: 'hoje' as const, rotulo: 'Hoje' },
+            { valor: 'ontem' as const, rotulo: 'Ontem' },
+          ]}
+          selecionado={atalhoData}
+          onSelecionar={escolherData}
+        />
+        <BrazilianDateInput
+          key={`data-${dataInputKey}`}
+          defaultValue={data}
+          onChangeValue={setData}
+          placeholder={dayjs().format('DD/MM/YYYY')}
+          style={[sharedStyles.input, styles.dataInput]}
+        />
+      </View>
+
+      <SeletorMultiplo
+        label="Empresa"
+        opcoes={catalogo.empresas.map((empresa) => ({
+          id: empresa.id,
+          nome: empresa.nome,
+        }))}
+        selecionados={empresaId ? [empresaId] : []}
+        onToggle={(id): void => setEmpresaId((atual) => (atual === id ? null : id))}
+        placeholderBusca="Buscar empresa"
+        textoTrigger="Selecionar empresa"
+        textoVazio="Nenhuma empresa cadastrada"
+        textoNenhumEncontrado="Nenhuma empresa encontrada"
+      />
+
+      <View style={styles.itensCabecalho}>
+        <Text style={sharedStyles.label}>Itens</Text>
+        {!formItemAberto && (
+          <Button
+            label="Adicionar item"
+            icon="add"
+            variant="ghost"
+            size="sm"
+            onPress={(): void => abrirFormItem(null)}
+          />
+        )}
+      </View>
+
+      {itens.length === 0 && !formItemAberto && (
+        <Text style={styles.itensDica}>
+          Opcional: detalhe os produtos comprados para acompanhar o histórico de preços.
+        </Text>
+      )}
+
+      {itens.map((item, index) => (
+        <LancamentoItemCard
+          key={item.localId}
+          item={item}
+          variante={catalogo.variantes.find((variante) => variante.id === item.varianteId)}
+          onEditar={(): void => abrirFormItem(index)}
+          onRemover={(): void => removerItem(index)}
+        />
+      ))}
+
+      {formItemAberto && (
+        <LancamentoItemForm
+          key={`item-${itemFormKey}`}
+          produtos={catalogo.produtos}
+          variantes={catalogo.variantes}
+          marcas={catalogo.marcas}
+          itemInicial={itemEditIndex !== null ? itens[itemEditIndex] : null}
+          onSalvar={salvarItem}
+          onCancelar={fecharFormItem}
+        />
+      )}
+
+      {permiteParcelar && (
+        <ParcelamentoSelector
+          ativo={parcelado}
+          onAlternar={alternarParcelamento}
+          parcelas={parcelas}
+          onChangeParcelas={setParcelas}
+          primeiraParcela={primeiraParcela}
+          onChangePrimeiraParcela={setPrimeiraParcela}
+          dataInputKey={parcelaDataKey}
+          total={totalLancamento}
+        />
+      )}
+    </BottomSheet>
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: spacing.lg,
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.overlay,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xxl,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.lg,
-    gap: spacing.md,
-    maxHeight: '90%',
-    ...shadows.floating,
-  },
-  cardScroll: {
-    flexGrow: 0,
-  },
-  totalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+const useStyles = makeStyles((colors) => ({
+  valorBloco: {
     alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: colors.divider,
-    paddingTop: spacing.md,
+    paddingVertical: spacing.lg,
+    gap: spacing.xs,
   },
-  buttonEntrada: {
-    backgroundColor: colors.success,
+  valorRotulo: {
+    fontSize: fontSize.caption,
+    fontWeight: fontWeight.medium,
+    color: colors.textMuted,
   },
-});
+  valorInput: {
+    alignSelf: 'stretch',
+    textAlign: 'center',
+    fontSize: 40,
+    fontWeight: fontWeight.heavy,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.lg,
+    borderWidth: 0,
+  },
+  valorTotal: {
+    fontSize: 40,
+    fontWeight: fontWeight.heavy,
+    letterSpacing: -1,
+  },
+  dataLinha: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  dataInput: {
+    flex: 1,
+  },
+  itensCabecalho: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  itensDica: {
+    fontSize: fontSize.caption,
+    color: colors.textSubtle,
+    marginBottom: spacing.md,
+  },
+}));

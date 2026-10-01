@@ -7,7 +7,7 @@ import {
   parcelasDaCompra,
   rotuloParcela,
 } from '../utils/parcelas';
-import { getConnection } from './database';
+import { emTransacao, getConnection } from './database';
 import {
   atualizarGeradoAte,
   insertPlano,
@@ -101,8 +101,15 @@ export type CompraParceladaCriada = {
   compraTransacaoId: string;
 };
 
-/** Cria o plano, a transacao da compra e todas as parcelas de uma vez. */
+/**
+ * Cria o plano, a transacao da compra e todas as parcelas de uma vez - numa
+ * transacao: ou tudo e gravado, ou nada.
+ */
 export const criarCompraParcelada = async (
+  dados: DadosCompraParcelada,
+): Promise<CompraParceladaCriada> => emTransacao(() => gravarCompraParcelada(dados));
+
+const gravarCompraParcelada = async (
   dados: DadosCompraParcelada,
 ): Promise<CompraParceladaCriada> => {
   const frequencia = dados.frequencia ?? 'mensal';
@@ -174,7 +181,10 @@ export const criarCompraParcelada = async (
 };
 
 /** Gera as cobrancas que faltam de um plano. Devolve quantas foram criadas. */
-const materializarPlano = async (plano: PlanoPagamento, ateData: string): Promise<number> => {
+const materializarPlano = async (plano: PlanoPagamento, ateData: string): Promise<number> =>
+  emTransacao(() => gerarCobrancas(plano, ateData));
+
+const gerarCobrancas = async (plano: PlanoPagamento, ateData: string): Promise<number> => {
   const proximoNumero = (await ultimaParcelaGerada(plano.id)) + 1;
 
   const pendentes = ocorrenciasAte({
@@ -246,7 +256,9 @@ export type DadosAssinatura = {
 export const criarAssinatura = async (
   dados: DadosAssinatura,
   ateData: string = horizontePadrao(),
-): Promise<string> => {
+): Promise<string> => emTransacao(() => gravarAssinatura(dados, ateData));
+
+const gravarAssinatura = async (dados: DadosAssinatura, ateData: string): Promise<string> => {
   const planoId = uuidv4();
 
   await insertPlano({
@@ -278,7 +290,8 @@ export const criarAssinatura = async (
 export const cancelarPlano = async (
   plano: PlanoPagamento,
   dataFim: string = dayjs().format('YYYY-MM-DD'),
-): Promise<void> => {
-  await updatePlano({ ...plano, ativo: 0, data_fim: dataFim });
-  await deleteTransacoesFuturasDoPlano(plano.id, dataFim);
-};
+): Promise<void> =>
+  emTransacao(async () => {
+    await updatePlano({ ...plano, ativo: 0, data_fim: dataFim });
+    await deleteTransacoesFuturasDoPlano(plano.id, dataFim);
+  });

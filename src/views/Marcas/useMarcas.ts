@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useToast } from '../../components/ui';
 import {
   deleteMarcaById,
   insertMarca,
@@ -19,6 +20,7 @@ export type UseMarcas = {
 
 /** Acesso ao cadastro de marcas. */
 export function useMarcas(): UseMarcas {
+  const toast = useToast();
   const [marcas, setMarcas] = useState<Marca[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -28,7 +30,7 @@ export function useMarcas(): UseMarcas {
       setMarcas(marcasDoBanco);
     } catch (error: unknown) {
       console.error('Erro ao carregar marcas:', error);
-      Alert.alert('Erro', 'Nao foi possivel carregar as marcas');
+      Alert.alert('Erro', 'Não foi possível carregar as marcas');
     } finally {
       setLoading(false);
     }
@@ -45,7 +47,7 @@ export function useMarcas(): UseMarcas {
       const nomeLimpo = nome.trim();
 
       if (!nomeLimpo) {
-        Alert.alert('Erro', 'Nome da marca e obrigatorio');
+        Alert.alert('Erro', 'Nome da marca é obrigatório');
         return false;
       }
 
@@ -57,40 +59,40 @@ export function useMarcas(): UseMarcas {
         }
 
         await carregar();
-        Alert.alert('Sucesso', marcaEditando ? 'Marca atualizada!' : 'Marca adicionada!');
+        toast.mostrar(marcaEditando ? 'Marca atualizada' : 'Marca adicionada');
         return true;
       } catch (error: unknown) {
         console.error('Erro ao salvar marca:', error);
-        Alert.alert('Erro', 'Nao foi possivel salvar a marca');
+        Alert.alert('Erro', 'Não foi possível salvar a marca');
         return false;
       }
     },
-    [carregar],
+    [carregar, toast],
   );
 
   const deletar = useCallback(
     (marca: Marca): void => {
-      Alert.alert('Confirmar exclusao', `Deseja deletar "${marca.nome}"?`, [
+      Alert.alert('Excluir marca', `Deseja excluir "${marca.nome}"?`, [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Deletar',
+          text: 'Excluir',
           style: 'destructive',
           onPress: (): void => {
             void (async (): Promise<void> => {
               try {
                 await deleteMarcaById(marca.id);
                 await carregar();
-                Alert.alert('Sucesso', 'Marca deletada!');
+                toast.mostrar('Marca excluída');
               } catch (error: unknown) {
                 console.error('Erro ao deletar marca:', error);
-                Alert.alert('Erro', 'Nao foi possivel deletar a marca');
+                Alert.alert('Erro', 'Não foi possível excluir a marca');
               }
             })();
           },
         },
       ]);
     },
-    [carregar],
+    [carregar, toast],
   );
 
   return { marcas, loading, salvar, deletar };

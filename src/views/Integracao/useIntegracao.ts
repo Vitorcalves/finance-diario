@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Share } from 'react-native';
+import { useToast } from '../../components/ui';
 import {
   analisarBackup,
   BackupInvalidoError,
@@ -67,6 +68,7 @@ const mensagemDeErro = (error: unknown, fallback: string): string => {
 
 /** Estado da tela de integracao: gerar o JSON, sobrescrever a partir de um JSON e enviar para a API. */
 export function useIntegracao(): UseIntegracao {
+  const toast = useToast();
   const [exportacao, setExportacao] = useState<ResultadoExportacao | null>(null);
   const [exportando, setExportando] = useState(false);
 
@@ -100,7 +102,7 @@ export function useIntegracao(): UseIntegracao {
       });
     } catch (error: unknown) {
       console.error('Erro ao exportar banco:', error);
-      Alert.alert('Erro', mensagemDeErro(error, 'Nao foi possivel exportar o banco'));
+      Alert.alert('Erro', mensagemDeErro(error, 'Não foi possível exportar o banco'));
     } finally {
       setExportando(false);
     }
@@ -115,7 +117,7 @@ export function useIntegracao(): UseIntegracao {
       await Share.share({ message: exportacao.json });
     } catch (error: unknown) {
       console.error('Erro ao compartilhar backup:', error);
-      Alert.alert('Erro', 'Nao foi possivel compartilhar o JSON');
+      Alert.alert('Erro', 'Não foi possível compartilhar o JSON');
     }
   }, [exportacao]);
 
@@ -143,7 +145,7 @@ export function useIntegracao(): UseIntegracao {
       });
     } catch (error: unknown) {
       setPrevia(null);
-      Alert.alert('JSON invalido', mensagemDeErro(error, 'Nao foi possivel ler o JSON'));
+      Alert.alert('JSON inválido', mensagemDeErro(error, 'Não foi possível ler o JSON'));
     }
   }, [textoImportacao]);
 
@@ -157,32 +159,32 @@ export function useIntegracao(): UseIntegracao {
         const total = resumo.reduce((soma, item) => soma + item.registros, 0);
 
         limparImportacao();
-        Alert.alert('Sucesso', `Banco sobrescrito com ${total} registro(s).`);
+        toast.mostrar(`Banco restaurado com ${total} ${total === 1 ? 'registro' : 'registros'}`);
         aoConcluir?.();
       } catch (error: unknown) {
         console.error('Erro ao importar banco:', error);
         Alert.alert(
           'Erro',
-          mensagemDeErro(error, 'Nao foi possivel importar o JSON. O banco nao foi alterado'),
+          mensagemDeErro(error, 'Não foi possível importar o JSON. O banco não foi alterado'),
         );
       } finally {
         setImportando(false);
       }
     },
-    [textoImportacao, limparImportacao],
+    [textoImportacao, limparImportacao, toast],
   );
 
   const confirmarImportacao = useCallback(
     (aoConcluir?: () => void): void => {
       if (!previa) {
-        Alert.alert('Atencao', 'Valide o JSON antes de sobrescrever o banco.');
+        Alert.alert('Atenção', 'Valide o JSON antes de sobrescrever o banco.');
         return;
       }
 
       Alert.alert(
         'Sobrescrever banco',
-        `Todos os dados atuais serao apagados e substituidos por ${previa.totalRegistros} ` +
-          'registro(s) do JSON. Esta acao nao pode ser desfeita. Deseja continuar?',
+        `Todos os dados atuais serão apagados e substituídos por ${previa.totalRegistros} ` +
+          'registro(s) do JSON. Esta ação não pode ser desfeita. Deseja continuar?',
         [
           { text: 'Cancelar', style: 'cancel' },
           {
@@ -216,7 +218,7 @@ export function useIntegracao(): UseIntegracao {
       });
     } catch (error: unknown) {
       console.error('Erro ao enviar banco para a API:', error);
-      Alert.alert('Erro', mensagemDeErro(error, 'Nao foi possivel enviar para a API'));
+      Alert.alert('Erro', mensagemDeErro(error, 'Não foi possível enviar para a API'));
     } finally {
       setEnviando(false);
     }
@@ -239,7 +241,7 @@ export function useIntegracao(): UseIntegracao {
       });
     } catch (error: unknown) {
       console.error('Erro ao consultar a IA da API:', error);
-      Alert.alert('Erro', mensagemDeErro(error, 'Nao foi possivel consultar a IA'));
+      Alert.alert('Erro', mensagemDeErro(error, 'Não foi possível consultar a IA'));
     } finally {
       setConsultando(false);
     }

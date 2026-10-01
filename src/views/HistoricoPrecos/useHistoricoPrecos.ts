@@ -74,7 +74,7 @@ export function useHistoricoPrecos(): UseHistoricoPrecos {
       setEmpresas(empresasDoBanco);
     } catch (error: unknown) {
       console.error('Erro ao carregar historico de precos:', error);
-      Alert.alert('Erro', 'Nao foi possivel carregar o historico de precos');
+      Alert.alert('Erro', 'Não foi possível carregar o histórico de preços');
     } finally {
       setLoading(false);
     }
@@ -148,7 +148,7 @@ export function useHistoricoPrecos(): UseHistoricoPrecos {
         subtitulo:
           agrupamento === 'variante'
             ? nomeProduto(produtoDoGrupo)
-            : `${registros.length} registro(s) de preco`,
+            : `${registros.length} registro(s) de preço`,
         registros,
         atual: ordenados[0].preco,
         menor,
@@ -242,8 +242,8 @@ export function useHistoricoPrecos(): UseHistoricoPrecos {
 
       if (!variante) {
         Alert.alert(
-          'Codigo nao encontrado',
-          `Nenhuma variante cadastrada com o codigo ${codigoLimpo}`,
+          'Código não encontrado',
+          `Nenhuma variante cadastrada com o código ${codigoLimpo}`,
         );
         return;
       }

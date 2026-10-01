@@ -1,5 +1,6 @@
-import { StyleSheet, Text, View } from 'react-native';
-import { colors, fontSize } from '../../../theme';
+import { View } from 'react-native';
+import { fontSize, makeStyles } from '../../../theme';
+import { Text } from '../../../components/ui';
 
 type EixoDiasProps = {
   diasNoMes: number;
@@ -7,6 +8,7 @@ type EixoDiasProps = {
 
 /** Marcacoes fixas do eixo horizontal dos graficos. */
 export default function EixoDias({ diasNoMes }: EixoDiasProps): React.ReactNode {
+  const styles = useStyles();
   return (
     <View style={styles.row}>
       <Text style={styles.texto}>1</Text>
@@ -18,7 +20,7 @@ export default function EixoDias({ diasNoMes }: EixoDiasProps): React.ReactNode 
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -27,4 +29,4 @@ const styles = StyleSheet.create({
     fontSize: fontSize.micro,
     color: colors.textSubtle,
   },
-});
+}));

@@ -1,9 +1,10 @@
-import React from 'react';
-import { Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ComponentProps } from 'react';
+import { View } from 'react-native';
+import { makeStyles, radius, useTheme } from '../../theme';
+import Aparecer from './Aparecer';
 import Button from './Button';
-import { colors, iconSize, sharedStyles } from '../../theme';
+import Text from './Text';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -23,12 +24,32 @@ export default function EmptyState({
   actionLabel,
   onAction,
 }: EmptyStateProps): React.ReactNode {
+  const { colors, sharedStyles } = useTheme();
+  const styles = useStyles();
+
   return (
-    <View style={sharedStyles.centerContent}>
-      {icon ? <Ionicons name={icon} size={iconSize.empty} color={colors.textSubtle} /> : null}
+    <Aparecer style={sharedStyles.centerContent}>
+      {icon ? (
+        <View style={styles.icone}>
+          <Ionicons name={icon} size={40} color={colors.primary} />
+        </View>
+      ) : null}
       <Text style={sharedStyles.emptyText}>{message}</Text>
       {hint ? <Text style={sharedStyles.emptyHint}>{hint}</Text> : null}
-      {actionLabel && onAction ? <Button label={actionLabel} onPress={onAction} /> : null}
-    </View>
+      {actionLabel && onAction ? (
+        <Button label={actionLabel} icon="add" onPress={onAction} />
+      ) : null}
+    </Aparecer>
   );
 }
+
+const useStyles = makeStyles((colors) => ({
+  icone: {
+    width: 88,
+    height: 88,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+}));

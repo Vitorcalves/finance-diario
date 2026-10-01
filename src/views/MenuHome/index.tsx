@@ -1,21 +1,24 @@
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useCallback, useState } from 'react';
-import { Alert, ScrollView, StyleSheet } from 'react-native';
+import { Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ScreenHeader } from '../../components/ui';
+import { ScreenHeader, useToast } from '../../components/ui';
 import { recriarDatabase } from '../../models/database';
 import { getLocalPadrao, saveLocalPadrao } from '../../models/settingsModel';
 import type { MenuStackParamList, RootTabParamList } from '../../routes/types';
-import { sharedStyles, spacing } from '../../theme';
+import { makeStyles, spacing, useTheme } from '../../theme';
 import { Locais } from '../../utils/local';
 import MenuGrupo from './components/MenuGrupo';
 import PreferenciasCard from './components/PreferenciasCard';
 
 type MenuNavigation = BottomTabNavigationProp<RootTabParamList, 'Menu'>;
 
-/** Menu de navegacao com atalhos para as abas e os cadastros, agrupados em sanfona. */
+/** Menu do app: cadastros, financeiro, preferencias e sistema. */
 export default function MenuNavigationView(): React.ReactNode {
+  const { sharedStyles } = useTheme();
+  const styles = useStyles();
+  const toast = useToast();
   const navigation = useNavigation<MenuNavigation>();
   const [localPadrao, setLocalPadrao] = useState(Locais.padrao);
 
@@ -27,96 +30,117 @@ export default function MenuNavigationView(): React.ReactNode {
 
   const alterarLocalPadrao = (id: number): void => {
     setLocalPadrao(id);
-    void saveLocalPadrao(id);
+    saveLocalPadrao(id).catch((error: unknown) => {
+      console.error('Erro ao salvar o local padrao', error);
+      Alert.alert('Erro', 'Não foi possível salvar o local padrão');
+    });
   };
 
   const irPara = (screen: keyof MenuStackParamList): void =>
     navigation.navigate('Menu', { screen });
 
+  const recriarBanco = (): void => {
+    void (async (): Promise<void> => {
+      try {
+        await recriarDatabase();
+        toast.mostrar('Banco de dados recriado. Todos os dados foram apagados.');
+      } catch (error: unknown) {
+        console.error('Erro ao recriar o banco de dados', error);
+        Alert.alert(
+          'Erro',
+          'Não foi possível recriar o banco de dados. Feche e abra o app antes de tentar de novo.',
+        );
+      }
+    })();
+  };
+
   const confirmarRecriacaoDoBanco = (): void => {
     Alert.alert(
-      'Recriar Banco de Dados',
-      'Todos os dados serão apagados permanentemente. Deseja continuar?',
+      'Recriar banco de dados',
+      'Todos os lançamentos, produtos e cadastros serão apagados permanentemente. Exporte um backup antes, na tela de Integração. Deseja continuar?',
       [
         { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Confirmar',
-          style: 'destructive',
-          onPress: (): void => void recriarDatabase(),
-        },
+        { text: 'Apagar tudo', style: 'destructive', onPress: recriarBanco },
       ],
     );
   };
 
   return (
     <SafeAreaView style={sharedStyles.screen}>
-      <ScreenHeader title="Menu de navegacao" subtitle="Acesse rapidamente cada aba do app." />
+      <ScreenHeader title="Menu" subtitle="Cadastros, preferências e sistema" />
 
       <ScrollView style={sharedStyles.scrollArea} contentContainerStyle={styles.content}>
         <MenuGrupo
-          titulo="Principal"
-          icone="home-outline"
-          aberturaInicial
-          itens={[
-            { label: 'Home', onPress: (): void => navigation.navigate('Home') },
-            {
-              label: 'Gastos Mensais',
-              onPress: (): void => navigation.navigate('GastosMensais'),
-            },
-            { label: 'Produtos', onPress: (): void => navigation.navigate('Produtos') },
-            { label: 'Dashboard', onPress: (): void => navigation.navigate('Dashboard') },
-          ]}
-        />
-
-        <MenuGrupo
           titulo="Cadastros"
-          icone="pricetags-outline"
           itens={[
-            { label: 'Categorias', onPress: (): void => irPara('Categorias') },
-            { label: 'Marcas', onPress: (): void => irPara('Marcas') },
-            { label: 'Empresas', onPress: (): void => irPara('Empresas') },
-          ]}
-        />
-
-        <MenuGrupo
-          titulo="Analises"
-          icone="stats-chart-outline"
-          itens={[
-            { label: 'Historico de Precos', onPress: (): void => irPara('HistoricoPrecos') },
-            { label: 'Orcamento', onPress: (): void => irPara('Orcamento') },
+            {
+              label: 'Categorias',
+              descricao: 'Agrupe os produtos por tipo',
+              icone: 'pricetag-outline',
+              onPress: (): void => irPara('Categorias'),
+            },
+            {
+              label: 'Marcas',
+              descricao: 'Usadas nas variantes de produto',
+              icone: 'ribbon-outline',
+              onPress: (): void => irPara('Marcas'),
+            },
+            {
+              label: 'Empresas',
+              descricao: 'Mercados e lojas onde você compra',
+              icone: 'storefront-outline',
+              onPress: (): void => irPara('Empresas'),
+            },
           ]}
         />
 
         <MenuGrupo
           titulo="Financeiro"
-          icone="card-outline"
-          itens={[{ label: 'Assinaturas e Parcelas', onPress: (): void => irPara('Planos') }]}
-        />
-
-        <MenuGrupo
-          titulo="Sistema"
-          icone="settings-outline"
           itens={[
-            { label: 'Integracao (backup JSON e API)', onPress: (): void => irPara('Integracao') },
             {
-              label: 'Recriar Banco de Dados',
-              icone: 'trash',
-              perigo: true,
-              onPress: confirmarRecriacaoDoBanco,
+              label: 'Assinaturas e parcelas',
+              descricao: 'Gastos que se repetem todo mês',
+              icone: 'repeat-outline',
+              onPress: (): void => irPara('Planos'),
             },
           ]}
         />
 
         <PreferenciasCard localPadrao={localPadrao} onAlterarLocalPadrao={alterarLocalPadrao} />
+
+        <MenuGrupo
+          titulo="Sistema"
+          itens={[
+            {
+              label: 'Integração',
+              descricao: 'Backup em JSON, API e perguntas à IA',
+              icone: 'cloud-upload-outline',
+              onPress: (): void => irPara('Integracao'),
+            },
+          ]}
+        />
+
+        <MenuGrupo
+          titulo="Zona de perigo"
+          itens={[
+            {
+              label: 'Recriar banco de dados',
+              descricao: 'Apaga todos os dados do app',
+              icone: 'warning-outline',
+              perigo: true,
+              onPress: confirmarRecriacaoDoBanco,
+            },
+          ]}
+        />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(() => ({
   content: {
     padding: spacing.lg,
     paddingBottom: spacing.xxxl,
-    gap: spacing.md,
+    gap: spacing.xl,
   },
-});
+}));

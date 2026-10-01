@@ -1,7 +1,16 @@
-import { StyleSheet, Text, View } from 'react-native';
-import { colors, fontSize, fontWeight, radius, sharedStyles, spacing } from '../../../theme';
+import { View } from 'react-native';
+import {
+  fontSize,
+  fontWeight,
+  makeStyles,
+  radius,
+  shadows,
+  spacing,
+  useTheme,
+} from '../../../theme';
 import { toCurrency } from '../../../utils/format';
 import type { ComparativoMercado } from '../types';
+import { Text } from '../../../components/ui';
 
 type ComparativoMercadosProps = {
   mercados: ComparativoMercado[];
@@ -16,6 +25,8 @@ export default function ComparativoMercados({
   menorTotalCompleto,
   totalDeItens,
 }: ComparativoMercadosProps): React.ReactNode {
+  const { sharedStyles } = useTheme();
+  const styles = useStyles();
   if (mercados.length === 0) {
     return null;
   }
@@ -24,7 +35,7 @@ export default function ComparativoMercados({
     <>
       <Text style={sharedStyles.sectionTitle}>Comparativo entre mercados</Text>
       <Text style={sharedStyles.sectionHint}>
-        Mercados diferentes do selecionado usam o ultimo preco registrado no historico.
+        Mercados diferentes do selecionado usam o último preço registrado no histórico.
       </Text>
 
       {mercados.map((mercado) => {
@@ -38,7 +49,7 @@ export default function ComparativoMercados({
                 <Text style={styles.nome}>{mercado.nome}</Text>
                 {mercado.mercadoDoOrcamento && (
                   <View style={sharedStyles.badge}>
-                    <Text style={sharedStyles.badgeText}>Orcamento atual</Text>
+                    <Text style={sharedStyles.badgeText}>Orçamento atual</Text>
                   </View>
                 )}
                 {melhor && (
@@ -48,7 +59,7 @@ export default function ComparativoMercados({
                 )}
               </View>
               <Text style={styles.detalhe}>
-                {`${mercado.itensComPreco} de ${totalDeItens} itens com preco`}
+                {`${mercado.itensComPreco} de ${totalDeItens} itens com preço`}
               </Text>
             </View>
 
@@ -62,7 +73,7 @@ export default function ComparativoMercados({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -70,8 +81,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     backgroundColor: colors.surface,
     borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
+    ...shadows.card,
     padding: spacing.md,
   },
   info: {
@@ -86,7 +96,7 @@ const styles = StyleSheet.create({
   nome: {
     fontSize: fontSize.input,
     fontWeight: fontWeight.bold,
-    color: colors.primaryDark,
+    color: colors.textStrong,
   },
   detalhe: {
     fontSize: fontSize.caption,
@@ -96,6 +106,6 @@ const styles = StyleSheet.create({
   total: {
     fontSize: fontSize.subtitle,
     fontWeight: fontWeight.bold,
-    color: colors.primaryDark,
+    color: colors.textStrong,
   },
-});
+}));

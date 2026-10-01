@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { StatusBar } from 'expo-status-bar';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { EmptyState, LoadingState, ScreenHeader } from '../../components/ui';
-import { sharedStyles, spacing } from '../../theme';
+import { EmptyState, LoadingState, ScreenHeader, Text } from '../../components/ui';
+import { makeStyles, spacing, useTheme } from '../../theme';
 import AssinaturaFormModal from './components/AssinaturaFormModal';
 import PlanoCard from './components/PlanoCard';
 import ResumoPlanos from './components/ResumoPlanos';
@@ -16,6 +15,8 @@ import { usePlanos } from './usePlanos';
  * aparecem para acompanhamento. As assinaturas sao cadastradas nesta tela.
  */
 export default function PlanosView(): React.ReactNode {
+  const { sharedStyles } = useTheme();
+  const styles = useStyles();
   const {
     loading,
     salvando,
@@ -32,11 +33,9 @@ export default function PlanosView(): React.ReactNode {
 
   return (
     <SafeAreaView style={sharedStyles.screen}>
-      <StatusBar style="dark" />
-
       <ScreenHeader
         title="Assinaturas e parcelas"
-        subtitle="Gastos que se repetem sozinhos todo mes"
+        subtitle="Gastos que se repetem sozinhos todo mês"
         onAdd={(): void => setShowForm(true)}
       />
 
@@ -46,7 +45,7 @@ export default function PlanosView(): React.ReactNode {
         <EmptyState
           icon="repeat-outline"
           message="Nenhuma assinatura ou parcelamento"
-          hint="Cadastre uma assinatura aqui, ou marque 'compra parcelada' ao lancar um gasto."
+          hint="Cadastre uma assinatura aqui, ou marque 'compra parcelada' ao lançar um gasto."
           actionLabel="Nova assinatura"
           onAction={(): void => setShowForm(true)}
         />
@@ -87,20 +86,19 @@ export default function PlanosView(): React.ReactNode {
         </ScrollView>
       )}
 
-      {showForm && (
-        <AssinaturaFormModal
-          empresas={empresas}
-          salvando={salvando}
-          onFechar={(): void => setShowForm(false)}
-          onSalvar={salvarAssinatura}
-        />
-      )}
+      <AssinaturaFormModal
+        visivel={showForm}
+        empresas={empresas}
+        salvando={salvando}
+        onFechar={(): void => setShowForm(false)}
+        onSalvar={salvarAssinatura}
+      />
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(() => ({
   secao: {
     gap: spacing.sm,
   },
-});
+}));

@@ -1,32 +1,13 @@
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Alert, View } from 'react-native';
 import { listHistoricoPorProduto, listPrecosPagosPorProduto } from '../models/dashboard';
 import { listEmpresas } from '../models/empresas';
 import type { Marca } from '../models/marcas';
 import type { ProdutoVariantes } from '../models/produtoVariantes';
-import {
-  colors,
-  fontSize,
-  fontWeight,
-  iconSize,
-  radius,
-  shadows,
-  sharedStyles,
-  spacing,
-} from '../theme';
+import { fontSize, fontWeight, makeStyles, spacing, useTheme } from '../theme';
 import { formatarData, toCurrency, toCurrencyPorUnidade } from '../utils/format';
 import { precoPorUnidadePrimaria, rotuloQuantidade, rotuloVariantePorId } from '../utils/variantes';
-import { ChipSelector, IconButton } from './ui';
+import { BottomSheet, ChipSelector, SegmentedControl, Text } from './ui';
 
 /** Chip "Produto" junta todas as variantes; os demais chips sao ids de variante. */
 const TODAS = 'produto';
@@ -75,8 +56,12 @@ export default function HistoricoProdutoModal({
   marcas,
   onFechar,
 }: HistoricoProdutoModalProps): React.ReactNode {
+  const { colors, sharedStyles } = useTheme();
+  const styles = useStyles();
   const [filtro, setFiltro] = useState<string>(TODAS);
   const [mostrarCompras, setMostrarCompras] = useState(false);
+  /** O painel anima a saida antes de avisar a tela, que entao o desmonta. */
+  const [visivel, setVisivel] = useState(true);
   const [dados, setDados] = useState<Dados | null>(null);
 
   useEffect(() => {
@@ -116,7 +101,7 @@ export default function HistoricoProdutoModal({
         });
       } catch (error: unknown) {
         console.error('Erro ao carregar historico do produto:', error);
-        Alert.alert('Erro', 'Nao foi possivel carregar o historico do produto');
+        Alert.alert('Erro', 'Não foi possível carregar o histórico do produto');
 
         if (ativo) {
           setDados({ precos: [], compras: [], nomesEmpresas: new Map() });
@@ -184,84 +169,42 @@ export default function HistoricoProdutoModal({
   };
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onFechar}>
-      <View style={styles.overlay}>
-        <Pressable style={styles.backdrop} onPress={onFechar} />
+    <BottomSheet
+      visivel={visivel}
+      onFechar={(): void => setVisivel(false)}
+      aoTerminarDeFechar={onFechar}
+      titulo={mostrarCompras ? 'Histórico de compras' : 'Histórico de preços'}
+      subtitulo={subtitulo}
+    >
+      <View style={styles.controles}>
+        <SegmentedControl
+          opcoes={[
+            { valor: 'precos', rotulo: 'Preços registrados' },
+            { valor: 'compras', rotulo: 'Compras' },
+          ]}
+          valor={mostrarCompras ? 'compras' : 'precos'}
+          onChange={(valor): void => setMostrarCompras(valor === 'compras')}
+        />
 
-        <View style={styles.card}>
-          <View style={styles.header}>
-            <View style={styles.headerInfo}>
-              <Text style={sharedStyles.sectionTitle}>
-                {mostrarCompras ? 'Historico de compras' : 'Historico de precos'}
-              </Text>
-              <Text style={sharedStyles.listCardDetail}>{subtitulo}</Text>
-            </View>
-            <IconButton icon="close" size={iconSize.sm} onPress={onFechar} />
-          </View>
-
-          <View style={styles.linhaSwitch}>
-            <Text style={sharedStyles.label}>Mostrar compras</Text>
-            <Switch
-              value={mostrarCompras}
-              onValueChange={setMostrarCompras}
-              trackColor={{ false: colors.borderStrong, true: colors.primary }}
-              thumbColor={colors.surface}
-            />
-          </View>
-
-          <ChipSelector opcoes={opcoes} selecionado={filtro} onSelecionar={setFiltro} scroll />
-
-          {registros === null ? (
-            <ActivityIndicator color={colors.primary} />
-          ) : registros.length === 0 ? (
-            <Text style={sharedStyles.inlineEmptyText}>
-              {mostrarCompras ? 'Nenhuma compra lancada.' : 'Nenhum preco registrado.'}
-            </Text>
-          ) : (
-            <ScrollView style={styles.lista}>{registros.map(renderRegistro)}</ScrollView>
-          )}
-        </View>
+        <ChipSelector opcoes={opcoes} selecionado={filtro} onSelecionar={setFiltro} scroll />
       </View>
-    </Modal>
+
+      {registros === null ? (
+        <ActivityIndicator color={colors.primary} />
+      ) : registros.length === 0 ? (
+        <Text style={sharedStyles.inlineEmptyText}>
+          {mostrarCompras ? 'Nenhuma compra lançada.' : 'Nenhum preço registrado.'}
+        </Text>
+      ) : (
+        <View>{registros.map(renderRegistro)}</View>
+      )}
+    </BottomSheet>
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: spacing.lg,
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.overlay,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xxl,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.lg,
+const useStyles = makeStyles((colors) => ({
+  controles: {
     gap: spacing.sm,
-    maxHeight: '80%',
-    ...shadows.floating,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.md,
-  },
-  headerInfo: {
-    flex: 1,
-  },
-  linhaSwitch: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-  },
-  lista: {
-    flexGrow: 0,
   },
   registro: {
     flexDirection: 'row',
@@ -278,7 +221,7 @@ const styles = StyleSheet.create({
   variante: {
     fontSize: fontSize.small,
     fontWeight: fontWeight.medium,
-    color: colors.textBody,
+    color: colors.text,
   },
   detalhe: {
     fontSize: fontSize.caption,
@@ -297,4 +240,4 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.medium,
     color: colors.primary,
   },
-});
+}));

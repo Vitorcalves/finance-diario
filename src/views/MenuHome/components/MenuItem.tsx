@@ -1,86 +1,98 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ComponentProps } from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
-import { colors, fontSize, fontWeight, iconSize, radius, spacing } from '../../../theme';
+import { View } from 'react-native';
+import { PressableScale, Text } from '../../../components/ui';
+import {
+  fontSize,
+  fontWeight,
+  iconSize,
+  makeStyles,
+  radius,
+  spacing,
+  useTheme,
+} from '../../../theme';
+
+type IconName = ComponentProps<typeof Ionicons>['name'];
 
 type MenuItemProps = {
   label: string;
+  /** Linha de apoio abaixo do rotulo. */
+  descricao?: string;
+  icone: IconName;
   onPress: () => void;
-  icone?: ComponentProps<typeof Ionicons>['name'];
   /** Destaca a acao como destrutiva (ex.: recriar o banco). */
   perigo?: boolean;
-  /** Estilo mais enxuto, usado dentro de um MenuGrupo ja expandido. */
-  compact?: boolean;
 };
 
-/** Linha clicavel do menu de navegacao. */
+/** Linha tocavel do menu, no estilo da tela de ajustes do celular. */
 export default function MenuItem({
   label,
+  descricao,
+  icone,
   onPress,
-  icone = 'chevron-forward',
   perigo = false,
-  compact = false,
 }: MenuItemProps): React.ReactNode {
+  const { colors } = useTheme();
+  const styles = useStyles();
+
   return (
-    <Pressable
-      style={[
-        styles.item,
-        compact && styles.itemCompact,
-        perigo && (compact ? styles.itemCompactPerigo : styles.itemPerigo),
-      ]}
+    <PressableScale
+      style={styles.item}
       onPress={onPress}
+      escala={0.98}
+      vibrar
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      android_ripple={{ color: colors.overlay, foreground: true }}
     >
-      <Text style={[styles.texto, compact && styles.textoCompact, perigo && styles.textoPerigo]}>
-        {label}
-      </Text>
-      <Ionicons
-        name={icone}
-        size={iconSize.sm}
-        color={perigo ? colors.danger : colors.textSubtle}
-      />
-    </Pressable>
+      <View style={[styles.icone, perigo && styles.iconePerigo]}>
+        <Ionicons name={icone} size={iconSize.sm} color={perigo ? colors.danger : colors.primary} />
+      </View>
+
+      <View style={styles.textos}>
+        <Text style={[styles.texto, perigo && styles.textoPerigo]}>{label}</Text>
+        {descricao ? <Text style={styles.descricao}>{descricao}</Text> : null}
+      </View>
+
+      <Ionicons name="chevron-forward" size={iconSize.sm} color={colors.textSubtle} />
+    </PressableScale>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   item: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     gap: spacing.md,
-    borderRadius: radius.xl,
-    paddingVertical: spacing.lg,
+    paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
-  itemPerigo: {
-    marginTop: spacing.md,
-    backgroundColor: colors.dangerSurface,
-    borderColor: colors.dangerBorder,
+  icone: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.md,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  itemCompact: {
-    borderWidth: 0,
-    borderRadius: radius.lg,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    backgroundColor: colors.surfaceMuted,
+  iconePerigo: {
+    backgroundColor: colors.dangerSoft,
   },
-  itemCompactPerigo: {
-    marginTop: 0,
-    backgroundColor: colors.dangerSurface,
+  textos: {
+    flex: 1,
+    gap: 2,
   },
   texto: {
     fontSize: fontSize.input,
-    fontWeight: fontWeight.bold,
-    color: colors.textBody,
-  },
-  textoCompact: {
-    fontSize: fontSize.body,
     fontWeight: fontWeight.medium,
+    color: colors.textStrong,
   },
   textoPerigo: {
     color: colors.danger,
   },
-});
+  descricao: {
+    fontSize: fontSize.caption,
+    color: colors.textMuted,
+  },
+}));

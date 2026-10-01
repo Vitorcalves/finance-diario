@@ -242,6 +242,6 @@ describe('rotuloParcela', () => {
   });
 
   test('assinatura nao tem total', () => {
-    assert.equal(rotuloParcela(3, null), '3a cobranca');
+    assert.equal(rotuloParcela(3, null), '3ª cobrança');
   });
 });

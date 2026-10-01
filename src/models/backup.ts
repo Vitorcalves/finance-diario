@@ -104,13 +104,13 @@ const validarEstrutura = (bruto: unknown): BackupJson => {
 
   if (bruto.formato !== BACKUP_FORMATO) {
     throw new BackupInvalidoError(
-      `JSON nao e um backup do Finance Diario (campo "formato" deve ser "${BACKUP_FORMATO}").`,
+      `JSON não é um backup do Finance Diário (campo "formato" deve ser "${BACKUP_FORMATO}").`,
     );
   }
 
   if (bruto.versao !== BACKUP_VERSAO) {
     throw new BackupInvalidoError(
-      `Versao de backup nao suportada: ${String(bruto.versao)} (esperado ${BACKUP_VERSAO}).`,
+      `Versão de backup não suportada: ${String(bruto.versao)} (esperado ${BACKUP_VERSAO}).`,
     );
   }
 
@@ -130,7 +130,7 @@ const validarEstrutura = (bruto: unknown): BackupJson => {
     const posicaoInvalida = linhas.findIndex((linha) => !ehObjeto(linha));
     if (posicaoInvalida >= 0) {
       throw new BackupInvalidoError(
-        `Registro ${posicaoInvalida + 1} da tabela "${tabela}" nao e um objeto.`,
+        `Registro ${posicaoInvalida + 1} da tabela "${tabela}" não é um objeto.`,
       );
     }
   }
@@ -180,7 +180,7 @@ const validarContraSchema = async (db: SQLiteDatabase, backup: BackupJson): Prom
 
   if (desconhecidas.length > 0) {
     throw new BackupInvalidoError(
-      `Tabelas que nao existem neste banco: ${desconhecidas.join(', ')}.`,
+      `Tabelas que não existem neste banco: ${desconhecidas.join(', ')}.`,
     );
   }
 
@@ -218,7 +218,7 @@ const normalizarValor = (tabela: string, coluna: string, valor: unknown): ValorB
   }
 
   throw new BackupInvalidoError(
-    `Valor nao suportado em "${tabela}"."${coluna}": ${JSON.stringify(valor)}.`,
+    `Valor não suportado em "${tabela}"."${coluna}": ${JSON.stringify(valor)}.`,
   );
 };
 

@@ -1,8 +1,9 @@
-import React from 'react';
-import { Pressable, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ComponentProps } from 'react';
-import { colors, iconSize, sharedStyles } from '../../theme';
+import { View } from 'react-native';
+import { iconSize, useTheme } from '../../theme';
+import PressableScale from './PressableScale';
+import Text from './Text';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -19,7 +20,7 @@ type ScreenHeaderProps = {
   right?: React.ReactNode;
 };
 
-/** Cabecalho padrao de todas as telas: titulo, voltar opcional e acao a direita. */
+/** Cabecalho padrao de todas as telas: titulo grande, voltar opcional e acao a direita. */
 export default function ScreenHeader({
   title,
   subtitle,
@@ -28,6 +29,8 @@ export default function ScreenHeader({
   onAdd,
   right,
 }: ScreenHeaderProps): React.ReactNode {
+  const { colors, sharedStyles } = useTheme();
+
   const renderRight = (): React.ReactNode => {
     if (right) {
       return right;
@@ -35,9 +38,16 @@ export default function ScreenHeader({
 
     if (onAdd) {
       return (
-        <Pressable style={sharedStyles.headerAction} onPress={onAdd}>
-          <Ionicons name="add-circle" size={iconSize.xxl} color={colors.primary} />
-        </Pressable>
+        <PressableScale
+          style={[sharedStyles.headerAction, { backgroundColor: colors.primary }]}
+          onPress={onAdd}
+          escala={0.9}
+          vibrar
+          accessibilityRole="button"
+          accessibilityLabel="Adicionar"
+        >
+          <Ionicons name="add" size={iconSize.lg} color={colors.onPrimary} />
+        </PressableScale>
       );
     }
 
@@ -47,13 +57,21 @@ export default function ScreenHeader({
   return (
     <View style={sharedStyles.headerBar}>
       {onBack ? (
-        <Pressable style={sharedStyles.headerAction} onPress={onBack}>
-          <Ionicons name={backIcon} size={iconSize.xl} color={colors.primaryDark} />
-        </Pressable>
+        <PressableScale
+          style={sharedStyles.headerAction}
+          onPress={onBack}
+          escala={0.9}
+          accessibilityRole="button"
+          accessibilityLabel={backIcon === 'close' ? 'Fechar' : 'Voltar'}
+        >
+          <Ionicons name={backIcon} size={iconSize.md} color={colors.textStrong} />
+        </PressableScale>
       ) : null}
 
       <View style={sharedStyles.headerContent}>
-        <Text style={sharedStyles.headerTitle}>{title}</Text>
+        <Text style={sharedStyles.headerTitle} numberOfLines={1}>
+          {title}
+        </Text>
         {subtitle ? <Text style={sharedStyles.headerSubtitle}>{subtitle}</Text> : null}
       </View>
 

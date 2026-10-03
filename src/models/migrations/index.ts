@@ -9,6 +9,7 @@ import { migration007 } from './007_produto_eventual';
 import { migration008 } from './008_categorias_lancamento';
 import { migration009 } from './009_lista_compras';
 import { migration010 } from './010_lista_compras_precos';
+import { migration011 } from './011_lista_compras_preco_variante';
 
 export const migrations: Migration[] = [
   migration001,
@@ -21,4 +22,5 @@ export const migrations: Migration[] = [
   migration008,
   migration009,
   migration010,
+  migration011,
 ];

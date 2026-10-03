@@ -15,6 +15,7 @@ import {
   registrarPrecoVariante,
 } from '../../models/produtoVariantes';
 import { getLocalPadrao } from '../../models/settingsModel';
+import { agruparVariantesPorProduto } from '../../utils/comparativoVariantes';
 import {
   compararMercados,
   maisRecentePrimeiro,
@@ -226,51 +227,14 @@ export function useOrcamento(): UseOrcamento {
    * do mesmo produto, aponta a mais barata por unidade primaria: o preco pago
    * sozinho nao diz nada quando as embalagens tem tamanhos diferentes.
    */
-  const comparativoVariantes = useMemo((): ComparativoProduto[] => {
-    const porProduto = new Map<string, ItemComUnitario[]>();
-
-    for (const entrada of itensComUnitario) {
-      const grupo = porProduto.get(entrada.item.produtoId) ?? [];
-      grupo.push(entrada);
-      porProduto.set(entrada.item.produtoId, grupo);
-    }
-
-    const resultado: ComparativoProduto[] = [];
-
-    for (const [produtoId, entradas] of porProduto) {
-      if (entradas.length < 2) {
-        continue;
-      }
-
-      const comMedida = entradas.filter(
-        (
-          entrada,
-        ): entrada is ItemComUnitario & { unitario: NonNullable<ItemComUnitario['unitario']> } =>
-          entrada.unitario !== null,
-      );
-      const unidadeBase = comMedida[0]?.unitario.unidadeId ?? null;
-      const comparavel =
-        comMedida.length === entradas.length &&
-        unidadeBase !== null &&
-        comMedida.every((entrada) => entrada.unitario.unidadeId === unidadeBase);
-
-      const menor = comparavel
-        ? Math.min(...comMedida.map((entrada) => entrada.unitario.valor))
-        : null;
-
-      resultado.push({
-        produtoId,
-        nomeProduto: nomeProduto(produtoId),
-        comparavel,
-        itens: entradas.map((entrada) => ({
-          ...entrada,
-          maisBarato: comparavel && entrada.unitario !== null && entrada.unitario.valor === menor,
-        })),
-      });
-    }
-
-    return resultado;
-  }, [itensComUnitario, nomeProduto]);
+  const comparativoVariantes = useMemo(
+    (): ComparativoProduto[] =>
+      agruparVariantesPorProduto(itensComUnitario, (item) => item.produtoId).map((grupo) => ({
+        ...grupo,
+        nomeProduto: nomeProduto(grupo.produtoId),
+      })),
+    [itensComUnitario, nomeProduto],
+  );
 
   /**
    * Simula o total do orcamento em cada mercado: no mercado selecionado usa os precos

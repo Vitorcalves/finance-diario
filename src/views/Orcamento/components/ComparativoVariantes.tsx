@@ -16,6 +16,8 @@ type ComparativoVariantesProps = {
   grupos: ComparativoProduto[];
   rotuloVariante: (varianteId: string) => string;
   rotuloQuantidade: (quantidade: number, varianteId: string) => string;
+  /** Texto abaixo do titulo; o padrao fala do orcamento. */
+  dica?: string;
 };
 
 /**
@@ -28,6 +30,7 @@ export default function ComparativoVariantes({
   grupos,
   rotuloVariante,
   rotuloQuantidade,
+  dica = 'Preço por kg/L/un de cada variante deste produto no orçamento.',
 }: ComparativoVariantesProps): React.ReactNode {
   const { sharedStyles } = useTheme();
   const styles = useStyles();
@@ -38,9 +41,7 @@ export default function ComparativoVariantes({
   return (
     <>
       <Text style={sharedStyles.sectionTitle}>Mesmo produto, embalagens diferentes</Text>
-      <Text style={sharedStyles.sectionHint}>
-        Preço por kg/L/un de cada variante deste produto no orçamento.
-      </Text>
+      <Text style={sharedStyles.sectionHint}>{dica}</Text>
 
       {grupos.map((grupo) => {
         const menorUnitario = grupo.comparavel

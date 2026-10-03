@@ -1,6 +1,6 @@
 import { createContext, type ReactNode, useContext, useEffect, useMemo } from 'react';
 import { Appearance, StyleSheet, useColorScheme } from 'react-native';
-import { type EsquemaCor, type Paleta, paletas } from './colors';
+import { type CorCategoria, coresCategoria, type EsquemaCor, type Paleta, paletas } from './colors';
 import { criarSharedStyles, type SharedStyles } from './styles';
 import { criarTipografia, type Tipografia } from './typography';
 
@@ -13,6 +13,8 @@ export type Tema = {
   colors: Paleta;
   typography: Tipografia;
   sharedStyles: SharedStyles;
+  /** Cor de uma categoria de lancamento pela chave gravada; `cinza` se desconhecida. */
+  corCategoria: (chave: string | null | undefined) => string;
 };
 
 type ContextoTema = Tema & {
@@ -26,12 +28,15 @@ const criarTema = (esquema: EsquemaCor): Tema => {
   const colors = paletas[esquema];
   const typography = criarTipografia(colors);
 
+  const cores = coresCategoria[esquema];
+
   return {
     esquema,
     escuro: esquema === 'dark',
     colors,
     typography,
     sharedStyles: criarSharedStyles(colors, typography),
+    corCategoria: (chave) => cores[(chave ?? 'cinza') as CorCategoria] ?? cores.cinza,
   };
 };
 

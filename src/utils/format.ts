@@ -42,6 +42,14 @@ export const formatarQuantidade = (valor: number): string => formatadorQuantidad
 /** Ex.: `R$ 1.234,56`. */
 export const toCurrency = (valor: number): string => formatadorMoeda.format(valor);
 
+const formatadorValor = new Intl.NumberFormat('pt-BR', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+/** Ex.: `1.234,56` - valor sem o `R$`, para listas de precos apertadas. */
+export const formatarMoeda = (valor: number): string => formatadorValor.format(valor);
+
 /** Ex.: `R$ 1.235` - usado nas escalas dos graficos. */
 export const toCurrencyCurto = (valor: number): string => formatadorMoedaCurta.format(valor);
 

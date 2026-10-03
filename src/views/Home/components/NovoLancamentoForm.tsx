@@ -4,6 +4,7 @@ import dayjs from 'dayjs';
 import { v4 as uuidv4 } from 'uuid';
 import BrazilianDateInput from '../../../components/BrazilianDateInput';
 import BrazilianIntegerInput from '../../../components/BrazilianIntegerInput';
+import SeletorCategoria from '../../../components/SeletorCategoria';
 import SeletorMultiplo from '../../../components/SeletorMultiplo';
 import {
   BottomSheet,
@@ -18,7 +19,7 @@ import { fontSize, fontWeight, makeStyles, radius, spacing, useTheme } from '../
 import { toCurrency } from '../../../utils/format';
 import { vibrarAviso } from '../../../utils/haptics';
 import { useCatalogoLancamento } from '../useCatalogoLancamento';
-import type { ItemLancamento, NovoLancamento, TipoLancamento } from '../types';
+import type { ItemLancamento, NovoLancamento, RascunhoLancamento, TipoLancamento } from '../types';
 import LancamentoItemCard from './LancamentoItemCard';
 import LancamentoItemForm, { type DadosItemLancamento } from './LancamentoItemForm';
 import ParcelamentoSelector from './ParcelamentoSelector';
@@ -38,6 +39,13 @@ type NovoLancamentoFormProps = {
   visivel: boolean;
   onFechar: () => void;
   onAddLancamento: (lancamento: NovoLancamento) => Promise<void>;
+  /**
+   * Dados para abrir o formulario ja preenchido (ex.: compra da lista de compras).
+   * Lido so na montagem: troque a `key` do formulario para aplicar outro.
+   */
+  rascunho?: RascunhoLancamento | null;
+  /** Mensagem do aviso depois de salvar; o padrao descreve o valor registrado. */
+  mensagemSucesso?: string;
 };
 
 /**
@@ -51,6 +59,8 @@ export default function NovoLancamentoForm({
   visivel,
   onFechar,
   onAddLancamento,
+  rascunho,
+  mensagemSucesso,
 }: NovoLancamentoFormProps): React.ReactNode {
   const { colors, sharedStyles } = useTheme();
   const styles = useStyles();
@@ -59,8 +69,11 @@ export default function NovoLancamentoForm({
   const { carregar } = catalogo;
 
   const [tipo, setTipo] = useState<TipoLancamento>('saida');
-  const [empresaId, setEmpresaId] = useState<string | null>(null);
-  const [descricao, setDescricao] = useState('');
+  const [empresaId, setEmpresaId] = useState<string | null>(rascunho?.empresaId ?? null);
+  const [categoriaId, setCategoriaId] = useState<string | null>(rascunho?.categoriaId ?? null);
+  /** Depois que o usuario escolhe a categoria, a empresa nao a troca mais. */
+  const [categoriaManual, setCategoriaManual] = useState(Boolean(rascunho?.categoriaId));
+  const [descricao, setDescricao] = useState(rascunho?.descricao ?? '');
   const [data, setData] = useState(todayIso());
   const [dataInputKey, setDataInputKey] = useState(0);
   const [valorManual, setValorManual] = useState('');
@@ -71,7 +84,9 @@ export default function NovoLancamentoForm({
   const [primeiraParcela, setPrimeiraParcela] = useState(todayIso());
   const [parcelaDataKey, setParcelaDataKey] = useState(0);
 
-  const [itens, setItens] = useState<ItemLancamento[]>([]);
+  const [itens, setItens] = useState<ItemLancamento[]>(() =>
+    (rascunho?.itens ?? []).map((item) => ({ ...item, localId: uuidv4() })),
+  );
   /** O mini formulario de item so aparece quando o usuario pede. */
   const [formItemAberto, setFormItemAberto] = useState(false);
   const [itemEditIndex, setItemEditIndex] = useState<number | null>(null);
@@ -84,6 +99,31 @@ export default function NovoLancamentoForm({
       carregar();
     }
   }, [visivel, carregar]);
+
+  const trocarTipo = (novo: TipoLancamento): void => {
+    setTipo(novo);
+
+    // Categoria de saida nao serve para entrada (e vice-versa).
+    const atual = catalogo.categorias.find((categoria) => categoria.id === categoriaId);
+
+    if (atual && atual.tipo !== novo) {
+      setCategoriaId(null);
+      setCategoriaManual(false);
+    }
+  };
+
+  const escolherEmpresa = (id: string): void => {
+    const nova = empresaId === id ? null : id;
+    setEmpresaId(nova);
+
+    // Sugere a categoria usada da ultima vez nesta empresa.
+    const sugerida = nova ? catalogo.categoriaPorEmpresa.get(nova) : undefined;
+    const categoriaSugerida = catalogo.categorias.find((categoria) => categoria.id === sugerida);
+
+    if (!categoriaManual && categoriaSugerida && categoriaSugerida.tipo === tipo) {
+      setCategoriaId(categoriaSugerida.id);
+    }
+  };
 
   const totalItens = useMemo(
     () => itens.reduce((soma, item) => soma + item.quantidade * item.precoUnitario, 0),
@@ -127,6 +167,8 @@ export default function NovoLancamentoForm({
   const limparFormulario = (): void => {
     setTipo('saida');
     setEmpresaId(null);
+    setCategoriaId(null);
+    setCategoriaManual(false);
     setDescricao('');
     setData(todayIso());
     setDataInputKey((atual) => atual + 1);
@@ -205,14 +247,17 @@ export default function NovoLancamentoForm({
         descricao: descricaoFinal,
         data: dataFinal,
         empresaId,
+        categoriaId,
         valor: tipo === 'saida' ? -totalLancamento : totalLancamento,
         itens,
         parcelamento: parcelandoAgora ? { parcelas, primeiraParcela } : null,
       });
 
-      const mensagem = parcelandoAgora
-        ? `Compra parcelada em ${parcelas}x registrada`
-        : `${tipo === 'saida' ? 'Saída' : 'Entrada'} de ${toCurrency(totalLancamento)} registrada`;
+      const mensagem =
+        mensagemSucesso ??
+        (parcelandoAgora
+          ? `Compra parcelada em ${parcelas}x registrada`
+          : `${tipo === 'saida' ? 'Saída' : 'Entrada'} de ${toCurrency(totalLancamento)} registrada`);
 
       limparFormulario();
       onFechar();
@@ -260,7 +305,7 @@ export default function NovoLancamentoForm({
           { valor: 'entrada', rotulo: 'Entrada', cor: colors.success },
         ]}
         valor={tipo}
-        onChange={setTipo}
+        onChange={trocarTipo}
       />
 
       <View style={styles.valorBloco}>
@@ -287,6 +332,17 @@ export default function NovoLancamentoForm({
           </>
         )}
       </View>
+
+      <Text style={sharedStyles.label}>Categoria</Text>
+      <SeletorCategoria
+        categorias={catalogo.categorias}
+        tipo={tipo}
+        selecionada={categoriaId}
+        onSelecionar={(id): void => {
+          setCategoriaId(id);
+          setCategoriaManual(id !== null);
+        }}
+      />
 
       <Text style={sharedStyles.label}>Descrição</Text>
       <TextInput
@@ -322,7 +378,7 @@ export default function NovoLancamentoForm({
           nome: empresa.nome,
         }))}
         selecionados={empresaId ? [empresaId] : []}
-        onToggle={(id): void => setEmpresaId((atual) => (atual === id ? null : id))}
+        onToggle={escolherEmpresa}
         placeholderBusca="Buscar empresa"
         textoTrigger="Selecionar empresa"
         textoVazio="Nenhuma empresa cadastrada"

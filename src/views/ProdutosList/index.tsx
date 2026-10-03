@@ -17,6 +17,7 @@ import HistoricoProdutoModal from '../../components/HistoricoProdutoModal';
 import type { Produto } from '../../models/produtos';
 import type { ProdutosStackParamList } from '../../routes/types';
 import { fontSize, iconSize, makeStyles, radius, spacing, useTheme } from '../../theme';
+import { correspondeBusca } from '../../utils/busca';
 import ProdutoCard from './components/ProdutoCard';
 import { useProdutosList } from './useProdutosList';
 
@@ -50,7 +51,7 @@ export default function ProdutosListView(): React.ReactNode {
   const [busca, setBusca] = useState('');
   const [filtro, setFiltro] = useState<Filtro>('frequentes');
 
-  const termo = busca.trim().toLowerCase();
+  const termo = busca.trim();
 
   /** Ja vem em ordem alfabetica do model; aqui so filtra. */
   const produtosFiltrados = useMemo(
@@ -68,7 +69,7 @@ export default function ProdutosListView(): React.ReactNode {
           return false;
         }
 
-        return produto.nome.toLowerCase().includes(termo);
+        return correspondeBusca(produto.nome, termo);
       }),
     [produtos, termo, filtro],
   );

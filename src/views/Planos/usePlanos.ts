@@ -3,6 +3,10 @@ import { Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import dayjs from 'dayjs';
 import { useToast } from '../../components/ui';
+import {
+  type CategoriaLancamento,
+  listCategoriasLancamento,
+} from '../../models/categoriasLancamento';
 import { type Empresa, listEmpresas } from '../../models/empresas';
 import {
   cancelarPlano,
@@ -20,6 +24,7 @@ export type UsePlanos = {
   loading: boolean;
   salvando: boolean;
   empresas: Empresa[];
+  categorias: CategoriaLancamento[];
   ativos: PlanoNaTela[];
   encerrados: PlanoNaTela[];
   resumo: ResumoPlanos;
@@ -37,6 +42,7 @@ export function usePlanos(): UsePlanos {
   const [planos, setPlanos] = useState<PlanoPagamento[]>([]);
   const [cobrancas, setCobrancas] = useState<Transacoes[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [categorias, setCategorias] = useState<CategoriaLancamento[]>([]);
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
 
@@ -44,7 +50,11 @@ export function usePlanos(): UsePlanos {
     try {
       await materializarPlanos();
 
-      const [planosDoBanco, empresasDoBanco] = await Promise.all([listPlanos(), listEmpresas()]);
+      const [planosDoBanco, empresasDoBanco, categoriasDoBanco] = await Promise.all([
+        listPlanos(),
+        listEmpresas(),
+        listCategoriasLancamento(),
+      ]);
 
       // Janela larga o bastante para cobrir parcelamentos longos dos dois lados.
       const cobrancasDoBanco = await listTransacoes(
@@ -54,6 +64,7 @@ export function usePlanos(): UsePlanos {
 
       setPlanos(planosDoBanco);
       setEmpresas(empresasDoBanco);
+      setCategorias(categoriasDoBanco);
       setCobrancas(cobrancasDoBanco.filter((cobranca) => cobranca.plano_id !== null));
     } catch (error: unknown) {
       console.error('Erro ao carregar os planos:', error);
@@ -159,6 +170,7 @@ export function usePlanos(): UsePlanos {
         await criarAssinatura({
           descricao,
           empresaId: dados.empresaId,
+          categoriaId: dados.categoriaId,
           // Assinatura e sempre saida: o sinal negativo entra aqui.
           valorParcela: -Math.abs(dados.valor),
           dataInicio: dados.dataInicio,
@@ -242,6 +254,7 @@ export function usePlanos(): UsePlanos {
     loading,
     salvando,
     empresas,
+    categorias,
     ativos,
     encerrados,
     resumo,

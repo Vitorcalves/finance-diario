@@ -105,3 +105,59 @@ export const paletas: Record<EsquemaCor, Paleta> = {
   light: paletaClara,
   dark: paletaEscura,
 };
+
+/**
+ * Cores das categorias de lancamento. A cor segue a categoria (nunca a
+ * posicao no ranking), e o nome da categoria aparece sempre junto - a cor nao
+ * carrega a informacao sozinha.
+ *
+ * As oito primeiras sao a paleta categorica validada para daltonismo nos dois
+ * modos; `cinza` e o neutro de "Outros" e "Sem categoria".
+ */
+export type CorCategoria =
+  | 'azul'
+  | 'laranja'
+  | 'aqua'
+  | 'amarelo'
+  | 'magenta'
+  | 'verde'
+  | 'violeta'
+  | 'vermelho'
+  | 'cinza';
+
+export const CORES_CATEGORIA: CorCategoria[] = [
+  'azul',
+  'laranja',
+  'aqua',
+  'amarelo',
+  'magenta',
+  'verde',
+  'violeta',
+  'vermelho',
+  'cinza',
+];
+
+export const coresCategoria: Record<EsquemaCor, Record<CorCategoria, string>> = {
+  light: {
+    azul: '#2a78d6',
+    laranja: '#eb6834',
+    aqua: '#1baf7a',
+    amarelo: '#eda100',
+    magenta: '#e87ba4',
+    verde: '#008300',
+    violeta: '#4a3aa7',
+    vermelho: '#e34948',
+    cinza: '#8a948f',
+  },
+  dark: {
+    azul: '#3987e5',
+    laranja: '#d95926',
+    aqua: '#199e70',
+    amarelo: '#c98500',
+    magenta: '#d55181',
+    verde: '#008300',
+    violeta: '#9085e9',
+    vermelho: '#e66767',
+    cinza: '#7d8a84',
+  },
+};

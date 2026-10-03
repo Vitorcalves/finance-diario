@@ -3,8 +3,10 @@ import { View } from 'react-native';
 import dayjs from 'dayjs';
 import BrazilianDateInput from '../../../components/BrazilianDateInput';
 import BrazilianIntegerInput from '../../../components/BrazilianIntegerInput';
+import SeletorCategoria from '../../../components/SeletorCategoria';
 import SeletorMultiplo from '../../../components/SeletorMultiplo';
 import { BottomSheet, Button, ChipSelector, Text, TextInput } from '../../../components/ui';
+import type { CategoriaLancamento } from '../../../models/categoriasLancamento';
 import type { Empresa } from '../../../models/empresas';
 import { useTheme } from '../../../theme';
 import { type FrequenciaPlano, ROTULO_FREQUENCIA } from '../../../utils/parcelas';
@@ -12,9 +14,13 @@ import type { DadosFormularioAssinatura } from '../types';
 
 const FREQUENCIAS: FrequenciaPlano[] = ['semanal', 'mensal', 'anual'];
 
+/** Categoria sugerida para toda assinatura nova (criada pela migracao 008). */
+const CATEGORIA_PADRAO = 'assinaturas';
+
 type AssinaturaFormModalProps = {
   visivel: boolean;
   empresas: Empresa[];
+  categorias: CategoriaLancamento[];
   salvando: boolean;
   onFechar: () => void;
   /** Devolve `true` quando a assinatura foi criada, o que fecha o painel. */
@@ -25,6 +31,7 @@ type AssinaturaFormModalProps = {
 export default function AssinaturaFormModal({
   visivel,
   empresas,
+  categorias,
   salvando,
   onFechar,
   onSalvar,
@@ -36,6 +43,7 @@ export default function AssinaturaFormModal({
   const [dataInicio, setDataInicio] = useState(dayjs().format('YYYY-MM-DD'));
   const [dataInputKey, setDataInputKey] = useState(0);
   const [frequencia, setFrequencia] = useState<FrequenciaPlano>('mensal');
+  const [categoriaId, setCategoriaId] = useState<string | null>(CATEGORIA_PADRAO);
 
   const limpar = (): void => {
     setDescricao('');
@@ -44,6 +52,7 @@ export default function AssinaturaFormModal({
     setDataInicio(dayjs().format('YYYY-MM-DD'));
     setDataInputKey((atual) => atual + 1);
     setFrequencia('mensal');
+    setCategoriaId(CATEGORIA_PADRAO);
   };
 
   const salvar = (): void => {
@@ -51,6 +60,10 @@ export default function AssinaturaFormModal({
       const salvou = await onSalvar({
         descricao,
         empresaId,
+        // A padrao pode ter sido excluida pelo usuario.
+        categoriaId: categorias.some((categoria) => categoria.id === categoriaId)
+          ? categoriaId
+          : null,
         valor: Number(valor) || 0,
         dataInicio,
         frequencia,
@@ -101,6 +114,16 @@ export default function AssinaturaFormModal({
           decimalScale={2}
           placeholder="Ex.: 39,90"
           style={sharedStyles.input}
+        />
+      </View>
+
+      <View style={sharedStyles.formGroup}>
+        <Text style={sharedStyles.label}>Categoria</Text>
+        <SeletorCategoria
+          categorias={categorias}
+          tipo="saida"
+          selecionada={categoriaId}
+          onSelecionar={setCategoriaId}
         />
       </View>
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ScrollView, Switch, View } from 'react-native';
+import { Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { type RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingScreen,
   LoadingState,
   ScreenHeader,
+  ScrollComTeclado,
   Text,
   TextInput,
 } from '../../components/ui';
@@ -89,7 +90,7 @@ export default function ProdutoFormView(): React.ReactNode {
       />
 
       <KeyboardAvoidingScreen>
-        <ScrollView
+        <ScrollComTeclado
           style={sharedStyles.scrollArea}
           contentContainerStyle={sharedStyles.formContent}
           keyboardShouldPersistTaps="handled"
@@ -144,6 +145,7 @@ export default function ProdutoFormView(): React.ReactNode {
 
           <SeletorMultiplo
             label="Categorias"
+            multiplo
             opcoes={form.categorias.map((categoria) => ({
               id: categoria.id,
               nome: categoria.nome,
@@ -209,7 +211,7 @@ export default function ProdutoFormView(): React.ReactNode {
               onPress={salvarProduto}
             />
           </View>
-        </ScrollView>
+        </ScrollComTeclado>
       </KeyboardAvoidingScreen>
     </SafeAreaView>
   );

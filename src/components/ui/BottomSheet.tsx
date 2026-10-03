@@ -6,7 +6,6 @@ import {
   PanResponder,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   useWindowDimensions,
   View,
@@ -14,6 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { makeStyles, radius, shadows, spacing, useTheme } from '../../theme';
 import IconButton from './IconButton';
+import ScrollComTeclado from './ScrollComTeclado';
 import Text from './Text';
 
 /** Arrasto (em px) ou velocidade a partir dos quais soltar o painel o fecha. */
@@ -207,14 +207,14 @@ export default function BottomSheet({
           </View>
 
           {rolavel ? (
-            <ScrollView
+            <ScrollComTeclado
               style={styles.rolagem}
               contentContainerStyle={styles.conteudo}
               keyboardShouldPersistTaps="handled"
               nestedScrollEnabled
             >
               {children}
-            </ScrollView>
+            </ScrollComTeclado>
           ) : (
             <View style={styles.conteudo}>{children}</View>
           )}

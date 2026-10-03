@@ -2,16 +2,15 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import dayjs from 'dayjs';
 import 'dayjs/locale/pt-br';
-import { v4 as uuid4 } from 'uuid';
-import { emTransacao } from '../../models/database';
 import {
-  insertItemTransacao,
-  type ItemTransacao,
-  listItensTransacao,
-} from '../../models/itensTransacao';
+  type CategoriaLancamento,
+  definirCategoriaTransacao,
+  listCategoriasLancamento,
+} from '../../models/categoriasLancamento';
+import { type ItemTransacao, listItensTransacao } from '../../models/itensTransacao';
+import { registrarLancamento } from '../../models/lancamentos';
 import {
   excluirTransacao,
-  insertTransacao,
   listTransacoes,
   listTransacoesCompra,
   restaurarTransacao,
@@ -19,18 +18,16 @@ import {
   type TransacaoExcluida,
   type Transacoes,
 } from '../../models/transacoesModel';
-import { criarCompraParcelada, materializarPlanos } from '../../models/materializacaoPlanos';
-import { registrarPrecoVariante } from '../../models/produtoVariantes';
+import { materializarPlanos } from '../../models/materializacaoPlanos';
 import { type Empresa, listEmpresas } from '../../models/empresas';
 import { getLocalPadrao } from '../../models/settingsModel';
 import { Locais } from '../../utils/local';
+import { agruparPorDia, type GrupoDia } from '../../utils/agruparPorDia';
+import { agruparItensPorTransacao } from '../../utils/itensPorTransacao';
 import { projetarMes } from '../../utils/projecaoMes';
 import type { NovoLancamento } from './types';
 
 dayjs.locale('pt-br');
-
-/** Data com hora local, para o historico de precos ser exibido no dia correto. */
-const toDataHistorico = (data: string): string => dayjs(data).format('YYYY-MM-DDTHH:mm:ss');
 
 const hojeIso = (): string => dayjs().format('YYYY-MM-DD');
 
@@ -48,14 +45,7 @@ export type ResumoHome = {
 };
 
 /** Um dia da lista de lancamentos, do mais recente para o mais antigo. */
-export type SecaoDia = {
-  /** YYYY-MM-DD. */
-  dia: string;
-  /** Soma com sinal dos lancamentos do dia. */
-  total: number;
-  /** Lancamentos do dia (o nome `data` e o que a SectionList espera). */
-  data: Transacoes[];
-};
+export type SecaoDia = GrupoDia<Transacoes>;
 
 export type UseHome = {
   /** So na primeira carga; depois a tela atualiza sem piscar. */
@@ -67,6 +57,10 @@ export type UseHome = {
   resumo: ResumoHome;
   itensPorTransacao: Map<string, ItemTransacao[]>;
   nomeEmpresa: (id?: string | null) => string;
+  categorias: CategoriaLancamento[];
+  categoriaPorId: (id?: string | null) => CategoriaLancamento | undefined;
+  /** Muda a categoria (no plano inteiro, se for parcela ou assinatura). */
+  definirCategoria: (transacaoId: string, categoriaId: string | null) => Promise<void>;
   adicionarLancamento: (lancamento: NovoLancamento) => Promise<void>;
   /** Apaga e devolve o que foi apagado, para o "Desfazer". */
   excluir: (id: string) => Promise<TransacaoExcluida | null>;
@@ -90,6 +84,7 @@ export function useHome(): UseHome {
   const [itens, setItens] = useState<ItemTransacao[]>([]);
   const [compras, setCompras] = useState<Transacoes[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [categorias, setCategorias] = useState<CategoriaLancamento[]>([]);
   const [resumo, setResumo] = useState<ResumoHome>(RESUMO_VAZIO);
   /** Configurado na tela de menu; usado sem perguntar em cada lancamento. */
   const [localPadrao, setLocalPadrao] = useState(Locais.padrao);
@@ -117,6 +112,7 @@ export function useHome(): UseHome {
       comprasDoBanco,
       empresasDoBanco,
       localPadraoDoBanco,
+      categoriasDoBanco,
     ] = await Promise.all([
       listTransacoes(null, null, { ateData: fimMes }),
       // Com inicio e fim informados a busca nao tem o limite de 50 linhas do
@@ -127,6 +123,7 @@ export function useHome(): UseHome {
       listTransacoesCompra(),
       listEmpresas(),
       getLocalPadrao(),
+      listCategoriasLancamento(),
     ]);
 
     const projecao = projetarMes(transacoesMes, {
@@ -145,6 +142,7 @@ export function useHome(): UseHome {
     setCompras(comprasDoBanco);
     setEmpresas(empresasDoBanco);
     setLocalPadrao(localPadraoDoBanco);
+    setCategorias(categoriasDoBanco);
     setResumo({
       saldoAtual: caixa.saldoAtual,
       gastoMes: projecao.gastoRealizado,
@@ -183,61 +181,12 @@ export function useHome(): UseHome {
       .finally(() => setAtualizando(false));
   }, [carregarDados]);
 
-  const secoes = useMemo((): SecaoDia[] => {
-    const porDia = new Map<string, Transacoes[]>();
+  const secoes = useMemo((): SecaoDia[] => agruparPorDia(transacoes), [transacoes]);
 
-    for (const transacao of transacoes) {
-      const doDia = porDia.get(transacao.data) ?? [];
-      doDia.push(transacao);
-      porDia.set(transacao.data, doDia);
-    }
-
-    return [...porDia.entries()]
-      .sort(([a], [b]) => (a < b ? 1 : -1))
-      .map(([dia, doDia]) => ({
-        dia,
-        total: doDia.reduce((soma, transacao) => soma + transacao.valor, 0),
-        data: doDia,
-      }));
-  }, [transacoes]);
-
-  /**
-   * Os itens de uma compra parcelada pertencem a transacao da compra, que fica
-   * fora do caixa e nao aparece na lista. Para eles nao sumirem da tela, sao
-   * mostrados na 1a parcela - a unica que cai no mes da compra.
-   */
-  const itensPorTransacao = useMemo(() => {
-    const agrupado = new Map<string, ItemTransacao[]>();
-
-    for (const item of itens) {
-      const atuais = agrupado.get(item.transacao_id) ?? [];
-      atuais.push(item);
-      agrupado.set(item.transacao_id, atuais);
-    }
-
-    const compraPorPlano = new Map<string, string>();
-
-    for (const compra of compras) {
-      if (compra.plano_id) {
-        compraPorPlano.set(compra.plano_id, compra.id);
-      }
-    }
-
-    for (const transacao of transacoes) {
-      if (!transacao.plano_id || transacao.parcela_numero !== 1) {
-        continue;
-      }
-
-      const compraId = compraPorPlano.get(transacao.plano_id);
-      const itensDaCompra = compraId ? agrupado.get(compraId) : undefined;
-
-      if (itensDaCompra) {
-        agrupado.set(transacao.id, itensDaCompra);
-      }
-    }
-
-    return agrupado;
-  }, [itens, compras, transacoes]);
+  const itensPorTransacao = useMemo(
+    () => agruparItensPorTransacao(itens, compras, transacoes),
+    [itens, compras, transacoes],
+  );
 
   const nomesEmpresas = useMemo(
     () => new Map(empresas.map((empresa) => [empresa.id, empresa.nome])),
@@ -249,71 +198,28 @@ export function useHome(): UseHome {
     [nomesEmpresas],
   );
 
+  const categoriasPorId = useMemo(
+    () => new Map(categorias.map((categoria) => [categoria.id, categoria])),
+    [categorias],
+  );
+
+  const categoriaPorId = useCallback(
+    (id?: string | null): CategoriaLancamento | undefined =>
+      id ? categoriasPorId.get(id) : undefined,
+    [categoriasPorId],
+  );
+
+  const definirCategoria = useCallback(
+    async (transacaoId: string, categoriaId: string | null): Promise<void> => {
+      await definirCategoriaTransacao(transacaoId, categoriaId);
+      await carregarDados();
+    },
+    [carregarDados],
+  );
+
   const adicionarLancamento = useCallback(
     async (lancamento: NovoLancamento): Promise<void> => {
-      // Tudo ou nada: sem a transacao, uma falha no meio deixava o lancamento
-      // gravado sem parte dos itens (ou o plano sem as parcelas).
-      await emTransacao(async () => {
-        const agora = new Date().toISOString();
-        const parcelamento = lancamento.parcelamento;
-
-        /**
-         * No parcelamento os itens vao para a transacao da compra (valor cheio),
-         * nunca para a parcela: a parcela e caixa, a compra e o que foi comprado.
-         */
-        let transacaoDosItens: string;
-
-        if (parcelamento && parcelamento.parcelas > 1) {
-          const { compraTransacaoId } = await criarCompraParcelada({
-            descricao: lancamento.descricao,
-            empresaId: lancamento.empresaId,
-            valorTotal: lancamento.valor,
-            dataCompra: lancamento.data,
-            parcelas: parcelamento.parcelas,
-            primeiraParcela: parcelamento.primeiraParcela,
-            local: localPadrao,
-          });
-
-          transacaoDosItens = compraTransacaoId;
-        } else {
-          transacaoDosItens = uuid4();
-
-          await insertTransacao({
-            id: transacaoDosItens,
-            descricao: lancamento.descricao,
-            valor: lancamento.valor,
-            data: lancamento.data,
-            empresa_id: lancamento.empresaId,
-            local: localPadrao,
-            created_at: agora,
-          });
-        }
-
-        for (const item of lancamento.itens) {
-          await insertItemTransacao({
-            id: uuid4(),
-            transacao_id: transacaoDosItens,
-            produto_id: item.produtoId,
-            variante_id: item.varianteId,
-            descricao: item.descricao,
-            valor: item.precoUnitario,
-            quantidade: item.quantidade,
-            created_at: agora,
-          });
-
-          if (item.produtoId && item.varianteId) {
-            await registrarPrecoVariante({
-              produtoId: item.produtoId,
-              varianteId: item.varianteId,
-              empresaId: lancamento.empresaId,
-              preco: item.precoUnitario,
-              data: toDataHistorico(lancamento.data),
-              local: localPadrao,
-            });
-          }
-        }
-      });
-
+      await registrarLancamento(lancamento, localPadrao);
       await carregarDados();
     },
     [carregarDados, localPadrao],
@@ -344,6 +250,9 @@ export function useHome(): UseHome {
     resumo,
     itensPorTransacao,
     nomeEmpresa,
+    categorias,
+    categoriaPorId,
+    definirCategoria,
     adicionarLancamento,
     excluir,
     restaurar,

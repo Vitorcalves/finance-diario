@@ -191,12 +191,16 @@ export const criarSharedStyles = (colors: Paleta, typography: Tipografia) =>
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
       backgroundColor: colors.surfaceMuted,
+      // Borda leve: dentro de blocos com o mesmo fundo o chip nao sumir.
+      borderWidth: 1,
+      borderColor: colors.border,
     },
     chipSpaced: {
       marginRight: spacing.sm,
     },
     chipActive: {
       backgroundColor: colors.primary,
+      borderColor: colors.primary,
     },
     chipText: {
       fontSize: fontSize.small,

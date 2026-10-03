@@ -1,9 +1,15 @@
 import { useState } from 'react';
-import { Alert, ScrollView } from 'react-native';
+import { Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { KeyboardAvoidingScreen, LoadingState, ScreenHeader, Text } from '../../components/ui';
+import {
+  KeyboardAvoidingScreen,
+  LoadingState,
+  ScreenHeader,
+  ScrollComTeclado,
+  Text,
+} from '../../components/ui';
 import type { DashboardStackParamList } from '../../routes/types';
 import { useTheme } from '../../theme';
 import AvisoOrcamento from './components/AvisoOrcamento';
@@ -75,7 +81,7 @@ export default function OrcamentoView(): React.ReactNode {
         <LoadingState />
       ) : (
         <KeyboardAvoidingScreen>
-          <ScrollView
+          <ScrollComTeclado
             style={sharedStyles.scrollArea}
             contentContainerStyle={sharedStyles.scrollContent}
             keyboardShouldPersistTaps="handled"
@@ -138,7 +144,7 @@ export default function OrcamentoView(): React.ReactNode {
               menorTotalCompleto={orcamento.menorTotalCompleto}
               totalDeItens={orcamento.itens.length}
             />
-          </ScrollView>
+          </ScrollComTeclado>
 
           <RodapeOrcamento
             total={orcamento.totalOrcamento}

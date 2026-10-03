@@ -1,4 +1,3 @@
-import { ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -7,6 +6,7 @@ import {
   KeyboardAvoidingScreen,
   LoadingState,
   ScreenHeader,
+  ScrollComTeclado,
 } from '../../components/ui';
 import type { DashboardStackParamList } from '../../routes/types';
 import { useTheme } from '../../theme';
@@ -53,7 +53,7 @@ export default function HistoricoPrecosView(): React.ReactNode {
         <LoadingState />
       ) : (
         <KeyboardAvoidingScreen>
-          <ScrollView
+          <ScrollComTeclado
             style={sharedStyles.scrollArea}
             contentContainerStyle={sharedStyles.scrollContent}
             keyboardShouldPersistTaps="handled"
@@ -98,7 +98,7 @@ export default function HistoricoPrecosView(): React.ReactNode {
                 />
               ))
             )}
-          </ScrollView>
+          </ScrollComTeclado>
         </KeyboardAvoidingScreen>
       )}
     </SafeAreaView>

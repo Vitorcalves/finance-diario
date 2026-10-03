@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
-import { ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   KeyboardAvoidingScreen,
   type OpcaoSegmento,
   ScreenHeader,
+  ScrollComTeclado,
   SegmentedControl,
 } from '../../components/ui';
 import { useTheme } from '../../theme';
@@ -64,7 +64,7 @@ export default function IntegracaoView(): React.ReactNode {
       />
 
       <KeyboardAvoidingScreen>
-        <ScrollView
+        <ScrollComTeclado
           style={sharedStyles.scrollArea}
           contentContainerStyle={sharedStyles.scrollContent}
           keyboardShouldPersistTaps="handled"
@@ -109,7 +109,7 @@ export default function IntegracaoView(): React.ReactNode {
               onLimpar={limparImportacao}
             />
           )}
-        </ScrollView>
+        </ScrollComTeclado>
       </KeyboardAvoidingScreen>
     </SafeAreaView>
   );

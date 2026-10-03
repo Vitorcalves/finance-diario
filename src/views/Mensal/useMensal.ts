@@ -2,12 +2,23 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import dayjs from 'dayjs';
 import 'dayjs/locale/pt-br';
+import {
+  type CategoriaLancamento,
+  listCategoriasLancamento,
+} from '../../models/categoriasLancamento';
 import { type Empresa, listEmpresas } from '../../models/empresas';
 import { materializarPlanos } from '../../models/materializacaoPlanos';
 import { listTransacoes, type Transacoes } from '../../models/transacoesModel';
 import { Locais } from '../../utils/local';
 import { projetarMes, type SituacaoMes } from '../../utils/projecaoMes';
-import type { ComparativoMes, DetalheDoDia, DiaDoMes, GastoPorLocal, ResumoMes } from './types';
+import type {
+  ComparativoMes,
+  DetalheDoDia,
+  DiaDoMes,
+  GastoPorCategoria,
+  GastoPorLocal,
+  ResumoMes,
+} from './types';
 
 dayjs.locale('pt-br');
 
@@ -28,6 +39,7 @@ type DadosMes = {
   doMes: Transacoes[];
   doMesAnterior: Transacoes[];
   empresas: Empresa[];
+  categorias: CategoriaLancamento[];
 };
 
 export type UseMensal = {
@@ -51,6 +63,8 @@ export type UseMensal = {
   resumo: ResumoMes;
   /** Gasto do mes somado por local de compra, do maior para o menor. */
   gastoPorLocal: GastoPorLocal[];
+  /** Gasto do mes por categoria de lancamento, do maior para o menor. */
+  gastoPorCategoria: GastoPorCategoria[];
   comparativo: ComparativoMes;
   /** Curva do acumulado projetada ate o fim do mes; vazia fora do mes corrente. */
   projecaoPorDia: number[];
@@ -80,6 +94,7 @@ export function useMensal(): UseMensal {
   const transacoesMes = useMemo(() => dados?.doMes ?? [], [dados]);
   const transacoesMesAnterior = useMemo(() => dados?.doMesAnterior ?? [], [dados]);
   const empresas = useMemo(() => dados?.empresas ?? [], [dados]);
+  const categorias = useMemo(() => dados?.categorias ?? [], [dados]);
 
   useFocusEffect(
     useCallback(() => {
@@ -95,13 +110,14 @@ export function useMensal(): UseMensal {
         // com os compromissos ja conhecidos dentro.
         await materializarPlanos(fimDoMes);
 
-        const [doMes, doMesAnterior, empresasDoBanco] = await Promise.all([
+        const [doMes, doMesAnterior, empresasDoBanco, categoriasDoBanco] = await Promise.all([
           listTransacoes(mesSelecionado.startOf('month').format('YYYY-MM-DD'), fimDoMes),
           listTransacoes(
             mesAnterior.startOf('month').format('YYYY-MM-DD'),
             mesAnterior.endOf('month').format('YYYY-MM-DD'),
           ),
           listEmpresas(),
+          listCategoriasLancamento(),
         ]);
 
         return {
@@ -109,6 +125,7 @@ export function useMensal(): UseMensal {
           doMes,
           doMesAnterior,
           empresas: empresasDoBanco,
+          categorias: categoriasDoBanco,
         };
       };
 
@@ -242,6 +259,40 @@ export function useMensal(): UseMensal {
   }, [transacoesMes, dias, diasDecorridos, diasNoMes, situacao, hojeIso]);
 
   /** So o realizado entra: gasto comprometido a vencer ainda nao aconteceu em lugar nenhum. */
+  /** So o realizado entra, como no grafico por localidade. */
+  const gastoPorCategoria = useMemo((): GastoPorCategoria[] => {
+    const porCategoria = new Map<string | null, { gasto: number; lancamentos: number }>();
+
+    for (const transacao of transacoesMes) {
+      const gasto = gastoDe(transacao);
+
+      if (gasto <= 0 || !jaAconteceu(transacao, hojeIso)) {
+        continue;
+      }
+
+      const chave = transacao.categoria_id ?? null;
+      const atual = porCategoria.get(chave) ?? { gasto: 0, lancamentos: 0 };
+      porCategoria.set(chave, { gasto: atual.gasto + gasto, lancamentos: atual.lancamentos + 1 });
+    }
+
+    const categoriasPorId = new Map(categorias.map((categoria) => [categoria.id, categoria]));
+
+    return [...porCategoria.entries()]
+      .map(([categoriaId, soma]) => {
+        const categoria = categoriaId ? categoriasPorId.get(categoriaId) : undefined;
+
+        return {
+          categoriaId: categoria ? categoriaId : null,
+          nome: categoria?.nome ?? 'Sem categoria',
+          icone: categoria?.icone ?? null,
+          cor: categoria?.cor ?? null,
+          gasto: soma.gasto,
+          lancamentos: soma.lancamentos,
+        };
+      })
+      .sort((a, b) => b.gasto - a.gasto);
+  }, [transacoesMes, categorias, hojeIso]);
+
   const gastoPorLocal = useMemo((): GastoPorLocal[] => {
     const porLocal = new Map<number, number>();
 
@@ -340,6 +391,7 @@ export function useMensal(): UseMensal {
     dias,
     resumo,
     gastoPorLocal,
+    gastoPorCategoria,
     comparativo,
     projecaoPorDia,
     escalaAcumulado,

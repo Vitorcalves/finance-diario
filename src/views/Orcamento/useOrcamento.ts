@@ -15,6 +15,11 @@ import {
   registrarPrecoVariante,
 } from '../../models/produtoVariantes';
 import { getLocalPadrao } from '../../models/settingsModel';
+import {
+  compararMercados,
+  maisRecentePrimeiro,
+  menorTotalCompleto as menorTotalEntreCompletos,
+} from '../../utils/comparativoMercados';
 import { Locais } from '../../utils/local';
 import {
   precoPorUnidadePrimaria,
@@ -30,12 +35,6 @@ import type {
 } from './types';
 
 const todayIso = (): string => dayjs().format('YYYY-MM-DD');
-
-/** Ordena do registro mais recente para o mais antigo, usando o created_at como desempate. */
-const maisRecentePrimeiro = (a: HistoricoPreco, b: HistoricoPreco): number => {
-  const diffData = dayjs(b.data).valueOf() - dayjs(a.data).valueOf();
-  return diffData !== 0 ? diffData : b.created_at.localeCompare(a.created_at);
-};
 
 export type UseOrcamento = {
   loading: boolean;
@@ -282,68 +281,33 @@ export function useOrcamento(): UseOrcamento {
       return [];
     }
 
-    const idsRelevantes = new Set<string>();
+    const precoDigitado = new Map(itens.map((item) => [item.localId, item.preco]));
 
-    for (const item of itens) {
-      for (const registro of historico) {
-        if (registro.variante_id === item.varianteId && registro.empresa_id !== null) {
-          idsRelevantes.add(registro.empresa_id);
-        }
-      }
-    }
-
-    if (empresaSelecionada) {
-      idsRelevantes.add(empresaSelecionada);
-    }
-
-    const resultado: ComparativoMercado[] = [];
-
-    for (const empresaId of idsRelevantes) {
-      let total = 0;
-      let itensComPreco = 0;
-
-      for (const item of itens) {
-        const preco =
-          empresaId === empresaSelecionada
-            ? item.preco
-            : (ultimoPreco(item.varianteId, empresaId)?.preco ?? null);
-
-        if (preco === null) {
-          continue;
-        }
-
-        total += preco * item.quantidade;
-        itensComPreco += 1;
-      }
-
-      resultado.push({
-        empresaId,
-        nome: nomeEmpresa(empresaId),
-        total,
-        itensComPreco,
-        completo: itensComPreco === itens.length,
-        mercadoDoOrcamento: empresaId === empresaSelecionada,
-      });
-    }
-
-    return resultado.sort((a, b) => {
-      if (a.completo !== b.completo) {
-        return a.completo ? -1 : 1;
-      }
-
-      if (a.itensComPreco !== b.itensComPreco) {
-        return b.itensComPreco - a.itensComPreco;
-      }
-
-      return a.total - b.total;
-    });
-  }, [itens, historico, empresaSelecionada, ultimoPreco, nomeEmpresa]);
+    return compararMercados(
+      itens.map((item) => ({
+        id: item.localId,
+        produtoId: item.produtoId,
+        varianteId: item.varianteId,
+        quantidade: item.quantidade,
+      })),
+      historico,
+      {
+        incluir: empresaSelecionada ? [empresaSelecionada] : [],
+        precoFixo: (item, empresaId) =>
+          empresaId === empresaSelecionada ? precoDigitado.get(item.id) : undefined,
+      },
+    ).map((mercado) => ({
+      empresaId: mercado.empresaId,
+      nome: nomeEmpresa(mercado.empresaId),
+      total: mercado.total,
+      itensComPreco: mercado.itensComPreco,
+      completo: mercado.completo,
+      mercadoDoOrcamento: mercado.empresaId === empresaSelecionada,
+    }));
+  }, [itens, historico, empresaSelecionada, nomeEmpresa]);
 
   /** So faz sentido eleger o mais barato entre mercados que cobrem todos os itens. */
-  const menorTotalCompleto = useMemo(() => {
-    const completos = comparativo.filter((mercado) => mercado.completo);
-    return completos.length > 1 ? Math.min(...completos.map((mercado) => mercado.total)) : null;
-  }, [comparativo]);
+  const menorTotalCompleto = useMemo(() => menorTotalEntreCompletos(comparativo), [comparativo]);
 
   const alternarEmpresa = useCallback((id: string): void => {
     setEmpresaSelecionada((atual) => (atual === id ? null : id));

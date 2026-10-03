@@ -1,5 +1,6 @@
 import { type ComponentPropsWithRef, useState } from 'react';
-import { StyleSheet, TextInput as RNTextInput } from 'react-native';
+import { DeviceEventEmitter, Keyboard, StyleSheet, TextInput as RNTextInput } from 'react-native';
+import { EVENTO_CAMPO_FOCADO } from './ScrollComTeclado';
 import { familiaPorPeso, makeStyles, useTheme } from '../../theme';
 
 type TextInputProps = ComponentPropsWithRef<typeof RNTextInput>;
@@ -34,6 +35,13 @@ export default function TextInput({
       keyboardAppearance={esquema}
       onFocus={(evento): void => {
         setFocado(true);
+
+        // Trocar de campo com o teclado aberto nao gera evento de teclado: a
+        // lista precisa ser avisada para rolar ate o novo campo.
+        if (Keyboard.isVisible()) {
+          DeviceEventEmitter.emit(EVENTO_CAMPO_FOCADO);
+        }
+
         onFocus?.(evento);
       }}
       onBlur={(evento): void => {

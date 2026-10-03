@@ -35,6 +35,7 @@ type OcorrenciaGravada = {
   valor: number;
   data: string;
   empresaId?: string | null;
+  categoriaId?: string | null;
   contabilizado: boolean;
 };
 
@@ -48,8 +49,9 @@ const gravarOcorrencia = async (ocorrencia: OcorrenciaGravada): Promise<void> =>
   await db.runAsync(
     `
         INSERT OR IGNORE INTO transacoes (id, descricao, valor, data, empresa_id,
-                                          contabilizado_saldo, plano_id, parcela_numero, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                          contabilizado_saldo, plano_id, parcela_numero,
+                                          categoria_id, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       uuidv4(),
@@ -60,6 +62,7 @@ const gravarOcorrencia = async (ocorrencia: OcorrenciaGravada): Promise<void> =>
       ocorrencia.contabilizado ? 1 : 0,
       ocorrencia.planoId,
       ocorrencia.numero,
+      ocorrencia.categoriaId ?? null,
       new Date().toISOString(),
     ],
   );
@@ -90,6 +93,8 @@ export type DadosCompraParcelada = {
   intervalo?: number;
   /** Local onde a compra aconteceu; ver `Locais`. */
   local?: number;
+  /** Categoria da compra, herdada pelas parcelas. */
+  categoriaId?: string | null;
 };
 
 export type CompraParceladaCriada = {
@@ -142,6 +147,7 @@ const gravarCompraParcelada = async (
     data_fim: ultimaParcela?.data ?? dados.primeiraParcela,
     ativo: 1,
     gerado_ate: ultimaParcela?.data ?? null,
+    categoria_id: dados.categoriaId ?? null,
     created_at: agora,
   });
 
@@ -150,8 +156,8 @@ const gravarCompraParcelada = async (
   await db.runAsync(
     `
         INSERT INTO transacoes (id, descricao, valor, data, empresa_id, contabilizado_saldo,
-                                plano_id, parcela_numero, local, created_at)
-        VALUES (?, ?, ?, ?, ?, 0, ?, 0, ?, ?)
+                                plano_id, parcela_numero, local, categoria_id, created_at)
+        VALUES (?, ?, ?, ?, ?, 0, ?, 0, ?, ?, ?)
     `,
     [
       compraTransacaoId,
@@ -161,6 +167,7 @@ const gravarCompraParcelada = async (
       dados.empresaId,
       planoId,
       dados.local ?? Locais.padrao,
+      dados.categoriaId ?? null,
       agora,
     ],
   );
@@ -173,6 +180,7 @@ const gravarCompraParcelada = async (
       valor: parcela.valor,
       data: parcela.data,
       empresaId: dados.empresaId,
+      categoriaId: dados.categoriaId ?? null,
       contabilizado: true,
     });
   }
@@ -210,6 +218,7 @@ const gerarCobrancas = async (plano: PlanoPagamento, ateData: string): Promise<n
       valor: plano.valor_parcela,
       data: ocorrencia.data,
       empresaId: plano.empresa_id,
+      categoriaId: plano.categoria_id ?? null,
       contabilizado: true,
     });
   }
@@ -250,6 +259,7 @@ export type DadosAssinatura = {
   intervalo: number;
   /** Encerramento previsto; `null` enquanto a assinatura estiver ativa. */
   dataFim?: string | null;
+  categoriaId?: string | null;
 };
 
 /** Cria a assinatura e ja materializa as cobrancas ate o horizonte. */
@@ -275,6 +285,7 @@ const gravarAssinatura = async (dados: DadosAssinatura, ateData: string): Promis
     data_fim: dados.dataFim ?? null,
     ativo: 1,
     gerado_ate: null,
+    categoria_id: dados.categoriaId ?? null,
     created_at: new Date().toISOString(),
   });
 

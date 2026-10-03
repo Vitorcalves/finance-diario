@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Keyboard, Pressable, ScrollView, TextInput as RNTextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { fontSize, fontWeight, makeStyles, radius, shadows, spacing, useTheme } from '../theme';
+import { correspondeBusca } from '../utils/busca';
 import { Text, TextInput } from './ui';
+import { alvoDoCampo, mostrarNaRolagem } from './ui/ScrollComTeclado';
 
 export type OpcaoSeletorMultiplo = {
   id: string;
@@ -25,6 +27,11 @@ type SeletorMultiploProps = {
   formAdicionar?: (fechar: () => void) => React.ReactNode;
   /** Elemento ao lado do botao de abrir a lista (ex.: atalho de leitura por codigo de barras). */
   extra?: React.ReactNode;
+  /**
+   * `true` mantem a lista aberta para marcar varias opcoes (ex.: categorias).
+   * Por padrao a escolha e unica: tocar numa opcao fecha a lista.
+   */
+  multiplo?: boolean;
 };
 
 export default function SeletorMultiplo({
@@ -40,19 +47,46 @@ export default function SeletorMultiplo({
   textoAdicionar = 'Adicionar novo',
   formAdicionar,
   extra,
+  multiplo = false,
 }: SeletorMultiploProps): React.ReactNode {
   const { colors, sharedStyles } = useTheme();
   const styles = useStyles();
   const [aberto, setAberto] = useState(false);
   const [busca, setBusca] = useState('');
   const [mostrarFormAdicionar, setMostrarFormAdicionar] = useState(false);
+  const lista = useRef<View>(null);
+  const campoBusca = useRef<RNTextInput>(null);
 
-  const termo = busca.trim().toLowerCase();
+  // Ao abrir, a lista aparece abaixo do campo: a rolagem desce ate ela ficar a
+  // vista, e o foco na busca mostra a lista inteira acima do teclado.
+  useEffect(() => {
+    if (!aberto) {
+      return;
+    }
+
+    if (campoBusca.current && lista.current) {
+      alvoDoCampo.set(campoBusca.current, lista.current);
+    }
+
+    mostrarNaRolagem(lista.current);
+  }, [aberto]);
+
+  const termo = busca.trim();
   const opcoesFiltradas = opcoes.filter(
-    (opcao) => (termo || !opcao.oculta) && opcao.nome.toLowerCase().includes(termo),
+    (opcao) => (termo || !opcao.oculta) && correspondeBusca(opcao.nome, termo),
   );
 
   const fecharFormAdicionar = (): void => setMostrarFormAdicionar(false);
+
+  const escolher = (id: string): void => {
+    onToggle(id);
+
+    if (!multiplo) {
+      setAberto(false);
+      setBusca('');
+      Keyboard.dismiss();
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -93,22 +127,27 @@ export default function SeletorMultiplo({
       </View>
 
       {aberto && (
-        <View style={styles.comboDropdown}>
+        <View ref={lista} style={styles.comboDropdown}>
           <TextInput
+            ref={campoBusca}
             style={styles.comboBuscaInput}
             placeholder={placeholderBusca}
             value={busca}
             onChangeText={setBusca}
             placeholderTextColor={colors.placeholder}
           />
-          <ScrollView style={styles.comboLista} nestedScrollEnabled>
+          <ScrollView
+            style={styles.comboLista}
+            nestedScrollEnabled
+            keyboardShouldPersistTaps="handled"
+          >
             {opcoesFiltradas.map((opcao) => {
               const selecionada = selecionados.includes(opcao.id);
               return (
                 <Pressable
                   key={opcao.id}
                   style={styles.comboItem}
-                  onPress={(): void => onToggle(opcao.id)}
+                  onPress={(): void => escolher(opcao.id)}
                 >
                   <Text style={[styles.comboItemText, selecionada && styles.comboItemTextAtivo]}>
                     {selecionada ? '✓ ' : ''}

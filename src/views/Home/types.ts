@@ -24,9 +24,22 @@ export type NovoLancamento = {
   descricao: string;
   data: string;
   empresaId: string | null;
+  /** Categoria do lancamento; `null` = sem categoria. */
+  categoriaId: string | null;
   /** Valor ja com sinal: negativo para saida, positivo para entrada. */
   valor: number;
   itens: ItemLancamento[];
   /** Quando informado, o valor vira um plano e o caixa recebe as parcelas. */
   parcelamento?: ParcelamentoLancamento | null;
+};
+
+/**
+ * Lancamento pre-preenchido por outra tela (ex.: a lista de compras ao
+ * finalizar): o formulario abre com estes dados para o usuario so conferir.
+ */
+export type RascunhoLancamento = {
+  descricao?: string;
+  empresaId?: string | null;
+  categoriaId?: string | null;
+  itens?: Omit<ItemLancamento, 'localId'>[];
 };

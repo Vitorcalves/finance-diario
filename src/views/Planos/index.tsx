@@ -21,6 +21,7 @@ export default function PlanosView(): React.ReactNode {
     loading,
     salvando,
     empresas,
+    categorias,
     ativos,
     encerrados,
     resumo,
@@ -89,6 +90,7 @@ export default function PlanosView(): React.ReactNode {
       <AssinaturaFormModal
         visivel={showForm}
         empresas={empresas}
+        categorias={categorias}
         salvando={salvando}
         onFechar={(): void => setShowForm(false)}
         onSalvar={salvarAssinatura}

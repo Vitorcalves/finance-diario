@@ -38,9 +38,13 @@ describe('initializeDatabase', () => {
     const esperadas = [
       'categoria_produto',
       'categorias',
+      'categorias_lancamento',
       'empresas',
       'historico_preco',
       'itens_transacao',
+      'lista_compras_itens',
+      'lista_compras_mercados',
+      'lista_compras_precos',
       'marcas',
       'planos_pagamento',
       'produto_variantes',

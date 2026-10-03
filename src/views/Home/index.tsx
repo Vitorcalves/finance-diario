@@ -1,30 +1,32 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from 'react';
-import { Alert, RefreshControl, SectionList, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { type CompositeNavigationProp, useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import dayjs from 'dayjs';
 import {
   Aparecer,
   EmptyState,
   Fab,
   LoadingState,
+  PressableScale,
   ScreenHeader,
-  SwipeableRow,
   Text,
-  useToast,
 } from '../../components/ui';
-import type { Transacoes } from '../../models/transacoesModel';
-import type { RootTabParamList } from '../../routes/types';
-import { makeStyles, radius, spacing, useTheme } from '../../theme';
+import type { HomeStackParamList, RootTabParamList } from '../../routes/types';
+import { fontSize, fontWeight, iconSize, makeStyles, spacing, useTheme } from '../../theme';
 import AtalhosRapidos from './components/AtalhosRapidos';
-import CabecalhoDia from './components/CabecalhoDia';
+import ListaLancamentos from './components/ListaLancamentos';
 import NovoLancamentoForm from './components/NovoLancamentoForm';
 import ResumoTotais from './components/ResumoTotais';
-import TransacaoItem from './components/TransacaoItem';
-import { type SecaoDia, useHome } from './useHome';
+import { useHome } from './useHome';
 
-type HomeNavigation = BottomTabNavigationProp<RootTabParamList, 'Home'>;
+type HomeNavigation = CompositeNavigationProp<
+  NativeStackNavigationProp<HomeStackParamList, 'HomeMain'>,
+  BottomTabNavigationProp<RootTabParamList>
+>;
 
 /** Ex.: "Quarta, 30 de setembro". */
 const dataPorExtenso = (): string => {
@@ -37,7 +39,6 @@ export default function HomeView(): React.ReactNode {
   const { colors, sharedStyles } = useTheme();
   const styles = useStyles();
   const navigation = useNavigation<HomeNavigation>();
-  const toast = useToast();
   const [formAberto, setFormAberto] = useState(false);
   const {
     loading,
@@ -47,75 +48,15 @@ export default function HomeView(): React.ReactNode {
     resumo,
     itensPorTransacao,
     nomeEmpresa,
+    categorias,
+    categoriaPorId,
+    definirCategoria,
     adicionarLancamento,
     excluir,
     restaurar,
   } = useHome();
 
-  /** Apaga na hora e oferece o "Desfazer", em vez de perguntar antes. */
-  const excluirLancamento = (transacao: Transacoes): void => {
-    void (async (): Promise<void> => {
-      try {
-        const excluida = await excluir(transacao.id);
-
-        if (!excluida) {
-          return;
-        }
-
-        toast.mostrar(`"${transacao.descricao}" excluído`, {
-          tipo: 'info',
-          acao: {
-            rotulo: 'Desfazer',
-            onPress: (): void => {
-              restaurar(excluida)
-                .then(() => toast.mostrar('Lançamento restaurado'))
-                .catch((error: unknown) => {
-                  console.error('Erro ao restaurar lancamento', error);
-                  Alert.alert('Erro', 'Não foi possível restaurar o lançamento');
-                });
-            },
-          },
-        });
-      } catch (error: unknown) {
-        console.error('Erro ao remover lancamento', error);
-        Alert.alert('Erro', 'Não foi possível excluir o lançamento');
-      }
-    })();
-  };
-
-  const renderItem = ({
-    item,
-    index,
-    section,
-  }: {
-    item: Transacoes;
-    index: number;
-    section: SecaoDia;
-  }): React.ReactElement => {
-    const primeiro = index === 0;
-    const ultimo = index === section.data.length - 1;
-
-    return (
-      <SwipeableRow
-        style={[styles.linha, primeiro && styles.linhaPrimeira, ultimo && styles.linhaUltima]}
-        acoes={[
-          {
-            rotulo: 'Excluir',
-            icone: 'trash-outline',
-            tipo: 'danger',
-            onPress: (): void => excluirLancamento(item),
-          },
-        ]}
-      >
-        <TransacaoItem
-          transacao={item}
-          itens={itensPorTransacao.get(item.id) ?? []}
-          empresa={nomeEmpresa(item.empresa_id)}
-        />
-        {!ultimo && <View style={styles.separador} />}
-      </SwipeableRow>
-    );
-  };
+  const abrirBusca = (): void => navigation.navigate('BuscaLancamentos');
 
   const cabecalhoLista = (
     <View style={styles.cabecalhoLista}>
@@ -125,8 +66,13 @@ export default function HomeView(): React.ReactNode {
         <AtalhosRapidos
           atalhos={[
             {
-              rotulo: 'Orçamento',
+              rotulo: 'Lista',
               icone: 'cart-outline',
+              onPress: (): void => navigation.navigate('ListaCompras'),
+            },
+            {
+              rotulo: 'Orçamento',
+              icone: 'clipboard-outline',
               onPress: (): void => navigation.navigate('Dashboard', { screen: 'Orcamento' }),
             },
             {
@@ -145,8 +91,18 @@ export default function HomeView(): React.ReactNode {
 
       {secoes.length > 0 && (
         <View style={styles.tituloLista}>
-          <Text style={sharedStyles.sectionTitle}>Lançamentos</Text>
-          <Text style={sharedStyles.sectionHint}>Arraste para o lado para excluir</Text>
+          <View style={styles.tituloTextos}>
+            <Text style={sharedStyles.sectionTitle}>Lançamentos</Text>
+            <Text style={sharedStyles.sectionHint}>Arraste para o lado: categoria ou excluir</Text>
+          </View>
+          <Pressable
+            onPress={abrirBusca}
+            hitSlop={spacing.sm}
+            accessibilityRole="button"
+            accessibilityLabel="Ver todos os lançamentos"
+          >
+            <Text style={styles.verTodos}>Ver todos</Text>
+          </Pressable>
         </View>
       )}
     </View>
@@ -154,18 +110,34 @@ export default function HomeView(): React.ReactNode {
 
   return (
     <SafeAreaView style={sharedStyles.screen}>
-      <ScreenHeader title="Finance Diário" subtitle={dataPorExtenso()} />
+      <ScreenHeader
+        title="Finance Diário"
+        subtitle={dataPorExtenso()}
+        right={
+          <PressableScale
+            style={sharedStyles.headerAction}
+            onPress={abrirBusca}
+            escala={0.9}
+            accessibilityRole="button"
+            accessibilityLabel="Buscar lançamentos"
+          >
+            <Ionicons name="search" size={iconSize.md} color={colors.textStrong} />
+          </PressableScale>
+        }
+      />
 
       {loading ? (
         <LoadingState message="Carregando seus dados..." />
       ) : (
-        <SectionList
-          sections={secoes}
-          keyExtractor={(item): string => item.id}
-          renderItem={renderItem}
-          renderSectionHeader={({ section }): React.ReactElement => (
-            <CabecalhoDia dia={section.dia} total={section.total} />
-          )}
+        <ListaLancamentos
+          secoes={secoes}
+          itensPorTransacao={itensPorTransacao}
+          nomeEmpresa={nomeEmpresa}
+          categorias={categorias}
+          categoriaPorId={categoriaPorId}
+          excluir={excluir}
+          restaurar={restaurar}
+          definirCategoria={definirCategoria}
           ListHeaderComponent={cabecalhoLista}
           ListEmptyComponent={
             <EmptyState
@@ -174,17 +146,9 @@ export default function HomeView(): React.ReactNode {
               hint="Toque no + para registrar o primeiro gasto ou entrada."
             />
           }
-          stickySectionHeadersEnabled={false}
           contentContainerStyle={styles.conteudo}
-          refreshControl={
-            <RefreshControl
-              refreshing={atualizando}
-              onRefresh={atualizar}
-              colors={[colors.primary]}
-              tintColor={colors.primary}
-              progressBackgroundColor={colors.surface}
-            />
-          }
+          atualizando={atualizando}
+          onAtualizar={atualizar}
         />
       )}
 
@@ -211,23 +175,17 @@ const useStyles = makeStyles((colors) => ({
   },
   tituloLista: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
+    gap: spacing.md,
   },
-  linha: {
-    backgroundColor: colors.surface,
+  tituloTextos: {
+    flex: 1,
+    gap: 2,
   },
-  linhaPrimeira: {
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
-  },
-  linhaUltima: {
-    borderBottomLeftRadius: radius.xl,
-    borderBottomRightRadius: radius.xl,
-  },
-  separador: {
-    height: 1,
-    marginLeft: spacing.lg + 40 + spacing.md,
-    backgroundColor: colors.divider,
+  verTodos: {
+    fontSize: fontSize.body,
+    fontWeight: fontWeight.bold,
+    color: colors.primary,
   },
 }));

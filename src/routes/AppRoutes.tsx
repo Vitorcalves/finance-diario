@@ -4,12 +4,15 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { fontes, fontSize, useTheme } from '../theme';
 import AnalisePrecosView from '../views/AnalisePrecos';
+import BuscaLancamentosView from '../views/BuscaLancamentos';
 import CategoriasView from '../views/Categorias';
+import CategoriasLancamentoView from '../views/CategoriasLancamento';
 import DashboardHomeView from '../views/Dashboard';
 import EmpresasView from '../views/Empresas';
 import HistoricoPrecosView from '../views/HistoricoPrecos';
 import HomeView from '../views/Home';
 import IntegracaoView from '../views/Integracao';
+import ListaComprasView from '../views/ListaCompras';
 import MarcasView from '../views/Marcas';
 import MensalView from '../views/Mensal';
 import MenuNavigationView from '../views/MenuHome';
@@ -20,15 +23,28 @@ import ProdutosListView from '../views/ProdutosList';
 import TabIcon from './TabIcon';
 import type {
   DashboardStackParamList,
+  HomeStackParamList,
   MenuStackParamList,
   ProdutosStackParamList,
   RootTabParamList,
 } from './types';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
+const HomeStackNav = createNativeStackNavigator<HomeStackParamList>();
 const MenuStackNav = createNativeStackNavigator<MenuStackParamList>();
 const ProdutosStackNav = createNativeStackNavigator<ProdutosStackParamList>();
 const DashboardStackNav = createNativeStackNavigator<DashboardStackParamList>();
+
+/** Home, busca de lancamentos e lista de compras. */
+function HomeStack(): React.ReactNode {
+  return (
+    <HomeStackNav.Navigator screenOptions={{ headerShown: false }}>
+      <HomeStackNav.Screen name="HomeMain" component={HomeView} />
+      <HomeStackNav.Screen name="BuscaLancamentos" component={BuscaLancamentosView} />
+      <HomeStackNav.Screen name="ListaCompras" component={ListaComprasView} />
+    </HomeStackNav.Navigator>
+  );
+}
 
 /** Cadastros, financeiro e sistema acessados pela aba Menu. */
 function MenuStack(): React.ReactNode {
@@ -38,6 +54,7 @@ function MenuStack(): React.ReactNode {
       <MenuStackNav.Screen name="Categorias" component={CategoriasView} />
       <MenuStackNav.Screen name="Empresas" component={EmpresasView} />
       <MenuStackNav.Screen name="Marcas" component={MarcasView} />
+      <MenuStackNav.Screen name="CategoriasLancamento" component={CategoriasLancamentoView} />
       <MenuStackNav.Screen name="Planos" component={PlanosView} />
       <MenuStackNav.Screen name="Integracao" component={IntegracaoView} />
     </MenuStackNav.Navigator>
@@ -124,7 +141,7 @@ export default function AppRoutes(): React.ReactNode {
       >
         <Tab.Screen
           name="Home"
-          component={HomeView}
+          component={HomeStack}
           options={{ title: 'Finance Diário', tabBarLabel: 'Início' }}
         />
         <Tab.Screen

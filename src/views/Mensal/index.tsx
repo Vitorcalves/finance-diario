@@ -7,6 +7,7 @@ import { EmptyState, LoadingState, PressableScale, ScreenHeader } from '../../co
 import { iconSize, spacing, useTheme } from '../../theme';
 import DetalheDia from './components/DetalheDia';
 import GraficoAcumulado from './components/GraficoAcumulado';
+import GraficoCategoria from './components/GraficoCategoria';
 import GraficoDiario from './components/GraficoDiario';
 import GraficoLocal from './components/GraficoLocal';
 import ResumoMes from './components/ResumoMes';
@@ -34,6 +35,7 @@ export default function MensalView(): React.ReactNode {
     dias,
     resumo,
     gastoPorLocal,
+    gastoPorCategoria,
     comparativo,
     projecaoPorDia,
     escalaAcumulado,
@@ -159,6 +161,8 @@ export default function MensalView(): React.ReactNode {
                 >
                   <DetalheDia detalhe={detalheDia} nomeEmpresa={nomeEmpresa} />
                 </GraficoDiario>
+
+                <GraficoCategoria gastoPorCategoria={gastoPorCategoria} mes={mesSelecionado} />
 
                 <GraficoLocal gastoPorLocal={gastoPorLocal} />
               </>

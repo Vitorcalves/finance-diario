@@ -55,3 +55,15 @@ export type GastoPorLocal = {
   /** Total gasto no local, sempre positivo (saidas ja realizadas). */
   gasto: number;
 };
+
+export type GastoPorCategoria = {
+  /** `null` agrupa os lancamentos sem categoria. */
+  categoriaId: string | null;
+  nome: string;
+  icone: string | null;
+  cor: string | null;
+  /** Total gasto na categoria, sempre positivo (saidas ja realizadas). */
+  gasto: number;
+  /** Quantos lancamentos entraram na soma. */
+  lancamentos: number;
+};

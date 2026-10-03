@@ -6,6 +6,9 @@ import { migration004 } from './004_unidade_avulsa';
 import { migration005 } from './005_vicosa_externo';
 import { migration006 } from './006_unidades_granel';
 import { migration007 } from './007_produto_eventual';
+import { migration008 } from './008_categorias_lancamento';
+import { migration009 } from './009_lista_compras';
+import { migration010 } from './010_lista_compras_precos';
 
 export const migrations: Migration[] = [
   migration001,
@@ -15,4 +18,7 @@ export const migrations: Migration[] = [
   migration005,
   migration006,
   migration007,
+  migration008,
+  migration009,
+  migration010,
 ];

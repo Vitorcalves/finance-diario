@@ -1,5 +1,10 @@
 import React from 'react';
-import { type StyleProp, type TextInputProps, type TextStyle } from 'react-native';
+import {
+  type StyleProp,
+  type TextInput as RNTextInput,
+  type TextInputProps,
+  type TextStyle,
+} from 'react-native';
 import { TextInput } from './ui';
 
 type BrazilianIntegerInputProps = Omit<TextInputProps, 'value' | 'onChangeText'> & {
@@ -7,6 +12,8 @@ type BrazilianIntegerInputProps = Omit<TextInputProps, 'value' | 'onChangeText'>
   onChangeValue: (value: string) => void;
   decimalScale?: number;
   style?: StyleProp<TextStyle>;
+  /** Para focar o campo por codigo (ex.: pular para o proximo preco). */
+  ref?: React.Ref<RNTextInput>;
 };
 
 const normalizeDigits = (raw: string): string => {

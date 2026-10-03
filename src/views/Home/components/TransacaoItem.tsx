@@ -1,6 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from 'react';
 import { LayoutAnimation, Pressable, View } from 'react-native';
+import CategoriaIcone from '../../../components/CategoriaIcone';
+import type { CategoriaLancamento } from '../../../models/categoriasLancamento';
 import { type ItemTransacao, totalItemTransacao } from '../../../models/itensTransacao';
 import type { Transacoes } from '../../../models/transacoesModel';
 import { Text } from '../../../components/ui';
@@ -21,6 +23,8 @@ type TransacaoItemProps = {
   transacao: Transacoes;
   itens: ItemTransacao[];
   empresa: string;
+  /** Categoria do lancamento; sem ela o avatar mostra empresa ou direcao. */
+  categoria?: CategoriaLancamento;
 };
 
 /**
@@ -31,6 +35,7 @@ export default function TransacaoItem({
   transacao,
   itens,
   empresa,
+  categoria,
 }: TransacaoItemProps): React.ReactNode {
   const { colors } = useTheme();
   const styles = useStyles();
@@ -64,17 +69,21 @@ export default function TransacaoItem({
       accessibilityState={temItens ? { expanded: aberto } : undefined}
     >
       <View style={styles.linha}>
-        <View style={[styles.avatar, entrada && styles.avatarEntrada]}>
-          {icone ? (
-            <Ionicons
-              name={icone}
-              size={iconSize.sm}
-              color={entrada ? colors.success : colors.primary}
-            />
-          ) : (
-            <Text style={styles.avatarLetra}>{empresa.charAt(0).toUpperCase()}</Text>
-          )}
-        </View>
+        {categoria ? (
+          <CategoriaIcone icone={categoria.icone} cor={categoria.cor} />
+        ) : (
+          <View style={[styles.avatar, entrada && styles.avatarEntrada]}>
+            {icone ? (
+              <Ionicons
+                name={icone}
+                size={iconSize.sm}
+                color={entrada ? colors.success : colors.primary}
+              />
+            ) : (
+              <Text style={styles.avatarLetra}>{empresa.charAt(0).toUpperCase()}</Text>
+            )}
+          </View>
+        )}
 
         <View style={styles.info}>
           <Text style={styles.titulo} numberOfLines={1}>
@@ -86,16 +95,15 @@ export default function TransacaoItem({
                 <Text style={styles.seloTexto}>A vencer</Text>
               </View>
             )}
-            {empresa ? (
-              <Text style={styles.meta} numberOfLines={1}>
-                {empresa}
-              </Text>
-            ) : null}
-            {temItens && (
-              <Text style={styles.meta}>
-                {`${empresa ? '· ' : ''}${itens.length} ${itens.length === 1 ? 'item' : 'itens'}`}
-              </Text>
-            )}
+            <Text style={styles.meta} numberOfLines={1}>
+              {[
+                categoria?.nome,
+                empresa,
+                temItens ? `${itens.length} ${itens.length === 1 ? 'item' : 'itens'}` : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </Text>
           </View>
         </View>
 

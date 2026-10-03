@@ -74,7 +74,13 @@ export default function MenuNavigationView(): React.ReactNode {
           titulo="Cadastros"
           itens={[
             {
-              label: 'Categorias',
+              label: 'Categorias de lançamento',
+              descricao: 'Mercado, Transporte, Lazer... para ver onde o dinheiro vai',
+              icone: 'pie-chart-outline',
+              onPress: (): void => irPara('CategoriasLancamento'),
+            },
+            {
+              label: 'Categorias de produto',
               descricao: 'Agrupe os produtos por tipo',
               icone: 'pricetag-outline',
               onPress: (): void => irPara('Categorias'),

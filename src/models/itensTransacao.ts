@@ -1,4 +1,4 @@
-import {getConnection} from './database';
+import { getConnection } from './database';
 
 export type ItemTransacao = {
   id: string;

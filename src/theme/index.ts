@@ -1,4 +1,10 @@
-export { type ColorToken, type EsquemaCor, type Paleta } from './colors';
+export {
+  type ColorToken,
+  type CorCategoria,
+  CORES_CATEGORIA,
+  type EsquemaCor,
+  type Paleta,
+} from './colors';
 export { iconSize, radius, spacing } from './spacing';
 export { shadows } from './shadows';
 export { familiaPorPeso, fontes, fontSize, fontWeight, type Tipografia } from './typography';

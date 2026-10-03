@@ -34,6 +34,7 @@ export type ResumoPlanos = {
 export type DadosFormularioAssinatura = {
   descricao: string;
   empresaId: string | null;
+  categoriaId: string | null;
   /** Valor da cobranca, positivo; o sinal e aplicado ao salvar. */
   valor: number;
   dataInicio: string;

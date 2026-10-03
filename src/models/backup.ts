@@ -1,5 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { getConnection } from './database';
+import { semearCategoriasLancamento } from './migrations/008_categorias_lancamento';
 
 /**
  * Export/import do banco inteiro em JSON.
@@ -299,6 +300,12 @@ export const importarBanco = async (backup: BackupJson): Promise<ResumoTabela[]>
 
       for (const [tabela, linhas] of Object.entries(backup.tabelas)) {
         await inserirLinhas(db, tabela, linhas);
+      }
+
+      // Backup de antes das categorias de lancamento: sem elas o app ficaria
+      // sem nenhuma categoria para escolher.
+      if (!('categorias_lancamento' in backup.tabelas)) {
+        await semearCategoriasLancamento(db);
       }
     });
   } finally {

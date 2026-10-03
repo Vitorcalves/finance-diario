@@ -1,11 +1,28 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
 
+/** Filtros com que a busca de lancamentos abre (ex.: vinda do grafico de categorias). */
+export type FiltrosIniciaisBusca = {
+  categoriaId?: string;
+  empresaId?: string;
+  /** Periodo personalizado, YYYY-MM-DD. */
+  inicio?: string;
+  fim?: string;
+};
+
+/** Aba Inicio: a Home e as telas que saem dela. */
+export type HomeStackParamList = {
+  HomeMain: undefined;
+  BuscaLancamentos: FiltrosIniciaisBusca | undefined;
+  ListaCompras: undefined;
+};
+
 /** Cadastros, financeiro e sistema, acessados pela aba Menu. */
 export type MenuStackParamList = {
   MenuHome: undefined;
   Categorias: undefined;
   Empresas: undefined;
   Marcas: undefined;
+  CategoriasLancamento: undefined;
   Planos: undefined;
   Integracao: undefined;
 };
@@ -24,7 +41,7 @@ export type ProdutosStackParamList = {
 };
 
 export type RootTabParamList = {
-  Home: undefined;
+  Home: NavigatorScreenParams<HomeStackParamList> | undefined;
   GastosMensais: undefined;
   Produtos: NavigatorScreenParams<ProdutosStackParamList> | undefined;
   Dashboard: NavigatorScreenParams<DashboardStackParamList> | undefined;

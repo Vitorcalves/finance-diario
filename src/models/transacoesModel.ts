@@ -26,15 +26,22 @@ export type Transacoes = {
   parcela_numero?: number | null;
   /** Local onde a compra aconteceu; ver `Locais`. */
   local?: number;
+  /** Categoria do lancamento (Mercado, Transporte...); `null` = sem categoria. */
+  categoria_id?: string | null;
   created_at: string;
 };
 
 /** Campos com valor padrao no insert, para o lancamento avulso continuar simples. */
 export type NovaTransacao = Omit<
   Transacoes,
-  'contabilizado_saldo' | 'plano_id' | 'parcela_numero' | 'local'
+  'contabilizado_saldo' | 'plano_id' | 'parcela_numero' | 'local' | 'categoria_id'
 > &
-  Partial<Pick<Transacoes, 'contabilizado_saldo' | 'plano_id' | 'parcela_numero' | 'local'>>;
+  Partial<
+    Pick<
+      Transacoes,
+      'contabilizado_saldo' | 'plano_id' | 'parcela_numero' | 'local' | 'categoria_id'
+    >
+  >;
 
 export type OpcoesListaTransacoes = {
   /** Traz tambem as transacoes de compra fora do caixa (`contabilizado_saldo = 0`). */
@@ -49,7 +56,7 @@ export type OpcoesListaTransacoes = {
 };
 
 const COLUNAS =
-  'id, descricao, valor, data, empresa_id, contabilizado_saldo, plano_id, parcela_numero, local, created_at';
+  'id, descricao, valor, data, empresa_id, contabilizado_saldo, plano_id, parcela_numero, local, categoria_id, created_at';
 
 export const listTransacoes = async (
   start: string | null = null,
@@ -110,8 +117,8 @@ export const insertTransacao = async (transacao: NovaTransacao): Promise<void> =
   await db.runAsync(
     `
         INSERT INTO transacoes (id, descricao, valor, data, empresa_id, contabilizado_saldo,
-                                plano_id, parcela_numero, local, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                plano_id, parcela_numero, local, categoria_id, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       transacao.id,
@@ -123,6 +130,7 @@ export const insertTransacao = async (transacao: NovaTransacao): Promise<void> =
       transacao.plano_id ?? null,
       transacao.parcela_numero ?? null,
       transacao.local ?? Locais.padrao,
+      transacao.categoria_id ?? null,
       transacao.created_at,
     ],
   );
@@ -227,3 +235,84 @@ export const restaurarTransacao = async ({ transacao, itens }: TransacaoExcluida
       await insertItemTransacao(item);
     }
   });
+
+/** `SEM_CATEGORIA` no filtro busca os lancamentos que ainda nao tem categoria. */
+export const SEM_CATEGORIA = '__sem_categoria__';
+
+export type FiltrosBusca = {
+  /** Periodo inclusivo, YYYY-MM-DD; sem ele a busca cobre todo o historico. */
+  inicio?: string | null;
+  fim?: string | null;
+  empresaId?: string | null;
+  /** Id da categoria ou `SEM_CATEGORIA`. */
+  categoriaId?: string | null;
+  tipo?: 'saida' | 'entrada' | null;
+};
+
+/** Lancamento da busca, com a descricao dos itens para o filtro por texto. */
+export type TransacaoBuscada = Transacoes & {
+  /** Descricoes dos itens da compra, separadas por espaco; `null` sem itens. */
+  itens_texto: string | null;
+};
+
+/**
+ * Lancamentos do caixa que atendem aos filtros, do mais recente ao mais
+ * antigo, sem o limite de 50 do feed da Home.
+ *
+ * O texto e filtrado depois, em JS, para ignorar acentos ("acucar" acha
+ * "Açúcar") - o LIKE do SQLite nao faz isso. Os itens de uma compra parcelada
+ * ficam na compra (parcela 0), entao contam para a 1a parcela.
+ */
+export const buscarTransacoes = async (filtros: FiltrosBusca = {}): Promise<TransacaoBuscada[]> => {
+  const db = await getConnection();
+  const condicoes = ['t.contabilizado_saldo = 1'];
+  const params: string[] = [];
+
+  if (filtros.inicio) {
+    condicoes.push('t.data >= ?');
+    params.push(filtros.inicio);
+  }
+
+  if (filtros.fim) {
+    // Datas com hora (YYYY-MM-DDTHH:mm) do mesmo dia tambem entram.
+    condicoes.push('t.data < ?');
+    params.push(`${filtros.fim}~`);
+  }
+
+  if (filtros.empresaId) {
+    condicoes.push('t.empresa_id = ?');
+    params.push(filtros.empresaId);
+  }
+
+  if (filtros.categoriaId === SEM_CATEGORIA) {
+    condicoes.push('t.categoria_id IS NULL');
+  } else if (filtros.categoriaId) {
+    condicoes.push('t.categoria_id = ?');
+    params.push(filtros.categoriaId);
+  }
+
+  if (filtros.tipo === 'saida') {
+    condicoes.push('t.valor < 0');
+  } else if (filtros.tipo === 'entrada') {
+    condicoes.push('t.valor > 0');
+  }
+
+  return await db.getAllAsync<TransacaoBuscada>(
+    `
+        SELECT ${COLUNAS.split(', ')
+          .map((coluna) => `t.${coluna}`)
+          .join(', ')},
+               (SELECT group_concat(i.descricao, ' ')
+                FROM itens_transacao i
+                WHERE i.transacao_id = t.id
+                   OR (t.parcela_numero = 1 AND i.transacao_id IN (SELECT c.id
+                                                                   FROM transacoes c
+                                                                   WHERE c.plano_id = t.plano_id
+                                                                     AND c.parcela_numero = 0))) AS itens_texto
+        FROM transacoes t
+        WHERE ${condicoes.join(' AND ')}
+        ORDER BY t.data DESC, t.created_at DESC
+    `,
+    params,
+  );
+};

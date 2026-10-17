@@ -1,7 +1,7 @@
-import { View } from 'react-native';
-import { Button, Text } from '../../../components/ui';
-import { fontSize, fontWeight, makeStyles, radius, spacing, useTheme } from '../../../theme';
-import type { PreviaImportacao } from '../types';
+import {View} from 'react-native';
+import {Button, Text} from '../../../components/ui';
+import {fontSize, fontWeight, makeStyles, radius, spacing, useTheme} from '../../../theme';
+import type {PreviaImportacao} from '../types';
 import CaixaJson from './CaixaJson';
 import ResumoTabelas from './ResumoTabelas';
 
@@ -13,6 +13,8 @@ type ImportarPainelProps = {
   onValidar: () => void;
   onImportar: () => void;
   onLimpar: () => void;
+  /** Abre o seletor de arquivos do sistema e joga o conteúdo em `onChangeTexto`. */
+  onEscolherArquivo: () => void;
 };
 
 const formatarDataHora = (iso: string): string => {
@@ -20,17 +22,18 @@ const formatarDataHora = (iso: string): string => {
   return Number.isNaN(data.getTime()) ? iso : data.toLocaleString('pt-BR');
 };
 
-/** Aba de importacao: cola o JSON, valida e sobrescreve o banco. */
+/** Aba de importacao: cola ou escolhe um arquivo JSON, valida e sobrescreve o banco. */
 export default function ImportarPainel({
-  texto,
-  onChangeTexto,
-  previa,
-  carregando,
-  onValidar,
-  onImportar,
-  onLimpar,
-}: ImportarPainelProps): React.ReactNode {
-  const { sharedStyles } = useTheme();
+                                         texto,
+                                         onChangeTexto,
+                                         previa,
+                                         carregando,
+                                         onValidar,
+                                         onImportar,
+                                         onLimpar,
+                                         onEscolherArquivo,
+                                       }: ImportarPainelProps): React.ReactNode {
+  const {sharedStyles} = useTheme();
   const styles = useStyles();
   return (
     <View style={styles.painel}>
@@ -42,10 +45,18 @@ export default function ImportarPainel({
         </Text>
       </View>
 
+      {/* Atalho: escolhe um .json do dispositivo e preenche a caixa abaixo. */}
+      <Button
+        label="Escolher arquivo .json"
+        variant="secondary"
+        onPress={onEscolherArquivo}
+        disabled={carregando}
+      />
+
       <CaixaJson
         valor={texto}
         onChangeText={onChangeTexto}
-        placeholder="Cole aqui o JSON gerado na aba Exportar"
+        placeholder="Cole aqui o JSON gerado na aba Exportar (ou escolha um arquivo acima)"
       />
 
       <View style={sharedStyles.actionsRow}>
@@ -71,7 +82,7 @@ export default function ImportarPainel({
         </Text>
       ) : (
         <>
-          <ResumoTabelas titulo="Registros que serão gravados" itens={previa.resumo} />
+          <ResumoTabelas titulo="Registros que serão gravados" itens={previa.resumo}/>
 
           <View style={styles.metadados}>
             <Text style={styles.metadado}>

@@ -1,27 +1,19 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Alert, View } from 'react-native';
+import {useEffect, useMemo, useState} from 'react';
+import {Alert, View} from 'react-native';
 import dayjs from 'dayjs';
-import { v4 as uuidv4 } from 'uuid';
+import {v4 as uuidv4} from 'uuid';
 import BrazilianDateInput from '../../../components/BrazilianDateInput';
 import BrazilianIntegerInput from '../../../components/BrazilianIntegerInput';
 import SeletorCategoria from '../../../components/SeletorCategoria';
 import SeletorMultiplo from '../../../components/SeletorMultiplo';
-import {
-  BottomSheet,
-  Button,
-  ChipSelector,
-  SegmentedControl,
-  Text,
-  TextInput,
-  useToast,
-} from '../../../components/ui';
-import { fontSize, fontWeight, makeStyles, radius, spacing, useTheme } from '../../../theme';
-import { toCurrency } from '../../../utils/format';
-import { vibrarAviso } from '../../../utils/haptics';
-import { useCatalogoLancamento } from '../useCatalogoLancamento';
-import type { ItemLancamento, NovoLancamento, RascunhoLancamento, TipoLancamento } from '../types';
+import {BottomSheet, Button, ChipSelector, SegmentedControl, Text, TextInput, useToast,} from '../../../components/ui';
+import {fontSize, fontWeight, makeStyles, radius, spacing, useTheme} from '../../../theme';
+import {toCurrency} from '../../../utils/format';
+import {vibrarAviso} from '../../../utils/haptics';
+import {useCatalogoLancamento} from '../useCatalogoLancamento';
+import type {ItemLancamento, NovoLancamento, RascunhoLancamento, TipoLancamento} from '../types';
 import LancamentoItemCard from './LancamentoItemCard';
-import LancamentoItemForm, { type DadosItemLancamento } from './LancamentoItemForm';
+import LancamentoItemForm, {type DadosItemLancamento} from './LancamentoItemForm';
 import ParcelamentoSelector from './ParcelamentoSelector';
 
 const todayIso = (): string => dayjs().format('YYYY-MM-DD');
@@ -56,17 +48,17 @@ type NovoLancamentoFormProps = {
  * item fica em `LancamentoItemForm`.
  */
 export default function NovoLancamentoForm({
-  visivel,
-  onFechar,
-  onAddLancamento,
-  rascunho,
-  mensagemSucesso,
-}: NovoLancamentoFormProps): React.ReactNode {
-  const { colors, sharedStyles } = useTheme();
+                                             visivel,
+                                             onFechar,
+                                             onAddLancamento,
+                                             rascunho,
+                                             mensagemSucesso,
+                                           }: NovoLancamentoFormProps): React.ReactNode {
+  const {colors, sharedStyles} = useTheme();
   const styles = useStyles();
   const toast = useToast();
   const catalogo = useCatalogoLancamento();
-  const { carregar } = catalogo;
+  const {carregar} = catalogo;
 
   const [tipo, setTipo] = useState<TipoLancamento>('saida');
   const [empresaId, setEmpresaId] = useState<string | null>(rascunho?.empresaId ?? null);
@@ -85,7 +77,7 @@ export default function NovoLancamentoForm({
   const [parcelaDataKey, setParcelaDataKey] = useState(0);
 
   const [itens, setItens] = useState<ItemLancamento[]>(() =>
-    (rascunho?.itens ?? []).map((item) => ({ ...item, localId: uuidv4() })),
+    (rascunho?.itens ?? []).map((item) => ({...item, localId: uuidv4()})),
   );
   /** O mini formulario de item so aparece quando o usuario pede. */
   const [formItemAberto, setFormItemAberto] = useState(false);
@@ -93,7 +85,7 @@ export default function NovoLancamentoForm({
   /** Trocada a cada edicao/salvamento para remontar o mini formulario limpo. */
   const [itemFormKey, setItemFormKey] = useState(0);
 
-  // Cadastros frescos a cada abertura: um produto criado agora ja aparece.
+// Cadastros frescos a cada abertura: um produto criado agora ja aparece.
   useEffect(() => {
     if (visivel) {
       carregar();
@@ -103,7 +95,7 @@ export default function NovoLancamentoForm({
   const trocarTipo = (novo: TipoLancamento): void => {
     setTipo(novo);
 
-    // Categoria de saida nao serve para entrada (e vice-versa).
+// Categoria de saida nao serve para entrada (e vice-versa).
     const atual = catalogo.categorias.find((categoria) => categoria.id === categoriaId);
 
     if (atual && atual.tipo !== novo) {
@@ -116,7 +108,7 @@ export default function NovoLancamentoForm({
     const nova = empresaId === id ? null : id;
     setEmpresaId(nova);
 
-    // Sugere a categoria usada da ultima vez nesta empresa.
+// Sugere a categoria usada da ultima vez nesta empresa.
     const sugerida = nova ? catalogo.categoriaPorEmpresa.get(nova) : undefined;
     const categoriaSugerida = catalogo.categorias.find((categoria) => categoria.id === sugerida);
 
@@ -147,7 +139,7 @@ export default function NovoLancamentoForm({
     setParcelado(ativo);
 
     if (ativo) {
-      // Por padrao a 1a parcela vence no dia da compra; o usuario ajusta se quiser.
+// Por padrao a 1a parcela vence no dia da compra; o usuario ajusta se quiser.
       setPrimeiraParcela(data);
       setParcelaDataKey((atual) => atual + 1);
     }
@@ -184,11 +176,11 @@ export default function NovoLancamentoForm({
   const salvarItem = (dados: DadosItemLancamento): void => {
     setItens((prev) => {
       if (itemEditIndex === null) {
-        return [...prev, { ...dados, localId: uuidv4() }];
+        return [...prev, {...dados, localId: uuidv4()}];
       }
 
       const copia = [...prev];
-      copia[itemEditIndex] = { ...dados, localId: prev[itemEditIndex].localId };
+      copia[itemEditIndex] = {...dados, localId: prev[itemEditIndex].localId};
       return copia;
     });
 
@@ -204,7 +196,7 @@ export default function NovoLancamentoForm({
   };
 
   const salvarLancamento = async (): Promise<void> => {
-    // Um segundo toque enquanto grava criaria o lancamento em dobro.
+// Um segundo toque enquanto grava criaria o lancamento em dobro.
     if (salvando) {
       return;
     }
@@ -250,7 +242,7 @@ export default function NovoLancamentoForm({
         categoriaId,
         valor: tipo === 'saida' ? -totalLancamento : totalLancamento,
         itens,
-        parcelamento: parcelandoAgora ? { parcelas, primeiraParcela } : null,
+        parcelamento: parcelandoAgora ? {parcelas, primeiraParcela} : null,
       });
 
       const mensagem =
@@ -279,7 +271,7 @@ export default function NovoLancamentoForm({
       titulo="Novo lançamento"
       rodape={
         <View style={sharedStyles.actionsRow}>
-          <Button label="Cancelar" variant="secondary" flex onPress={onFechar} />
+          <Button label="Cancelar" variant="secondary" flex onPress={onFechar}/>
           <Button
             label={
               permiteParcelar && parcelado
@@ -301,8 +293,8 @@ export default function NovoLancamentoForm({
     >
       <SegmentedControl
         opcoes={[
-          { valor: 'saida', rotulo: 'Saída', cor: colors.danger },
-          { valor: 'entrada', rotulo: 'Entrada', cor: colors.success },
+          {valor: 'saida', rotulo: 'Saída', cor: colors.danger},
+          {valor: 'entrada', rotulo: 'Entrada', cor: colors.success},
         ]}
         valor={tipo}
         onChange={trocarTipo}
@@ -317,7 +309,7 @@ export default function NovoLancamentoForm({
               onChangeValue={setValorManual}
               decimalScale={2}
               placeholder="0,00"
-              style={[styles.valorInput, { color: corTotal }]}
+              style={[styles.valorInput, {color: corTotal}]}
               accessibilityLabel="Valor do lançamento"
             />
           </>
@@ -326,7 +318,7 @@ export default function NovoLancamentoForm({
             <Text style={styles.valorRotulo}>
               {`Soma de ${itens.length} ${itens.length === 1 ? 'item' : 'itens'}`}
             </Text>
-            <Text style={[styles.valorTotal, { color: corTotal }]}>
+            <Text style={[styles.valorTotal, {color: corTotal}]}>
               {toCurrency(totalLancamento)}
             </Text>
           </>
@@ -356,8 +348,8 @@ export default function NovoLancamentoForm({
       <View style={styles.dataLinha}>
         <ChipSelector
           opcoes={[
-            { valor: 'hoje' as const, rotulo: 'Hoje' },
-            { valor: 'ontem' as const, rotulo: 'Ontem' },
+            {valor: 'hoje' as const, rotulo: 'Hoje'},
+            {valor: 'ontem' as const, rotulo: 'Ontem'},
           ]}
           selecionado={atalhoData}
           onSelecionar={escolherData}
@@ -387,15 +379,7 @@ export default function NovoLancamentoForm({
 
       <View style={styles.itensCabecalho}>
         <Text style={sharedStyles.label}>Itens</Text>
-        {!formItemAberto && (
-          <Button
-            label="Adicionar item"
-            icon="add"
-            variant="ghost"
-            size="sm"
-            onPress={(): void => abrirFormItem(null)}
-          />
-        )}
+
       </View>
 
       {itens.length === 0 && !formItemAberto && (
@@ -413,6 +397,15 @@ export default function NovoLancamentoForm({
           onRemover={(): void => removerItem(index)}
         />
       ))}
+      {!formItemAberto && (
+        <Button
+          label="Adicionar item"
+          icon="add"
+          variant="ghost"
+          size="sm"
+          onPress={(): void => abrirFormItem(null)}
+        />
+      )}
 
       {formItemAberto && (
         <LancamentoItemForm

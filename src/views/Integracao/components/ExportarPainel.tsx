@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { View } from 'react-native';
-import { Button, Text } from '../../../components/ui';
-import { fontSize, makeStyles, spacing, useTheme } from '../../../theme';
-import type { ResultadoExportacao } from '../types';
+import {useState} from 'react';
+import {View} from 'react-native';
+import {Button, Text} from '../../../components/ui';
+import {fontSize, makeStyles, spacing, useTheme} from '../../../theme';
+import type {ResultadoExportacao} from '../types';
 import CaixaJson from './CaixaJson';
 import ResumoTabelas from './ResumoTabelas';
 
@@ -16,8 +16,11 @@ const LIMITE_EXIBICAO_DIRETA = 150000;
 type ExportarPainelProps = {
   exportacao: ResultadoExportacao | null;
   carregando: boolean;
+  /** Enquanto o sistema grava/compartilha o arquivo, travamos os dois botoes de entrega. */
+  salvandoArquivo: boolean;
   onGerar: () => void;
   onCompartilhar: () => void;
+  onSalvarArquivo: () => void;
 };
 
 const formatarDataHora = (iso: string): string => {
@@ -25,25 +28,28 @@ const formatarDataHora = (iso: string): string => {
   return Number.isNaN(data.getTime()) ? iso : data.toLocaleString('pt-BR');
 };
 
-/** Aba de exportacao: gera o JSON do banco e o entrega para copiar ou compartilhar. */
+/** Aba de exportacao: gera o JSON do banco e o entrega para copiar, salvar ou compartilhar. */
 export default function ExportarPainel({
-  exportacao,
-  carregando,
-  onGerar,
-  onCompartilhar,
-}: ExportarPainelProps): React.ReactNode {
-  const { sharedStyles } = useTheme();
+                                         exportacao,
+                                         carregando,
+                                         salvandoArquivo,
+                                         onGerar,
+                                         onCompartilhar,
+                                         onSalvarArquivo,
+                                       }: ExportarPainelProps): React.ReactNode {
+  const {sharedStyles} = useTheme();
   const styles = useStyles();
   const [mostrarJson, setMostrarJson] = useState(false);
 
   const grande = (exportacao?.json.length ?? 0) > LIMITE_EXIBICAO_DIRETA;
   const jsonVisivel = exportacao !== null && (!grande || mostrarJson);
+  const ocupado = carregando || salvandoArquivo;
 
   return (
     <View style={styles.painel}>
       <Text style={sharedStyles.sectionHint}>
-        Lê todas as tabelas do banco e monta um JSON único. Use Compartilhar para enviar o arquivo
-        ou selecione o texto para copiar.
+        Lê todas as tabelas do banco e monta um JSON único. Salve como arquivo para guardar um
+        backup, compartilhe como texto para enviar pelo chat, ou selecione o texto para copiar.
       </Text>
 
       <Button
@@ -54,7 +60,7 @@ export default function ExportarPainel({
 
       {exportacao === null ? null : (
         <>
-          <ResumoTabelas titulo="Registros exportados" itens={exportacao.resumo} />
+          <ResumoTabelas titulo="Registros exportados" itens={exportacao.resumo}/>
 
           <View style={styles.metadados}>
             <Text style={styles.metadado}>Gerado em {formatarDataHora(exportacao.geradoEm)}</Text>
@@ -63,10 +69,25 @@ export default function ExportarPainel({
             </Text>
           </View>
 
-          <Button label="Compartilhar JSON" variant="secondary" onPress={onCompartilhar} />
+          <View style={sharedStyles.actionsRow}>
+            <Button
+              label={salvandoArquivo ? 'Salvando...' : 'Salvar arquivo .json'}
+              variant="secondary"
+              flex
+              onPress={onSalvarArquivo}
+              disabled={ocupado}
+            />
+            <Button
+              label="Compartilhar como texto"
+              variant="secondary"
+              flex
+              onPress={onCompartilhar}
+              disabled={ocupado}
+            />
+          </View>
 
           {jsonVisivel ? (
-            <CaixaJson valor={exportacao.json} />
+            <CaixaJson valor={exportacao.json}/>
           ) : (
             <Button
               label="Mostrar JSON na tela"
@@ -77,7 +98,8 @@ export default function ExportarPainel({
 
           {grande && !mostrarJson ? (
             <Text style={sharedStyles.sectionHint}>
-              O JSON é grande; exibi-lo na tela pode deixar o app lento. Prefira Compartilhar.
+              O JSON é grande; exibi-lo na tela pode deixar o app lento. Prefira salvar como
+              arquivo ou compartilhar.
             </Text>
           ) : null}
         </>
@@ -87,14 +109,7 @@ export default function ExportarPainel({
 }
 
 const useStyles = makeStyles((colors) => ({
-  painel: {
-    gap: spacing.md,
-  },
-  metadados: {
-    gap: 2,
-  },
-  metadado: {
-    fontSize: fontSize.caption,
-    color: colors.textSubtle,
-  },
+  painel: {gap: spacing.md},
+  metadados: {gap: 2},
+  metadado: {fontSize: fontSize.caption, color: colors.textSubtle},
 }));

@@ -1,32 +1,25 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Alert, Share } from 'react-native';
-import { useToast } from '../../components/ui';
-import {
-  analisarBackup,
-  BackupInvalidoError,
-  exportarBanco,
-  importarBanco,
-  resumirBackup,
-} from '../../models/backup';
-import { getApiConfig, saveApiConfig, type ApiConfig } from '../../models/settingsModel';
+import {useCallback, useEffect, useState} from 'react';
+import {Alert, Share} from 'react-native';
+import {useToast} from '../../components/ui';
+import {analisarBackup, BackupInvalidoError, exportarBanco, importarBanco, resumirBackup,} from '../../models/backup';
+import {type ApiConfig, getApiConfig, saveApiConfig} from '../../models/settingsModel';
+import {escolherArquivoJson, salvarArquivoJson} from './components/arquivoJson';
 import {
   consultarIa as consultarIaNaApi,
   enviarParaApi as enviarBancoParaApi,
   MAX_PASSOS_PADRAO,
   SincronizacaoError,
 } from '../../models/sincronizacaoApi';
-import type {
-  PreviaImportacao,
-  ResultadoConsultaIa,
-  ResultadoEnvioApi,
-  ResultadoExportacao,
-} from './types';
+import type {PreviaImportacao, ResultadoConsultaIa, ResultadoEnvioApi, ResultadoExportacao,} from './types';
 
 export type UseIntegracao = {
   exportacao: ResultadoExportacao | null;
   exportando: boolean;
   gerarExportacao: () => Promise<void>;
   compartilharExportacao: () => Promise<void>;
+  /** Grava o JSON atual no cache e abre a folha de "salvar em arquivos". */
+  salvandoArquivo: boolean;
+  salvarArquivoExportacao: () => Promise<void>;
 
   textoImportacao: string;
   setTextoImportacao: (texto: string) => void;
@@ -37,6 +30,8 @@ export type UseIntegracao = {
   /** Pede confirmacao e sobrescreve o banco com o JSON validado. */
   confirmarImportacao: (aoConcluir?: () => void) => void;
   limparImportacao: () => void;
+  /** Abre o seletor de arquivos e joga o conteudo no campo de importacao. */
+  escolherArquivoImportacao: () => Promise<void>;
 
   apiConfig: ApiConfig;
   /** Atualiza e persiste endereco/chave da API. */
@@ -58,6 +53,8 @@ export type UseIntegracao = {
   limparConsultaIa: () => void;
 };
 
+const LIMITE_TEXTO_SEGURO = 60000;
+
 const mensagemDeErro = (error: unknown, fallback: string): string => {
   if (error instanceof BackupInvalidoError || error instanceof SincronizacaoError) {
     return error.message;
@@ -71,12 +68,13 @@ export function useIntegracao(): UseIntegracao {
   const toast = useToast();
   const [exportacao, setExportacao] = useState<ResultadoExportacao | null>(null);
   const [exportando, setExportando] = useState(false);
+  const [salvandoArquivo, setSalvandoArquivo] = useState(false);
 
-  const [textoImportacao, setTextoImportacao] = useState('');
+  const [textoImportacao, setTextoImportacaoState] = useState('');
   const [previa, setPrevia] = useState<PreviaImportacao | null>(null);
   const [importando, setImportando] = useState(false);
 
-  const [apiConfig, setApiConfigState] = useState<ApiConfig>({ url: '', token: '' });
+  const [apiConfig, setApiConfigState] = useState<ApiConfig>({url: '', token: ''});
   const [envioApi, setEnvioApi] = useState<ResultadoEnvioApi | null>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -89,9 +87,10 @@ export function useIntegracao(): UseIntegracao {
     void getApiConfig().then(setApiConfigState);
   }, []);
 
+  // ---- exportar ----
+
   const gerarExportacao = useCallback(async (): Promise<void> => {
     setExportando(true);
-
     try {
       const backup = await exportarBanco();
 
@@ -102,34 +101,74 @@ export function useIntegracao(): UseIntegracao {
       });
     } catch (error: unknown) {
       console.error('Erro ao exportar banco:', error);
-      Alert.alert('Erro', mensagemDeErro(error, 'Não foi possível exportar o banco'));
+      Alert.alert('Erro', mensagemDeErro(error, 'Não foi possível gerar o JSON'));
     } finally {
       setExportando(false);
     }
   }, []);
 
+  const salvarArquivoExportacao = useCallback(async (): Promise<void> => {
+    if (!exportacao) return;
+
+    setSalvandoArquivo(true);
+    try {
+      const nome = `integracao-${new Date().toISOString().slice(0, 10)}.json`;
+      await salvarArquivoJson(nome, exportacao.json);
+    } catch (error: unknown) {
+      console.error('Erro ao salvar arquivo:', error);
+      Alert.alert('Erro', 'Não foi possível salvar o arquivo JSON');
+    } finally {
+      setSalvandoArquivo(false);
+    }
+  }, [exportacao]);
+
   const compartilharExportacao = useCallback(async (): Promise<void> => {
-    if (!exportacao) {
+    if (!exportacao) return;
+
+    if (exportacao.json.length > LIMITE_TEXTO_SEGURO) {
+      Alert.alert(
+        'JSON muito grande',
+        'Vários apps de mensagem cortam textos acima de ~60 mil caracteres. ' +
+        'Para backups grandes, salve como arquivo.',
+        [
+          {text: 'Cancelar', style: 'cancel'},
+          {text: 'Salvar arquivo', onPress: (): void => void salvarArquivoExportacao()},
+        ],
+      );
       return;
     }
 
     try {
-      await Share.share({ message: exportacao.json });
+      await Share.share({message: exportacao.json});
     } catch (error: unknown) {
       console.error('Erro ao compartilhar backup:', error);
       Alert.alert('Erro', 'Não foi possível compartilhar o JSON');
     }
-  }, [exportacao]);
+  }, [exportacao, salvarArquivoExportacao]);
+
+  // ---- importar ----
 
   const limparImportacao = useCallback((): void => {
-    setTextoImportacao('');
+    setTextoImportacaoState('');
     setPrevia(null);
   }, []);
 
   const alterarTextoImportacao = useCallback((texto: string): void => {
-    setTextoImportacao(texto);
+    setTextoImportacaoState(texto);
     // Qualquer edicao invalida a previa: ela precisa refletir o texto atual.
     setPrevia(null);
+  }, []);
+
+  const escolherArquivoImportacao = useCallback(async (): Promise<void> => {
+    try {
+      const conteudo = await escolherArquivoJson();
+      if (conteudo === null) return;
+      setTextoImportacaoState(conteudo);
+      setPrevia(null);
+    } catch (error: unknown) {
+      console.error('Erro ao ler arquivo JSON:', error);
+      Alert.alert('Erro', 'Não foi possível ler o arquivo JSON');
+    }
   }, []);
 
   const validarImportacao = useCallback((): void => {
@@ -184,9 +223,9 @@ export function useIntegracao(): UseIntegracao {
       Alert.alert(
         'Sobrescrever banco',
         `Todos os dados atuais serão apagados e substituídos por ${previa.totalRegistros} ` +
-          'registro(s) do JSON. Esta ação não pode ser desfeita. Deseja continuar?',
+        'registro(s) do JSON. Esta ação não pode ser desfeita. Deseja continuar?',
         [
-          { text: 'Cancelar', style: 'cancel' },
+          {text: 'Cancelar', style: 'cancel'},
           {
             text: 'Sobrescrever',
             style: 'destructive',
@@ -197,6 +236,8 @@ export function useIntegracao(): UseIntegracao {
     },
     [previa, executarImportacao],
   );
+
+  // ---- api ----
 
   const setApiConfig = useCallback((config: ApiConfig): void => {
     setApiConfigState(config);
@@ -257,6 +298,8 @@ export function useIntegracao(): UseIntegracao {
     exportando,
     gerarExportacao,
     compartilharExportacao,
+    salvandoArquivo,
+    salvarArquivoExportacao,
 
     textoImportacao,
     setTextoImportacao: alterarTextoImportacao,
@@ -265,6 +308,7 @@ export function useIntegracao(): UseIntegracao {
     validarImportacao,
     confirmarImportacao,
     limparImportacao,
+    escolherArquivoImportacao,
 
     apiConfig,
     setApiConfig,

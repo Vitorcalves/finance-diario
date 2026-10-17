@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { useNavigation } from '@react-navigation/native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {useState} from 'react';
+import {useNavigation} from '@react-navigation/native';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import {
   KeyboardAvoidingScreen,
   type OpcaoSegmento,
@@ -8,24 +8,24 @@ import {
   ScrollComTeclado,
   SegmentedControl,
 } from '../../components/ui';
-import { useTheme } from '../../theme';
+import {useTheme} from '../../theme';
 import ExportarPainel from './components/ExportarPainel';
 import ApiPainel from './components/ApiPainel';
 import IaPainel from './components/IaPainel';
 import ImportarPainel from './components/ImportarPainel';
-import type { ModoIntegracao } from './types';
-import { useIntegracao } from './useIntegracao';
+import type {ModoIntegracao} from './types';
+import {useIntegracao} from './useIntegracao';
 
 const MODOS: OpcaoSegmento<ModoIntegracao>[] = [
-  { valor: 'exportar', rotulo: 'Exportar' },
-  { valor: 'importar', rotulo: 'Importar' },
-  { valor: 'api', rotulo: 'API' },
-  { valor: 'ia', rotulo: 'IA' },
+  {valor: 'exportar', rotulo: 'Exportar'},
+  {valor: 'importar', rotulo: 'Importar'},
+  {valor: 'api', rotulo: 'API'},
+  {valor: 'ia', rotulo: 'IA'},
 ];
 
 /** Integracao: extrai o banco como JSON, sobrescreve a partir de um JSON, envia para a API ou pergunta a IA. */
 export default function IntegracaoView(): React.ReactNode {
-  const { sharedStyles } = useTheme();
+  const {sharedStyles} = useTheme();
   const navigation = useNavigation();
   const [modo, setModo] = useState<ModoIntegracao>('exportar');
   const {
@@ -33,6 +33,8 @@ export default function IntegracaoView(): React.ReactNode {
     exportando,
     gerarExportacao,
     compartilharExportacao,
+    salvandoArquivo,          // ← novo
+    salvarArquivoExportacao,  // ← novo
     textoImportacao,
     setTextoImportacao,
     previa,
@@ -40,6 +42,7 @@ export default function IntegracaoView(): React.ReactNode {
     validarImportacao,
     confirmarImportacao,
     limparImportacao,
+    escolherArquivoImportacao, // ← novo (para a prop onEscolherArquivo do ImportarPainel)
     apiConfig,
     setApiConfig,
     envioApi,
@@ -69,14 +72,16 @@ export default function IntegracaoView(): React.ReactNode {
           contentContainerStyle={sharedStyles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          <SegmentedControl opcoes={MODOS} valor={modo} onChange={setModo} />
+          <SegmentedControl opcoes={MODOS} valor={modo} onChange={setModo}/>
 
           {modo === 'exportar' ? (
             <ExportarPainel
               exportacao={exportacao}
               carregando={exportando}
+              salvandoArquivo={salvandoArquivo}
               onGerar={(): void => void gerarExportacao()}
               onCompartilhar={(): void => void compartilharExportacao()}
+              onSalvarArquivo={(): void => void salvarArquivoExportacao()}
             />
           ) : modo === 'api' ? (
             <ApiPainel
@@ -107,6 +112,7 @@ export default function IntegracaoView(): React.ReactNode {
               onValidar={validarImportacao}
               onImportar={(): void => confirmarImportacao()}
               onLimpar={limparImportacao}
+              onEscolherArquivo={(): void => void escolherArquivoImportacao()}
             />
           )}
         </ScrollComTeclado>

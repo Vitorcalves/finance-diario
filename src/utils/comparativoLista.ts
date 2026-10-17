@@ -3,6 +3,7 @@ export type PrecoAnotado = {
   itemId: string;
   empresaId: string;
   preco: number;
+  precoUnitario?: { valor: number; sigla: string } | null;
 };
 
 export type ItemDaComparacao = {
@@ -27,6 +28,8 @@ export type MenorPrecoItem = {
   mercados: string[];
   /** Em quantos mercados o item tem preco anotado. */
   cotacoes: number;
+  unidade: string | null;
+  precoUnitario: number | null;
 };
 
 export type ComparativoLista = {
@@ -60,6 +63,7 @@ export const compararLista = (
   const idsMercados = new Set(mercados);
   const idsItens = new Set(itens.map((item) => item.id));
   const porItem = new Map<string, Map<string, number>>();
+  const porItemUnitario = new Map<string, Map<string, { valor: number; sigla: string } | null>>();
 
   for (const anotado of precos) {
     if (!idsMercados.has(anotado.empresaId) || !idsItens.has(anotado.itemId)) {
@@ -69,6 +73,12 @@ export const compararLista = (
     const doItem = porItem.get(anotado.itemId) ?? new Map<string, number>();
     doItem.set(anotado.empresaId, anotado.preco);
     porItem.set(anotado.itemId, doItem);
+
+    const doItemU =
+      porItemUnitario.get(anotado.itemId) ??
+      new Map<string, { valor: number; sigla: string } | null>();
+    doItemU.set(anotado.empresaId, anotado.precoUnitario ?? null);
+    porItemUnitario.set(anotado.itemId, doItemU);
   }
 
   const emComum =
@@ -96,7 +106,7 @@ export const compararLista = (
       totalEmComum += (porItem.get(item.id)?.get(empresaId) ?? 0) * item.quantidade;
     }
 
-    return { empresaId, total, itensComPreco, totalEmComum, maisBarato: false };
+    return {empresaId, total, itensComPreco, totalEmComum, maisBarato: false};
   });
 
   const ordenados = [...resumos].sort((a, b) => a.totalEmComum - b.totalEmComum);
@@ -113,13 +123,41 @@ export const compararLista = (
   const menorPorItem = new Map<string, MenorPrecoItem>();
 
   for (const [itemId, doItem] of porItem) {
-    const menor = Math.min(...doItem.values());
+    const pares = [...doItem.entries()];                 // [[empresaId, preco], ...]
+    const menorBruto = Math.min(...pares.map(([, p]) => p));
+
+    const unitarios = [...(porItemUnitario.get(itemId)?.entries() ?? [])];
+
+// Só compara por unidade se TODOS têm unidade E a MESMA unidade.
+    const todosComUnidade =
+      unitarios.length > 1 &&
+      unitarios.every(([, u]) => u !== null) &&
+      unitarios.every(([, u]) => u!.sigla === unitarios[0][1]!.sigla);
+
+    let precoUnitario: number | null = null;
+    let unidade: string | null = null;
+    let mercadosMenores: string[];
+
+    if (todosComUnidade) {
+// Caminho novo: menor POR UNIDADE (ex.: R$/L)
+      const menorU = Math.min(...unitarios.map(([, u]) => u!.valor));
+      precoUnitario = menorU;
+      unidade = unitarios[0][1]!.sigla;
+      mercadosMenores = unitarios
+        .filter(([, u]) => u!.valor - menorU <= CENTAVO)
+        .map(([empresaId]) => empresaId);
+    } else {
+// Caminho antigo: menor BRUTO (comportamento de hoje)
+      mercadosMenores = pares
+        .filter(([, p]) => p - menorBruto <= CENTAVO)
+        .map(([empresaId]) => empresaId);
+    }
 
     menorPorItem.set(itemId, {
-      preco: menor,
-      mercados: [...doItem.entries()]
-        .filter(([, preco]) => preco - menor <= CENTAVO)
-        .map(([empresaId]) => empresaId),
+      preco: menorBruto,
+      precoUnitario,
+      unidade,
+      mercados: mercadosMenores,   // ← agora correto: quem é menor POR UNIDADE
       cotacoes: doItem.size,
     });
   }
@@ -127,10 +165,10 @@ export const compararLista = (
   const vantagem =
     temComparacao && segundo.totalEmComum - primeiro.totalEmComum > CENTAVO
       ? {
-          empresaId: primeiro.empresaId,
-          sobre: segundo.empresaId,
-          valor: segundo.totalEmComum - primeiro.totalEmComum,
-        }
+        empresaId: primeiro.empresaId,
+        sobre: segundo.empresaId,
+        valor: segundo.totalEmComum - primeiro.totalEmComum,
+      }
       : null;
 
   let dividindo: ComparativoLista['dividindo'] = null;
@@ -144,7 +182,7 @@ export const compararLista = (
 
       if (menor) {
         total += menor.preco * item.quantidade;
-        // No empate, fica no mais barato no geral, para nao inventar uma parada a mais.
+// No empate, fica no mais barato no geral, para nao inventar uma parada a mais.
         mercadosUsados.add(
           menor.mercados.includes(primeiro.empresaId) ? primeiro.empresaId : menor.mercados[0],
         );
@@ -154,9 +192,9 @@ export const compararLista = (
     const economia = primeiro.totalEmComum - total;
 
     if (economia > CENTAVO && mercadosUsados.size > 1) {
-      dividindo = { total, economia, mercados: mercadosUsados.size };
+      dividindo = {total, economia, mercados: mercadosUsados.size};
     }
   }
 
-  return { mercados: resumos, itensEmComum: emComum.length, menorPorItem, vantagem, dividindo };
+  return {mercados: resumos, itensEmComum: emComum.length, menorPorItem, vantagem, dividindo};
 };

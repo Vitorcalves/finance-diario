@@ -180,13 +180,23 @@ export const compararLista = (
     for (const item of emComum) {
       const menor = menorPorItem.get(item.id);
 
-      if (menor) {
-        total += menor.preco * item.quantidade;
-// No empate, fica no mais barato no geral, para nao inventar uma parada a mais.
-        mercadosUsados.add(
-          menor.mercados.includes(primeiro.empresaId) ? primeiro.empresaId : menor.mercados[0],
-        );
+      if (!menor) {
+        continue;
       }
+
+      // No empate, fica no mais barato no geral para nao inventar uma parada a mais.
+      const mercado = menor.mercados.includes(primeiro.empresaId)
+        ? primeiro.empresaId
+        : menor.mercados[0];
+      const precoNoMercado = porItem.get(item.id)?.get(mercado);
+
+      if (precoNoMercado === undefined) {
+        continue;
+      }
+
+      // A escolha pode ser por unidade, mas o total usa o preco bruto desse mercado.
+      total += precoNoMercado * item.quantidade;
+      mercadosUsados.add(mercado);
     }
 
     const economia = primeiro.totalEmComum - total;

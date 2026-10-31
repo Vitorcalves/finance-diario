@@ -14,7 +14,7 @@ import {
   materializarPlanos,
 } from '../../models/materializacaoPlanos';
 import { deletePlanoById, listPlanos, type PlanoPagamento } from '../../models/planosPagamento';
-import { listTransacoes, type Transacoes } from '../../models/transacoesModel';
+import { listCobrancasDePlanos, type Transacoes } from '../../models/transacoesModel';
 import { custoMensalEquivalente, proximaOcorrencia } from '../../utils/parcelas';
 import type { DadosFormularioAssinatura, PlanoNaTela, ResumoPlanos } from './types';
 
@@ -50,22 +50,18 @@ export function usePlanos(): UsePlanos {
     try {
       await materializarPlanos();
 
-      const [planosDoBanco, empresasDoBanco, categoriasDoBanco] = await Promise.all([
-        listPlanos(),
-        listEmpresas(),
-        listCategoriasLancamento(),
-      ]);
-
-      // Janela larga o bastante para cobrir parcelamentos longos dos dois lados.
-      const cobrancasDoBanco = await listTransacoes(
-        dayjs().subtract(5, 'year').format('YYYY-MM-DD'),
-        dayjs().add(5, 'year').format('YYYY-MM-DD'),
-      );
+      const [planosDoBanco, empresasDoBanco, categoriasDoBanco, cobrancasDoBanco] =
+        await Promise.all([
+          listPlanos(),
+          listEmpresas(),
+          listCategoriasLancamento(),
+          listCobrancasDePlanos(),
+        ]);
 
       setPlanos(planosDoBanco);
       setEmpresas(empresasDoBanco);
       setCategorias(categoriasDoBanco);
-      setCobrancas(cobrancasDoBanco.filter((cobranca) => cobranca.plano_id !== null));
+      setCobrancas(cobrancasDoBanco);
     } catch (error: unknown) {
       console.error('Erro ao carregar os planos:', error);
       Alert.alert('Erro', 'Não foi possível carregar as assinaturas e parcelamentos');

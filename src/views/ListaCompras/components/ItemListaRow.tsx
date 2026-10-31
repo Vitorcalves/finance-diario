@@ -119,8 +119,6 @@ export default function ItemListaRow({
               value={precoAtual !== null ? precoAtual.toFixed(2) : ''}
               onChangeValue={(valor): void => onPreco(valor ? Number(valor) : null)}
               decimalScale={2}
-              // Tocar seleciona o valor: digitar ja substitui o preco anterior.
-              selectTextOnFocus
               placeholder={dicaAtual !== null ? `últ. ${formatarMoeda(dicaAtual)}` : '0,00'}
               returnKeyType={onProximo ? 'next' : 'done'}
               submitBehavior={onProximo ? 'submit' : 'blurAndSubmit'}

@@ -261,8 +261,12 @@ describe('migracao 010', () => {
 
     // Volta ao formato da 009: preco no item e mercado escolhido nas configuracoes.
     // As migracoes posteriores saem antes e voltam depois, como no app.
-    await migration011.down(db);
-    await migration010.down(db);
+    const desfazer011 = migration011.down;
+    const desfazer010 = migration010.down;
+    assert.ok(desfazer011);
+    assert.ok(desfazer010);
+    await desfazer011(db);
+    await desfazer010(db);
     await db.runAsync(
       `INSERT INTO lista_compras_itens (id, descricao, quantidade, comprado, preco_pago, ordem, created_at)
        VALUES ('tomate', 'tomate', 2, 1, 4.29, 1, ?), ('pao', 'pao', 1, 0, NULL, 2, ?)`,
@@ -318,7 +322,9 @@ describe('marca anotada com o preco', () => {
     await salvarPrecoDaLista('arroz-lista', 'm1', 20, 'tio');
     const db = await getConnection();
 
-    await migration011.down(db);
+    const desfazer011 = migration011.down;
+    assert.ok(desfazer011);
+    await desfazer011(db);
 
     const linhas = await db.getAllAsync<Record<string, unknown>>(
       'SELECT * FROM lista_compras_precos',

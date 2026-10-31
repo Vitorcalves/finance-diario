@@ -7,6 +7,7 @@ import { criarCompraParcelada } from './materializacaoPlanos';
 import {
   excluirTransacao,
   insertTransacao,
+  listCobrancasDePlanos,
   listTransacoes,
   restaurarTransacao,
   resumoCaixa,
@@ -17,6 +18,49 @@ const lancar = async (id: string, valor: number, data: string): Promise<void> =>
 
 beforeEach(async () => {
   await prepararBanco();
+});
+
+describe('listCobrancasDePlanos', () => {
+  test('traz parcelamento longo inteiro, sem limite do feed ou janela de cinco anos', async () => {
+    const { planoId } = await criarCompraParcelada({
+      descricao: 'Plano longo',
+      empresaId: null,
+      valorTotal: -720,
+      dataCompra: '2026-01-10',
+      parcelas: 72,
+      primeiraParcela: '2026-01-10',
+    });
+
+    const cobrancas = await listCobrancasDePlanos();
+    const datas = cobrancas.map((cobranca) => cobranca.data).sort();
+
+    assert.equal(cobrancas.length, 72);
+    assert.ok(
+      cobrancas.every(
+        (cobranca) => cobranca.plano_id === planoId && cobranca.parcela_numero !== 0,
+      ),
+    );
+    assert.equal(datas[0], '2026-01-10');
+    assert.equal(datas[datas.length - 1], '2031-12-10');
+  });
+
+  test('inclui cobrancas antigas e ignora lancamentos avulsos', async () => {
+    await criarCompraParcelada({
+      descricao: 'Compra antiga',
+      empresaId: null,
+      valorTotal: -20,
+      dataCompra: '2010-01-10',
+      parcelas: 1,
+      primeiraParcela: '2010-01-10',
+    });
+    await lancar('avulso', -10, '2026-01-10');
+
+    const cobrancas = await listCobrancasDePlanos();
+
+    assert.equal(cobrancas.length, 1);
+    assert.equal(cobrancas[0].data, '2010-01-10');
+    assert.equal(cobrancas[0].parcela_numero, 1);
+  });
 });
 
 describe('resumoCaixa', () => {

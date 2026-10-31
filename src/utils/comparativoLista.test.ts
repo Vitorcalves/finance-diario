@@ -76,7 +76,13 @@ describe('compararLista', () => {
       [preco('cafe', 'm1', 15), preco('cafe', 'm2', 12), preco('cafe', 'm3', 12)],
     );
 
-    assert.deepEqual(menorPorItem.get('cafe'), { preco: 12, mercados: ['m2', 'm3'], cotacoes: 3 });
+    assert.deepEqual(menorPorItem.get('cafe'), {
+      preco: 12,
+      precoUnitario: null,
+      unidade: null,
+      mercados: ['m2', 'm3'],
+      cotacoes: 3,
+    });
     assert.equal(menorPorItem.has('arroz'), false);
   });
 
@@ -95,6 +101,29 @@ describe('compararLista', () => {
     // m1: 2x20 + 10 = 50; m2: 2x22 + 7 = 51; dividindo: 2x20 + 7 = 47.
     assert.equal(comparativo.mercados[0].maisBarato, true);
     assert.deepEqual(comparativo.dividindo, { total: 47, economia: 3, mercados: 2 });
+  });
+
+  test('divide usando o preco bruto do mercado escolhido por unidade', () => {
+    const comparativo = compararLista(
+      [
+        { id: 'a', quantidade: 1 },
+        { id: 'b', quantidade: 1 },
+        { id: 'c', quantidade: 1 },
+      ],
+      ['m1', 'm2'],
+      [
+        { ...preco('a', 'm1', 10), precoUnitario: { valor: 10, sigla: 'kg' } },
+        { ...preco('a', 'm2', 18), precoUnitario: { valor: 9, sigla: 'kg' } },
+        preco('b', 'm1', 15),
+        preco('b', 'm2', 5),
+        preco('c', 'm1', 6),
+        preco('c', 'm2', 20),
+      ],
+    );
+
+    assert.deepEqual(comparativo.menorPorItem.get('a')?.mercados, ['m2']);
+    // m1: 10 + 15 + 6 = 31; dividindo: 18 no m2 + 5 no m2 + 6 no m1 = 29.
+    assert.deepEqual(comparativo.dividindo, { total: 29, economia: 2, mercados: 2 });
   });
 
   test('ignora precos de mercados ou itens que sairam da lista', () => {

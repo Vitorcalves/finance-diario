@@ -97,6 +97,21 @@ export const listTransacoes = async (
   return await db.getAllAsync<Transacoes>(query, params);
 };
 
+/** Todas as cobrancas de planos, sem corte de data nem o limite de 50 do feed. */
+export const listCobrancasDePlanos = async (): Promise<Transacoes[]> => {
+  const db = await getConnection();
+
+  return await db.getAllAsync<Transacoes>(
+    `
+        SELECT ${COLUNAS}
+        FROM transacoes
+        WHERE plano_id IS NOT NULL
+          AND contabilizado_saldo = 1
+        ORDER BY data DESC, created_at DESC
+    `,
+  );
+};
+
 /** Todas as linhas de um plano, da compra (0) a ultima parcela. */
 export const listTransacoesByPlano = async (planoId: string): Promise<Transacoes[]> => {
   const db = await getConnection();

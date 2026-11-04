@@ -28,18 +28,38 @@ export type Transacoes = {
   local?: number;
   /** Categoria do lancamento (Mercado, Transporte...); `null` = sem categoria. */
   categoria_id?: string | null;
+  /** Conta de onde o valor sai (ou onde a compra no cartao acontece). */
+  conta_id?: string | null;
+  /** Conta de destino em transferencias (aporte/resgate, pagamento de fatura). */
+  conta_destino_id?: string | null;
+  /** Fatura do ciclo, nas compras no cartao e no pagamento dela. */
+  fatura_id?: string | null;
   created_at: string;
 };
 
 /** Campos com valor padrao no insert, para o lancamento avulso continuar simples. */
 export type NovaTransacao = Omit<
   Transacoes,
-  'contabilizado_saldo' | 'plano_id' | 'parcela_numero' | 'local' | 'categoria_id'
+  | 'contabilizado_saldo'
+  | 'plano_id'
+  | 'parcela_numero'
+  | 'local'
+  | 'categoria_id'
+  | 'conta_id'
+  | 'conta_destino_id'
+  | 'fatura_id'
 > &
   Partial<
     Pick<
       Transacoes,
-      'contabilizado_saldo' | 'plano_id' | 'parcela_numero' | 'local' | 'categoria_id'
+      | 'contabilizado_saldo'
+      | 'plano_id'
+      | 'parcela_numero'
+      | 'local'
+      | 'categoria_id'
+      | 'conta_id'
+      | 'conta_destino_id'
+      | 'fatura_id'
     >
   >;
 
@@ -53,10 +73,19 @@ export type OpcoesListaTransacoes = {
    * cobrancas de anos a frente e empurraria os gastos recentes para fora.
    */
   ateData?: string;
+  /**
+   * Visao de gastos do mes (Home e Mensal): a compra no cartao conta como
+   * gasto do mes da compra (`contabilizado_saldo = 0`, com fatura), e o
+   * pagamento da fatura e as transferencias entre contas (`conta_destino_id`)
+   * ficam de fora para nao contar em dobro.
+   */
+  fluxoGastos?: boolean;
+  /** Visao de caixa da Home: inclui tambem as compras no cartao do feed. */
+  incluirComprasCartao?: boolean;
 };
 
 const COLUNAS =
-  'id, descricao, valor, data, empresa_id, contabilizado_saldo, plano_id, parcela_numero, local, categoria_id, created_at';
+  'id, descricao, valor, data, empresa_id, contabilizado_saldo, plano_id, parcela_numero, local, categoria_id, conta_id, conta_destino_id, fatura_id, created_at';
 
 export const listTransacoes = async (
   start: string | null = null,
@@ -67,7 +96,14 @@ export const listTransacoes = async (
   const condicoes: string[] = [];
   const params: (string | number)[] = [];
 
-  if (!opcoes.incluirNaoContabilizadas) {
+  if (opcoes.fluxoGastos) {
+    condicoes.push(`(
+            contabilizado_saldo = 1 AND conta_destino_id IS NULL
+        OR contabilizado_saldo = 0 AND fatura_id IS NOT NULL
+    )`);
+  } else if (opcoes.incluirComprasCartao) {
+    condicoes.push('(contabilizado_saldo = 1 OR fatura_id IS NOT NULL)');
+  } else if (!opcoes.incluirNaoContabilizadas) {
     condicoes.push('contabilizado_saldo = 1');
   }
 
@@ -132,8 +168,9 @@ export const insertTransacao = async (transacao: NovaTransacao): Promise<void> =
   await db.runAsync(
     `
         INSERT INTO transacoes (id, descricao, valor, data, empresa_id, contabilizado_saldo,
-                                plano_id, parcela_numero, local, categoria_id, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                plano_id, parcela_numero, local, categoria_id, conta_id,
+                                conta_destino_id, fatura_id, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       transacao.id,
@@ -146,6 +183,9 @@ export const insertTransacao = async (transacao: NovaTransacao): Promise<void> =
       transacao.parcela_numero ?? null,
       transacao.local ?? Locais.padrao,
       transacao.categoria_id ?? null,
+      transacao.conta_id ?? null,
+      transacao.conta_destino_id ?? null,
+      transacao.fatura_id ?? null,
       transacao.created_at,
     ],
   );
@@ -262,6 +302,8 @@ export type FiltrosBusca = {
   /** Id da categoria ou `SEM_CATEGORIA`. */
   categoriaId?: string | null;
   tipo?: 'saida' | 'entrada' | null;
+  /** Conta em qualquer uma das pontas (origem ou destino da transferencia). */
+  contaId?: string | null;
 };
 
 /** Lancamento da busca, com a descricao dos itens para o filtro por texto. */
@@ -310,6 +352,11 @@ export const buscarTransacoes = async (filtros: FiltrosBusca = {}): Promise<Tran
     condicoes.push('t.valor < 0');
   } else if (filtros.tipo === 'entrada') {
     condicoes.push('t.valor > 0');
+  }
+
+  if (filtros.contaId) {
+    condicoes.push('(t.conta_id = ? OR t.conta_destino_id = ?)');
+    params.push(filtros.contaId, filtros.contaId);
   }
 
   return await db.getAllAsync<TransacaoBuscada>(

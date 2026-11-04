@@ -6,6 +6,7 @@ import {
   definirCategoriaTransacao,
   listCategoriasLancamento,
 } from '../../models/categoriasLancamento';
+import { type Conta, listContas } from '../../models/contas';
 import { type Empresa, listEmpresas } from '../../models/empresas';
 import { type ItemTransacao, listItensTransacao } from '../../models/itensTransacao';
 import {
@@ -49,6 +50,8 @@ export type UseBuscaLancamentos = {
   setCategoriaId: (id: string | null) => void;
   empresaId: string | null;
   setEmpresaId: (id: string | null) => void;
+  contaId: string | null;
+  setContaId: (id: string | null) => void;
   /** Algum filtro alem do periodo padrao esta ativo. */
   filtrosAtivos: boolean;
   limparFiltros: () => void;
@@ -56,6 +59,7 @@ export type UseBuscaLancamentos = {
   totais: TotaisBusca;
   empresas: Empresa[];
   categorias: CategoriaLancamento[];
+  contas: Conta[];
   itensPorTransacao: Map<string, ItemTransacao[]>;
   nomeEmpresa: (id?: string | null) => string;
   categoriaPorId: (id?: string | null) => CategoriaLancamento | undefined;
@@ -80,12 +84,14 @@ export function useBuscaLancamentos(iniciais?: FiltrosIniciaisBusca): UseBuscaLa
   const [tipo, setTipo] = useState<TipoFiltro>('todos');
   const [categoriaId, setCategoriaId] = useState<string | null>(iniciais?.categoriaId ?? null);
   const [empresaId, setEmpresaId] = useState<string | null>(iniciais?.empresaId ?? null);
+  const [contaId, setContaId] = useState<string | null>(null);
 
   const [resultados, setResultados] = useState<TransacaoBuscada[]>([]);
   const [itens, setItens] = useState<ItemTransacao[]>([]);
   const [compras, setCompras] = useState<Transacoes[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [categorias, setCategorias] = useState<CategoriaLancamento[]>([]);
+  const [contas, setContas] = useState<Conta[]>([]);
   const [loading, setLoading] = useState(true);
   /** So o resultado da busca mais recente entra na tela. */
   const ultimaBusca = useRef(0);
@@ -104,20 +110,28 @@ export function useBuscaLancamentos(iniciais?: FiltrosIniciaisBusca): UseBuscaLa
     const busca = ultimaBusca.current + 1;
     ultimaBusca.current = busca;
 
-    const [encontrados, itensDoBanco, comprasDoBanco, empresasDoBanco, categoriasDoBanco] =
-      await Promise.all([
-        buscarTransacoes({
-          inicio: intervalo.inicio,
-          fim: intervalo.fim,
-          empresaId,
-          categoriaId,
-          tipo: tipo === 'todos' ? null : tipo,
-        }),
-        listItensTransacao(),
-        listTransacoesCompra(),
-        listEmpresas(),
-        listCategoriasLancamento(),
-      ]);
+    const [
+      encontrados,
+      itensDoBanco,
+      comprasDoBanco,
+      empresasDoBanco,
+      categoriasDoBanco,
+      contasDoBanco,
+    ] = await Promise.all([
+      buscarTransacoes({
+        inicio: intervalo.inicio,
+        fim: intervalo.fim,
+        empresaId,
+        categoriaId,
+        tipo: tipo === 'todos' ? null : tipo,
+        contaId,
+      }),
+      listItensTransacao(),
+      listTransacoesCompra(),
+      listEmpresas(),
+      listCategoriasLancamento(),
+      listContas(),
+    ]);
 
     if (ultimaBusca.current !== busca) {
       return;
@@ -128,7 +142,8 @@ export function useBuscaLancamentos(iniciais?: FiltrosIniciaisBusca): UseBuscaLa
     setCompras(comprasDoBanco);
     setEmpresas(empresasDoBanco);
     setCategorias(categoriasDoBanco);
-  }, [intervalo, empresaId, categoriaId, tipo]);
+    setContas(contasDoBanco);
+  }, [intervalo, empresaId, categoriaId, tipo, contaId]);
 
   // Recarrega ao voltar para a tela e sempre que um filtro do banco muda.
   useFocusEffect(
@@ -192,6 +207,7 @@ export function useBuscaLancamentos(iniciais?: FiltrosIniciaisBusca): UseBuscaLa
     setTipo('todos');
     setCategoriaId(null);
     setEmpresaId(null);
+    setContaId(null);
   }, []);
 
   const excluir = useCallback(
@@ -233,17 +249,21 @@ export function useBuscaLancamentos(iniciais?: FiltrosIniciaisBusca): UseBuscaLa
     setCategoriaId,
     empresaId,
     setEmpresaId,
+    contaId,
+    setContaId,
     filtrosAtivos:
       termo.trim() !== '' ||
       periodo !== 'tudo' ||
       tipo !== 'todos' ||
       categoriaId !== null ||
-      empresaId !== null,
+      empresaId !== null ||
+      contaId !== null,
     limparFiltros,
     secoes,
     totais,
     empresas,
     categorias,
+    contas,
     itensPorTransacao,
     nomeEmpresa,
     categoriaPorId,

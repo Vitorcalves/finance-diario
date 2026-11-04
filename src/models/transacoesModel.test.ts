@@ -36,9 +36,7 @@ describe('listCobrancasDePlanos', () => {
 
     assert.equal(cobrancas.length, 72);
     assert.ok(
-      cobrancas.every(
-        (cobranca) => cobranca.plano_id === planoId && cobranca.parcela_numero !== 0,
-      ),
+      cobrancas.every((cobranca) => cobranca.plano_id === planoId && cobranca.parcela_numero !== 0),
     );
     assert.equal(datas[0], '2026-01-10');
     assert.equal(datas[datas.length - 1], '2031-12-10');

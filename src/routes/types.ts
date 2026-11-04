@@ -24,6 +24,8 @@ export type MenuStackParamList = {
   Marcas: undefined;
   CategoriasLancamento: undefined;
   Planos: undefined;
+  Contas: undefined;
+  Faturas: { contaId: string } | undefined;
   Integracao: undefined;
 };
 

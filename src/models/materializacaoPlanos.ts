@@ -1,5 +1,6 @@
 import dayjs from 'dayjs';
 import { v4 as uuidv4 } from 'uuid';
+import { faturaDaCompra } from '../utils/cartao';
 import { Locais } from '../utils/local';
 import {
   type FrequenciaPlano,
@@ -7,7 +8,9 @@ import {
   parcelasDaCompra,
   rotuloParcela,
 } from '../utils/parcelas';
+import { CONTA_CAIXA_PADRAO, getContaById } from './contas';
 import { emTransacao, getConnection } from './database';
+import { garantirFatura } from './faturas';
 import {
   atualizarGeradoAte,
   insertPlano,
@@ -36,22 +39,38 @@ type OcorrenciaGravada = {
   data: string;
   empresaId?: string | null;
   categoriaId?: string | null;
+  /** Se a cobranca ja sai do caixa; no cartao ela vai para a fatura do ciclo. */
   contabilizado: boolean;
+  /** Conta que recebe a cobranca; padrao: caixa global. */
+  contaId?: string | null;
 };
 
 /**
  * `INSERT OR IGNORE` + indice unico `(plano_id, parcela_numero)`: se o gerador
  * rodar duas vezes para o mesmo periodo, a segunda passada nao cria nada.
+ *
+ * Cobranca em cartao segue a regra da compra no cartao: fica fora do caixa
+ * (`contabilizado_saldo = 0`) presa a fatura do ciclo; o caixa so e afetado
+ * quando a fatura e paga.
  */
 const gravarOcorrencia = async (ocorrencia: OcorrenciaGravada): Promise<void> => {
   const db = await getConnection();
+  const conta = await getContaById(ocorrencia.contaId ?? CONTA_CAIXA_PADRAO);
+
+  const fatura =
+    conta?.tipo === 'cartao' && conta.dia_fechamento != null && conta.dia_vencimento != null
+      ? await garantirFatura(
+          conta.id,
+          faturaDaCompra(ocorrencia.data, conta.dia_fechamento, conta.dia_vencimento),
+        )
+      : null;
 
   await db.runAsync(
     `
         INSERT OR IGNORE INTO transacoes (id, descricao, valor, data, empresa_id,
                                           contabilizado_saldo, plano_id, parcela_numero,
-                                          categoria_id, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                          categoria_id, conta_id, fatura_id, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       uuidv4(),
@@ -59,14 +78,19 @@ const gravarOcorrencia = async (ocorrencia: OcorrenciaGravada): Promise<void> =>
       ocorrencia.valor,
       ocorrencia.data,
       ocorrencia.empresaId ?? null,
-      ocorrencia.contabilizado ? 1 : 0,
+      fatura ? 0 : ocorrencia.contabilizado ? 1 : 0,
       ocorrencia.planoId,
       ocorrencia.numero,
       ocorrencia.categoriaId ?? null,
+      conta?.id ?? CONTA_CAIXA_PADRAO,
+      fatura?.id ?? null,
       new Date().toISOString(),
     ],
   );
 };
+
+/** Conta que paga as cobrancas de um plano; `null` no plano = caixa padrao. */
+const contaDoPlano = (plano: PlanoPagamento): string => plano.conta_id ?? CONTA_CAIXA_PADRAO;
 
 const ultimaParcelaGerada = async (planoId: string): Promise<number> => {
   const db = await getConnection();
@@ -95,6 +119,8 @@ export type DadosCompraParcelada = {
   local?: number;
   /** Categoria da compra, herdada pelas parcelas. */
   categoriaId?: string | null;
+  /** Conta da compra e das parcelas; padrao: caixa global. */
+  contaId?: string | null;
 };
 
 export type CompraParceladaCriada = {
@@ -148,6 +174,7 @@ const gravarCompraParcelada = async (
     ativo: 1,
     gerado_ate: ultimaParcela?.data ?? null,
     categoria_id: dados.categoriaId ?? null,
+    conta_id: dados.contaId ?? null,
     created_at: agora,
   });
 
@@ -156,8 +183,9 @@ const gravarCompraParcelada = async (
   await db.runAsync(
     `
         INSERT INTO transacoes (id, descricao, valor, data, empresa_id, contabilizado_saldo,
-                                plano_id, parcela_numero, local, categoria_id, created_at)
-        VALUES (?, ?, ?, ?, ?, 0, ?, 0, ?, ?, ?)
+                                plano_id, parcela_numero, local, categoria_id, conta_id,
+                                created_at)
+        VALUES (?, ?, ?, ?, ?, 0, ?, 0, ?, ?, ?, ?)
     `,
     [
       compraTransacaoId,
@@ -168,6 +196,7 @@ const gravarCompraParcelada = async (
       planoId,
       dados.local ?? Locais.padrao,
       dados.categoriaId ?? null,
+      dados.contaId ?? CONTA_CAIXA_PADRAO,
       agora,
     ],
   );
@@ -182,6 +211,7 @@ const gravarCompraParcelada = async (
       empresaId: dados.empresaId,
       categoriaId: dados.categoriaId ?? null,
       contabilizado: true,
+      contaId: dados.contaId,
     });
   }
 
@@ -220,6 +250,7 @@ const gerarCobrancas = async (plano: PlanoPagamento, ateData: string): Promise<n
       empresaId: plano.empresa_id,
       categoriaId: plano.categoria_id ?? null,
       contabilizado: true,
+      contaId: contaDoPlano(plano),
     });
   }
 
@@ -260,6 +291,8 @@ export type DadosAssinatura = {
   /** Encerramento previsto; `null` enquanto a assinatura estiver ativa. */
   dataFim?: string | null;
   categoriaId?: string | null;
+  /** Conta que paga a cobranca; padrao: caixa global. */
+  contaId?: string | null;
 };
 
 /** Cria a assinatura e ja materializa as cobrancas ate o horizonte. */
@@ -286,6 +319,7 @@ const gravarAssinatura = async (dados: DadosAssinatura, ateData: string): Promis
     ativo: 1,
     gerado_ate: null,
     categoria_id: dados.categoriaId ?? null,
+    conta_id: dados.contaId ?? null,
     created_at: new Date().toISOString(),
   });
 

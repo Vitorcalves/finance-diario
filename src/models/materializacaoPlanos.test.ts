@@ -1,6 +1,8 @@
 import { beforeEach, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { prepararBanco } from '../../tests/setup/banco';
+import { type Conta, insertConta, saldoDaConta } from './contas';
+import { listFaturas } from './faturas';
 import {
   cancelarPlano,
   criarAssinatura,
@@ -16,6 +18,20 @@ const parcelasDo = async (planoId: string): Promise<Transacoes[]> =>
 
 const compraDo = async (planoId: string): Promise<Transacoes | undefined> =>
   (await listTransacoesByPlano(planoId)).find((transacao) => transacao.parcela_numero === 0);
+
+const cartao = (): Conta => ({
+  id: 'cartao1',
+  nome: 'Cartão',
+  tipo: 'cartao',
+  dia_fechamento: 30,
+  dia_vencimento: 10,
+  meta_valor: null,
+  saldo_inicial: 0,
+  cor: null,
+  ativo: 1,
+  ordem: 0,
+  created_at: '2026-01-01T00:00:00.000Z',
+});
 
 beforeEach(async () => {
   await prepararBanco();
@@ -185,6 +201,56 @@ describe('criarAssinatura', () => {
     const planoId = await criarAssinatura({ ...dados, dataInicio: '2027-01-01' }, '2026-12-31');
 
     assert.equal((await parcelasDo(planoId)).length, 0);
+  });
+
+  test('no cartao, as cobrancas vao para a fatura do ciclo, fora do caixa', async () => {
+    await insertConta(cartao());
+
+    const planoId = await criarAssinatura({ ...dados, contaId: 'cartao1' }, '2026-03-31');
+    const parcelas = await parcelasDo(planoId);
+
+    assert.equal(parcelas.length, 3);
+    for (const parcela of parcelas) {
+      assert.equal(parcela.contabilizado_saldo, 0);
+      assert.ok(parcela.fatura_id);
+      assert.equal(parcela.conta_id, 'cartao1');
+    }
+  });
+
+  test('no cartao, cada ciclo vira uma fatura com o vencimento do cartao', async () => {
+    await insertConta(cartao());
+
+    const planoId = await criarAssinatura({ ...dados, contaId: 'cartao1' }, '2026-03-31');
+    const parcelas = await parcelasDo(planoId);
+
+    // Fechamento dia 30, vencimento dia 10: o vencimento cai no mes seguinte ao ciclo.
+    const vencimentosPorMes = new Map(
+      (await listFaturas('cartao1')).map((fatura) => [fatura.mes_ref, fatura.data_vencimento]),
+    );
+
+    const esperados: Record<string, string> = {
+      '2026-01-10': '2026-02-10',
+      '2026-02-10': '2026-03-10',
+      '2026-03-10': '2026-04-10',
+    };
+
+    for (const parcela of parcelas) {
+      const faturaId = parcela.fatura_id;
+      const fatura = (await listFaturas('cartao1')).find((item) => item.id === faturaId);
+      assert.ok(fatura);
+      assert.equal(fatura.data_vencimento, esperados[parcela.data]);
+    }
+
+    assert.deepEqual([...vencimentosPorMes.keys()].sort(), ['2026-01', '2026-02', '2026-03']);
+  });
+
+  test('no cartao, o saldo vira divida ate a fatura ser paga', async () => {
+    await insertConta(cartao());
+
+    const planoId = await criarAssinatura({ ...dados, contaId: 'cartao1' }, '2026-03-31');
+
+    assert.equal((await parcelasDo(planoId)).length, 3);
+    assert.equal(Math.round((await saldoDaConta('cartao1')) * 100), -11970);
   });
 });
 

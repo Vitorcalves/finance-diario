@@ -14,6 +14,7 @@ import {
   TextInput,
 } from '../../../components/ui';
 import type { CategoriaLancamento } from '../../../models/categoriasLancamento';
+import type { Conta } from '../../../models/contas';
 import type { Empresa } from '../../../models/empresas';
 import { SEM_CATEGORIA } from '../../../models/transacoesModel';
 import {
@@ -42,7 +43,7 @@ const ROTULO_TIPO: Record<TipoFiltro, string> = {
   entrada: 'Só entradas',
 };
 
-type Painel = 'periodo' | 'personalizado' | 'tipo' | 'categoria' | 'empresa' | null;
+type Painel = 'periodo' | 'personalizado' | 'tipo' | 'categoria' | 'empresa' | 'conta' | null;
 
 type FiltrosBuscaProps = {
   termo: string;
@@ -57,8 +58,11 @@ type FiltrosBuscaProps = {
   onCategoria: (id: string | null) => void;
   empresaId: string | null;
   onEmpresa: (id: string | null) => void;
+  contaId: string | null;
+  onConta: (id: string | null) => void;
   categorias: CategoriaLancamento[];
   empresas: Empresa[];
+  contas: Conta[];
   filtrosAtivos: boolean;
   onLimpar: () => void;
 };
@@ -77,8 +81,11 @@ export default function FiltrosBusca({
   onCategoria,
   empresaId,
   onEmpresa,
+  contaId,
+  onConta,
   categorias,
   empresas,
+  contas,
   filtrosAtivos,
   onLimpar,
 }: FiltrosBuscaProps): React.ReactNode {
@@ -100,6 +107,7 @@ export default function FiltrosBusca({
   const rotuloCategoria =
     categoriaId === SEM_CATEGORIA ? 'Sem categoria' : (categoria?.nome ?? 'Categoria');
   const rotuloEmpresa = empresas.find((item) => item.id === empresaId)?.nome ?? 'Empresa';
+  const rotuloConta = contas.find((item) => item.id === contaId)?.nome ?? 'Conta';
 
   const opcoesPeriodo: OpcaoSheet<PeriodoBusca>[] = (
     Object.keys(ROTULO_PERIODO) as PeriodoBusca[]
@@ -123,6 +131,11 @@ export default function FiltrosBusca({
   const opcoesEmpresa: OpcaoSheet<string>[] = [
     { valor: TODAS, rotulo: 'Todas as empresas' },
     ...empresas.map((item) => ({ valor: item.id, rotulo: item.nome })),
+  ];
+
+  const opcoesConta: OpcaoSheet<string>[] = [
+    { valor: TODAS, rotulo: 'Todas as contas' },
+    ...contas.map((item) => ({ valor: item.id, rotulo: item.nome })),
   ];
 
   const pilula = (
@@ -181,6 +194,7 @@ export default function FiltrosBusca({
         {pilula(ROTULO_TIPO[tipo], tipo !== 'todos', 'tipo', 'swap-vertical-outline')}
         {pilula(rotuloCategoria, categoriaId !== null, 'categoria', 'pricetag-outline')}
         {pilula(rotuloEmpresa, empresaId !== null, 'empresa', 'storefront-outline')}
+        {pilula(rotuloConta, contaId !== null, 'conta', 'wallet-outline')}
         {filtrosAtivos && (
           <Pressable
             onPress={onLimpar}
@@ -271,6 +285,15 @@ export default function FiltrosBusca({
         opcoes={opcoesEmpresa}
         selecionado={empresaId ?? TODAS}
         onSelecionar={(valor): void => onEmpresa(valor === TODAS ? null : valor)}
+        onFechar={fechar}
+      />
+
+      <OpcoesSheet
+        visivel={painel === 'conta'}
+        titulo="Conta"
+        opcoes={opcoesConta}
+        selecionado={contaId ?? TODAS}
+        onSelecionar={(valor): void => onConta(valor === TODAS ? null : valor)}
         onFechar={fechar}
       />
     </View>

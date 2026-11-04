@@ -111,10 +111,15 @@ export function useMensal(): UseMensal {
         await materializarPlanos(fimDoMes);
 
         const [doMes, doMesAnterior, empresasDoBanco, categoriasDoBanco] = await Promise.all([
-          listTransacoes(mesSelecionado.startOf('month').format('YYYY-MM-DD'), fimDoMes),
+          // Visao de gastos: compra no cartao conta no mes da compra; o
+          // pagamento da fatura e as transferencias entre contas ficam fora.
+          listTransacoes(mesSelecionado.startOf('month').format('YYYY-MM-DD'), fimDoMes, {
+            fluxoGastos: true,
+          }),
           listTransacoes(
             mesAnterior.startOf('month').format('YYYY-MM-DD'),
             mesAnterior.endOf('month').format('YYYY-MM-DD'),
+            { fluxoGastos: true },
           ),
           listEmpresas(),
           listCategoriasLancamento(),

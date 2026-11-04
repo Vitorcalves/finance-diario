@@ -7,6 +7,7 @@ import SeletorCategoria from '../../../components/SeletorCategoria';
 import SeletorMultiplo from '../../../components/SeletorMultiplo';
 import { BottomSheet, Button, ChipSelector, Text, TextInput } from '../../../components/ui';
 import type { CategoriaLancamento } from '../../../models/categoriasLancamento';
+import type { Conta } from '../../../models/contas';
 import type { Empresa } from '../../../models/empresas';
 import { useTheme } from '../../../theme';
 import { type FrequenciaPlano, ROTULO_FREQUENCIA } from '../../../utils/parcelas';
@@ -21,6 +22,8 @@ type AssinaturaFormModalProps = {
   visivel: boolean;
   empresas: Empresa[];
   categorias: CategoriaLancamento[];
+  /** Contas caixa e cartoes ativas: quem paga a cobranca. */
+  contas: Conta[];
   salvando: boolean;
   onFechar: () => void;
   /** Devolve `true` quando a assinatura foi criada, o que fecha o painel. */
@@ -32,6 +35,7 @@ export default function AssinaturaFormModal({
   visivel,
   empresas,
   categorias,
+  contas,
   salvando,
   onFechar,
   onSalvar,
@@ -44,6 +48,7 @@ export default function AssinaturaFormModal({
   const [dataInputKey, setDataInputKey] = useState(0);
   const [frequencia, setFrequencia] = useState<FrequenciaPlano>('mensal');
   const [categoriaId, setCategoriaId] = useState<string | null>(CATEGORIA_PADRAO);
+  const [contaId, setContaId] = useState<string | null>(null);
 
   const limpar = (): void => {
     setDescricao('');
@@ -53,6 +58,7 @@ export default function AssinaturaFormModal({
     setDataInputKey((atual) => atual + 1);
     setFrequencia('mensal');
     setCategoriaId(CATEGORIA_PADRAO);
+    setContaId(null);
   };
 
   const salvar = (): void => {
@@ -68,6 +74,7 @@ export default function AssinaturaFormModal({
         dataInicio,
         frequencia,
         intervalo: 1,
+        contaId: contas.some((conta) => conta.id === contaId) ? contaId : null,
       });
 
       if (salvou) {
@@ -125,6 +132,23 @@ export default function AssinaturaFormModal({
           selecionada={categoriaId}
           onSelecionar={setCategoriaId}
         />
+      </View>
+
+      <View style={sharedStyles.formGroup}>
+        <Text style={sharedStyles.label}>Conta</Text>
+        <ChipSelector
+          opcoes={contas.map((conta) => ({
+            valor: conta.id,
+            rotulo: conta.nome,
+          }))}
+          selecionado={contaId}
+          onSelecionar={setContaId}
+          scroll
+        />
+        <Text style={sharedStyles.sectionHint}>
+          Sem escolha, a cobrança cai na caixa padrão. No cartão, cada cobrança entra na fatura do
+          ciclo.
+        </Text>
       </View>
 
       <View style={sharedStyles.formGroup}>

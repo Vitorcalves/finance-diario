@@ -65,8 +65,11 @@ function ConteudoBusca({ iniciais }: { iniciais?: FiltrosIniciaisBusca }): React
         onCategoria={busca.setCategoriaId}
         empresaId={busca.empresaId}
         onEmpresa={busca.setEmpresaId}
+        contaId={busca.contaId}
+        onConta={busca.setContaId}
         categorias={busca.categorias}
         empresas={busca.empresas}
+        contas={busca.contas}
         filtrosAtivos={busca.filtrosAtivos}
         onLimpar={busca.limparFiltros}
       />

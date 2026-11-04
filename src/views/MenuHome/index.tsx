@@ -109,6 +109,12 @@ export default function MenuNavigationView(): React.ReactNode {
               icone: 'repeat-outline',
               onPress: (): void => irPara('Planos'),
             },
+            {
+              label: 'Contas e cartões',
+              descricao: 'Caixas, reservas de investimento e cartões de crédito',
+              icone: 'card-outline',
+              onPress: (): void => irPara('Contas'),
+            },
           ]}
         />
 

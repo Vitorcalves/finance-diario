@@ -4,6 +4,7 @@ import {
   listCategoriasLancamento,
   ultimaCategoriaPorEmpresa,
 } from '../../models/categoriasLancamento';
+import { type Conta, listContasPorTipo } from '../../models/contas';
 import { type Empresa, listEmpresas } from '../../models/empresas';
 import { listMarcas, type Marca } from '../../models/marcas';
 import { listProdutos, type Produto } from '../../models/produtos';
@@ -15,6 +16,8 @@ export type CatalogoLancamento = {
   variantes: ProdutoVariantes[];
   marcas: Marca[];
   categorias: CategoriaLancamento[];
+  /** Contas caixa e cartao ativas: para onde (ou para qual fatura) o dinheiro vai. */
+  contas: Conta[];
   /** Categoria usada por ultimo em cada empresa, para sugerir ao escolher a empresa. */
   categoriaPorEmpresa: Map<string, string>;
   /** Recarrega os cadastros - chamado ao abrir o formulario. */
@@ -28,6 +31,7 @@ export function useCatalogoLancamento(): CatalogoLancamento {
   const [variantes, setVariantes] = useState<ProdutoVariantes[]>([]);
   const [marcas, setMarcas] = useState<Marca[]>([]);
   const [categorias, setCategorias] = useState<CategoriaLancamento[]>([]);
+  const [contas, setContas] = useState<Conta[]>([]);
   const [categoriaPorEmpresa, setCategoriaPorEmpresa] = useState<Map<string, string>>(new Map());
 
   const carregar = useCallback((): void => {
@@ -39,6 +43,8 @@ export function useCatalogoLancamento(): CatalogoLancamento {
           variantesDoBanco,
           marcasDoBanco,
           categoriasDoBanco,
+          caixasDoBanco,
+          cartoesDoBanco,
           categoriaPorEmpresaDoBanco,
         ] = await Promise.all([
           listEmpresas(),
@@ -46,6 +52,8 @@ export function useCatalogoLancamento(): CatalogoLancamento {
           listProdutoVariantes(),
           listMarcas(),
           listCategoriasLancamento(),
+          listContasPorTipo('caixa'),
+          listContasPorTipo('cartao'),
           ultimaCategoriaPorEmpresa(),
         ]);
 
@@ -54,6 +62,7 @@ export function useCatalogoLancamento(): CatalogoLancamento {
         setVariantes(variantesDoBanco);
         setMarcas(marcasDoBanco);
         setCategorias(categoriasDoBanco);
+        setContas([...caixasDoBanco, ...cartoesDoBanco]);
         setCategoriaPorEmpresa(categoriaPorEmpresaDoBanco);
       } catch (error: unknown) {
         console.error('Erro ao carregar dados do lancamento', error);
@@ -61,5 +70,14 @@ export function useCatalogoLancamento(): CatalogoLancamento {
     })();
   }, []);
 
-  return { empresas, produtos, variantes, marcas, categorias, categoriaPorEmpresa, carregar };
+  return {
+    empresas,
+    produtos,
+    variantes,
+    marcas,
+    categorias,
+    contas,
+    categoriaPorEmpresa,
+    carregar,
+  };
 }

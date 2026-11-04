@@ -10,6 +10,8 @@ import { migration008 } from './008_categorias_lancamento';
 import { migration009 } from './009_lista_compras';
 import { migration010 } from './010_lista_compras_precos';
 import { migration011 } from './011_lista_compras_preco_variante';
+import { migration012 } from './012_contas_cartoes_reservas';
+import { migration013 } from './013_plano_conta';
 
 export const migrations: Migration[] = [
   migration001,
@@ -23,4 +25,6 @@ export const migrations: Migration[] = [
   migration009,
   migration010,
   migration011,
+  migration012,
+  migration013,
 ];

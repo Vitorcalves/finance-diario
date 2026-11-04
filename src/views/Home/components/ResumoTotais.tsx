@@ -27,7 +27,15 @@ type ResumoTotaisProps = {
 export default function ResumoTotais({ resumo }: ResumoTotaisProps): React.ReactNode {
   const { colors } = useTheme();
   const styles = useStyles();
-  const { saldoAtual, gastoMes, mediaDiaria, comprometidoMes, projecaoMes } = resumo;
+  const {
+    saldoAtual,
+    gastoMes,
+    mediaDiaria,
+    comprometidoMes,
+    projecaoMes,
+    reservas,
+    totalReservas,
+  } = resumo;
   /** Tamanho medido do cartao: o SVG em porcentagem nao acompanha a altura final. */
   const [tamanho, setTamanho] = useState({ largura: 0, altura: 0 });
 
@@ -112,6 +120,42 @@ export default function ResumoTotais({ resumo }: ResumoTotaisProps): React.React
           </View>
         )}
       </View>
+
+      {reservas.length > 0 && (
+        <View style={styles.cardReservas}>
+          <View style={styles.reservasTopo}>
+            <Text style={styles.reservasTitulo}>Reservas</Text>
+            <Ionicons name="archive-outline" size={iconSize.md} color={colors.textSubtle} />
+          </View>
+          <Text style={styles.reservasTotal}>{toCurrency(totalReservas)}</Text>
+
+          {reservas.map((reserva) => {
+            const progresso = reserva.meta_valor
+              ? Math.min(Math.max(reserva.saldo / reserva.meta_valor, 0), 1)
+              : null;
+
+            return (
+              <View key={reserva.id} style={styles.reservaLinha}>
+                <View style={styles.reservaTextos}>
+                  <Text style={styles.reservaNome}>{reserva.nome}</Text>
+                  <Text style={styles.reservaValores}>
+                    {`${toCurrency(reserva.saldo)}${
+                      reserva.meta_valor ? ` de ${toCurrency(reserva.meta_valor)}` : ''
+                    }`}
+                  </Text>
+                </View>
+                {progresso !== null ? (
+                  <BarraProgresso
+                    total={1}
+                    corTrilho={colors.border}
+                    segmentos={[{ valor: progresso, cor: reserva.cor ?? colors.success }]}
+                  />
+                ) : null}
+              </View>
+            );
+          })}
+        </View>
+      )}
     </Aparecer>
   );
 }
@@ -175,5 +219,47 @@ const useStyles = makeStyles((colors) => ({
   projecaoTexto: {
     fontSize: fontSize.caption,
     color: colors.onHeroMuted,
+  },
+  cardReservas: {
+    marginTop: spacing.lg,
+    borderRadius: radius.xxl,
+    padding: spacing.xl,
+    gap: spacing.sm,
+    backgroundColor: colors.surface,
+    ...shadows.floating,
+  },
+  reservasTopo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  reservasTitulo: {
+    fontSize: fontSize.caption,
+    fontWeight: fontWeight.medium,
+    color: colors.textMuted,
+  },
+  reservasTotal: {
+    fontSize: fontSize.title,
+    fontWeight: fontWeight.heavy,
+    color: colors.textStrong,
+    letterSpacing: -0.5,
+  },
+  reservaLinha: {
+    gap: spacing.xs,
+  },
+  reservaTextos: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  reservaNome: {
+    fontSize: fontSize.body,
+    fontWeight: fontWeight.medium,
+    color: colors.textStrong,
+  },
+  reservaValores: {
+    fontSize: fontSize.caption,
+    color: colors.textMuted,
   },
 }));

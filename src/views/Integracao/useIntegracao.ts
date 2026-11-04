@@ -1,16 +1,27 @@
-import {useCallback, useEffect, useState} from 'react';
-import {Alert, Share} from 'react-native';
-import {useToast} from '../../components/ui';
-import {analisarBackup, BackupInvalidoError, exportarBanco, importarBanco, resumirBackup,} from '../../models/backup';
-import {type ApiConfig, getApiConfig, saveApiConfig} from '../../models/settingsModel';
-import {escolherArquivoJson, salvarArquivoJson} from './components/arquivoJson';
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, Share } from 'react-native';
+import { useToast } from '../../components/ui';
+import {
+  analisarBackup,
+  BackupInvalidoError,
+  exportarBanco,
+  importarBanco,
+  resumirBackup,
+} from '../../models/backup';
+import { type ApiConfig, getApiConfig, saveApiConfig } from '../../models/settingsModel';
+import { escolherArquivoJson, salvarArquivoJson } from './components/arquivoJson';
 import {
   consultarIa as consultarIaNaApi,
   enviarParaApi as enviarBancoParaApi,
   MAX_PASSOS_PADRAO,
   SincronizacaoError,
 } from '../../models/sincronizacaoApi';
-import type {PreviaImportacao, ResultadoConsultaIa, ResultadoEnvioApi, ResultadoExportacao,} from './types';
+import type {
+  PreviaImportacao,
+  ResultadoConsultaIa,
+  ResultadoEnvioApi,
+  ResultadoExportacao,
+} from './types';
 
 export type UseIntegracao = {
   exportacao: ResultadoExportacao | null;
@@ -74,7 +85,7 @@ export function useIntegracao(): UseIntegracao {
   const [previa, setPrevia] = useState<PreviaImportacao | null>(null);
   const [importando, setImportando] = useState(false);
 
-  const [apiConfig, setApiConfigState] = useState<ApiConfig>({url: '', token: ''});
+  const [apiConfig, setApiConfigState] = useState<ApiConfig>({ url: '', token: '' });
   const [envioApi, setEnvioApi] = useState<ResultadoEnvioApi | null>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -129,17 +140,17 @@ export function useIntegracao(): UseIntegracao {
       Alert.alert(
         'JSON muito grande',
         'Vários apps de mensagem cortam textos acima de ~60 mil caracteres. ' +
-        'Para backups grandes, salve como arquivo.',
+          'Para backups grandes, salve como arquivo.',
         [
-          {text: 'Cancelar', style: 'cancel'},
-          {text: 'Salvar arquivo', onPress: (): void => void salvarArquivoExportacao()},
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Salvar arquivo', onPress: (): void => void salvarArquivoExportacao() },
         ],
       );
       return;
     }
 
     try {
-      await Share.share({message: exportacao.json});
+      await Share.share({ message: exportacao.json });
     } catch (error: unknown) {
       console.error('Erro ao compartilhar backup:', error);
       Alert.alert('Erro', 'Não foi possível compartilhar o JSON');
@@ -223,9 +234,9 @@ export function useIntegracao(): UseIntegracao {
       Alert.alert(
         'Sobrescrever banco',
         `Todos os dados atuais serão apagados e substituídos por ${previa.totalRegistros} ` +
-        'registro(s) do JSON. Esta ação não pode ser desfeita. Deseja continuar?',
+          'registro(s) do JSON. Esta ação não pode ser desfeita. Deseja continuar?',
         [
-          {text: 'Cancelar', style: 'cancel'},
+          { text: 'Cancelar', style: 'cancel' },
           {
             text: 'Sobrescrever',
             style: 'destructive',

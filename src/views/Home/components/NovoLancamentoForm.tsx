@@ -1,19 +1,28 @@
-import {useEffect, useMemo, useState} from 'react';
-import {Alert, View} from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Alert, View } from 'react-native';
 import dayjs from 'dayjs';
-import {v4 as uuidv4} from 'uuid';
+import { v4 as uuidv4 } from 'uuid';
 import BrazilianDateInput from '../../../components/BrazilianDateInput';
 import BrazilianIntegerInput from '../../../components/BrazilianIntegerInput';
 import SeletorCategoria from '../../../components/SeletorCategoria';
 import SeletorMultiplo from '../../../components/SeletorMultiplo';
-import {BottomSheet, Button, ChipSelector, SegmentedControl, Text, TextInput, useToast,} from '../../../components/ui';
-import {fontSize, fontWeight, makeStyles, radius, spacing, useTheme} from '../../../theme';
-import {toCurrency} from '../../../utils/format';
-import {vibrarAviso} from '../../../utils/haptics';
-import {useCatalogoLancamento} from '../useCatalogoLancamento';
-import type {ItemLancamento, NovoLancamento, RascunhoLancamento, TipoLancamento} from '../types';
+import {
+  BottomSheet,
+  Button,
+  ChipSelector,
+  SegmentedControl,
+  Text,
+  TextInput,
+  useToast,
+} from '../../../components/ui';
+import { fontSize, fontWeight, makeStyles, radius, spacing, useTheme } from '../../../theme';
+import { faturaDaCompra } from '../../../utils/cartao';
+import { formatarData, toCurrency } from '../../../utils/format';
+import { vibrarAviso } from '../../../utils/haptics';
+import { useCatalogoLancamento } from '../useCatalogoLancamento';
+import type { ItemLancamento, NovoLancamento, RascunhoLancamento, TipoLancamento } from '../types';
 import LancamentoItemCard from './LancamentoItemCard';
-import LancamentoItemForm, {type DadosItemLancamento} from './LancamentoItemForm';
+import LancamentoItemForm, { type DadosItemLancamento } from './LancamentoItemForm';
 import ParcelamentoSelector from './ParcelamentoSelector';
 
 const todayIso = (): string => dayjs().format('YYYY-MM-DD');
@@ -48,17 +57,17 @@ type NovoLancamentoFormProps = {
  * item fica em `LancamentoItemForm`.
  */
 export default function NovoLancamentoForm({
-                                             visivel,
-                                             onFechar,
-                                             onAddLancamento,
-                                             rascunho,
-                                             mensagemSucesso,
-                                           }: NovoLancamentoFormProps): React.ReactNode {
-  const {colors, sharedStyles} = useTheme();
+  visivel,
+  onFechar,
+  onAddLancamento,
+  rascunho,
+  mensagemSucesso,
+}: NovoLancamentoFormProps): React.ReactNode {
+  const { colors, sharedStyles } = useTheme();
   const styles = useStyles();
   const toast = useToast();
   const catalogo = useCatalogoLancamento();
-  const {carregar} = catalogo;
+  const { carregar } = catalogo;
 
   const [tipo, setTipo] = useState<TipoLancamento>('saida');
   const [empresaId, setEmpresaId] = useState<string | null>(rascunho?.empresaId ?? null);
@@ -76,8 +85,13 @@ export default function NovoLancamentoForm({
   const [primeiraParcela, setPrimeiraParcela] = useState(todayIso());
   const [parcelaDataKey, setParcelaDataKey] = useState(0);
 
+  /** Conta do lancamento (origem na transferencia); `null` ate o catalogo carregar. */
+  const [contaId, setContaId] = useState<string | null>(null);
+  /** So transferencia: conta que recebe o valor. */
+  const [contaDestinoId, setContaDestinoId] = useState<string | null>(null);
+
   const [itens, setItens] = useState<ItemLancamento[]>(() =>
-    (rascunho?.itens ?? []).map((item) => ({...item, localId: uuidv4()})),
+    (rascunho?.itens ?? []).map((item) => ({ ...item, localId: uuidv4() })),
   );
   /** O mini formulario de item so aparece quando o usuario pede. */
   const [formItemAberto, setFormItemAberto] = useState(false);
@@ -85,17 +99,34 @@ export default function NovoLancamentoForm({
   /** Trocada a cada edicao/salvamento para remontar o mini formulario limpo. */
   const [itemFormKey, setItemFormKey] = useState(0);
 
-// Cadastros frescos a cada abertura: um produto criado agora ja aparece.
+  // Cadastros frescos a cada abertura: um produto criado agora ja aparece.
   useEffect(() => {
     if (visivel) {
       carregar();
     }
   }, [visivel, carregar]);
 
+  // Padrao: a primeira conta caixa ativa recebe o lancamento sem conta escolhida.
+  // Ajuste durante a renderizacao (padrao "You Might Not Need an Effect").
+  const [contaPadraoAplicada, setContaPadraoAplicada] = useState(false);
+  const [visivelAnterior, setVisivelAnterior] = useState(visivel);
+  if (visivel !== visivelAnterior) {
+    setVisivelAnterior(visivel);
+    if (visivel) {
+      setContaPadraoAplicada(false);
+    }
+  }
+  if (visivel && !contaPadraoAplicada && catalogo.contas.length > 0) {
+    setContaPadraoAplicada(true);
+    if (contaId === null) {
+      setContaId(catalogo.contas.find((conta) => conta.tipo === 'caixa')?.id ?? null);
+    }
+  }
+
   const trocarTipo = (novo: TipoLancamento): void => {
     setTipo(novo);
 
-// Categoria de saida nao serve para entrada (e vice-versa).
+    // Categoria de saida nao serve para entrada (e vice-versa).
     const atual = catalogo.categorias.find((categoria) => categoria.id === categoriaId);
 
     if (atual && atual.tipo !== novo) {
@@ -108,7 +139,7 @@ export default function NovoLancamentoForm({
     const nova = empresaId === id ? null : id;
     setEmpresaId(nova);
 
-// Sugere a categoria usada da ultima vez nesta empresa.
+    // Sugere a categoria usada da ultima vez nesta empresa.
     const sugerida = nova ? catalogo.categoriaPorEmpresa.get(nova) : undefined;
     const categoriaSugerida = catalogo.categorias.find((categoria) => categoria.id === sugerida);
 
@@ -124,8 +155,38 @@ export default function NovoLancamentoForm({
 
   const totalLancamento = itens.length > 0 ? totalItens : Number(valorManual) || 0;
 
+  const contaSelecionada = catalogo.contas.find((conta) => conta.id === contaId);
+  const ehTransferencia = tipo === 'transferencia';
+
+  /**
+   * Compra no cartao: qual fatura recebe o lancamento, atualizado em tempo
+   * real conforme a data muda. A view nunca calcula data na mao: quem decide
+   * o ciclo e o util de calendario.
+   */
+  const cicloFatura = useMemo(() => {
+    if (
+      contaSelecionada?.tipo !== 'cartao' ||
+      contaSelecionada.dia_fechamento == null ||
+      contaSelecionada.dia_vencimento == null ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(data)
+    ) {
+      return null;
+    }
+
+    return faturaDaCompra(data, contaSelecionada.dia_fechamento, contaSelecionada.dia_vencimento);
+  }, [contaSelecionada, data]);
+
+  const escolherConta = (id: string): void => {
+    setContaId(id);
+
+    // Compra no cartao nao e parcelada aqui: a fatura ja e o parcelamento.
+    if (catalogo.contas.find((conta) => conta.id === id)?.tipo === 'cartao') {
+      setParcelado(false);
+    }
+  };
+
   /** Entrada parcelada nao faz sentido aqui: o parcelamento e do que se compra. */
-  const permiteParcelar = tipo === 'saida';
+  const permiteParcelar = tipo === 'saida' && contaSelecionada?.tipo !== 'cartao';
 
   const atalhoData: AtalhoData | null =
     data === todayIso() ? 'hoje' : data === ontemIso() ? 'ontem' : null;
@@ -139,7 +200,7 @@ export default function NovoLancamentoForm({
     setParcelado(ativo);
 
     if (ativo) {
-// Por padrao a 1a parcela vence no dia da compra; o usuario ajusta se quiser.
+      // Por padrao a 1a parcela vence no dia da compra; o usuario ajusta se quiser.
       setPrimeiraParcela(data);
       setParcelaDataKey((atual) => atual + 1);
     }
@@ -169,6 +230,8 @@ export default function NovoLancamentoForm({
     setParcelas(2);
     setPrimeiraParcela(todayIso());
     setParcelaDataKey((atual) => atual + 1);
+    setContaId(catalogo.contas.find((conta) => conta.tipo === 'caixa')?.id ?? null);
+    setContaDestinoId(null);
     setItens([]);
     fecharFormItem();
   };
@@ -176,11 +239,11 @@ export default function NovoLancamentoForm({
   const salvarItem = (dados: DadosItemLancamento): void => {
     setItens((prev) => {
       if (itemEditIndex === null) {
-        return [...prev, {...dados, localId: uuidv4()}];
+        return [...prev, { ...dados, localId: uuidv4() }];
       }
 
       const copia = [...prev];
-      copia[itemEditIndex] = {...dados, localId: prev[itemEditIndex].localId};
+      copia[itemEditIndex] = { ...dados, localId: prev[itemEditIndex].localId };
       return copia;
     });
 
@@ -196,12 +259,27 @@ export default function NovoLancamentoForm({
   };
 
   const salvarLancamento = async (): Promise<void> => {
-// Um segundo toque enquanto grava criaria o lancamento em dobro.
+    // Um segundo toque enquanto grava criaria o lancamento em dobro.
     if (salvando) {
       return;
     }
 
-    const descricaoFinal = descricao.trim() || itens[0]?.descricao || '';
+    if (ehTransferencia) {
+      if (!contaId || !contaDestinoId) {
+        avisar('Escolha a conta de origem e a conta de destino.');
+        return;
+      }
+
+      if (contaId === contaDestinoId) {
+        avisar('Origem e destino precisam ser contas diferentes.');
+        return;
+      }
+    }
+
+    const descricaoFinal =
+      descricao.trim() ||
+      itens[0]?.descricao ||
+      (ehTransferencia ? 'Transferência entre contas' : '');
     const dataFinal = data.trim();
 
     if (!descricaoFinal) {
@@ -238,18 +316,22 @@ export default function NovoLancamentoForm({
         tipo,
         descricao: descricaoFinal,
         data: dataFinal,
-        empresaId,
-        categoriaId,
-        valor: tipo === 'saida' ? -totalLancamento : totalLancamento,
-        itens,
-        parcelamento: parcelandoAgora ? {parcelas, primeiraParcela} : null,
+        empresaId: ehTransferencia ? null : empresaId,
+        categoriaId: ehTransferencia ? null : categoriaId,
+        valor: tipo === 'entrada' ? totalLancamento : -totalLancamento,
+        itens: ehTransferencia ? [] : itens,
+        parcelamento: parcelandoAgora ? { parcelas, primeiraParcela } : null,
+        contaId,
+        contaDestinoId: ehTransferencia ? contaDestinoId : null,
       });
 
       const mensagem =
         mensagemSucesso ??
         (parcelandoAgora
           ? `Compra parcelada em ${parcelas}x registrada`
-          : `${tipo === 'saida' ? 'Saída' : 'Entrada'} de ${toCurrency(totalLancamento)} registrada`);
+          : ehTransferencia
+            ? `Transferência de ${toCurrency(totalLancamento)} registrada`
+            : `${tipo === 'saida' ? 'Saída' : 'Entrada'} de ${toCurrency(totalLancamento)} registrada`);
 
       limparFormulario();
       onFechar();
@@ -271,14 +353,16 @@ export default function NovoLancamentoForm({
       titulo="Novo lançamento"
       rodape={
         <View style={sharedStyles.actionsRow}>
-          <Button label="Cancelar" variant="secondary" flex onPress={onFechar}/>
+          <Button label="Cancelar" variant="secondary" flex onPress={onFechar} />
           <Button
             label={
               permiteParcelar && parcelado
                 ? `Parcelar em ${parcelas}x`
-                : tipo === 'saida'
-                  ? 'Adicionar saída'
-                  : 'Adicionar entrada'
+                : ehTransferencia
+                  ? 'Transferir'
+                  : tipo === 'saida'
+                    ? 'Adicionar saída'
+                    : 'Adicionar entrada'
             }
             variant={tipo === 'entrada' ? 'success' : 'primary'}
             icon="checkmark"
@@ -293,8 +377,9 @@ export default function NovoLancamentoForm({
     >
       <SegmentedControl
         opcoes={[
-          {valor: 'saida', rotulo: 'Saída', cor: colors.danger},
-          {valor: 'entrada', rotulo: 'Entrada', cor: colors.success},
+          { valor: 'saida', rotulo: 'Saída', cor: colors.danger },
+          { valor: 'entrada', rotulo: 'Entrada', cor: colors.success },
+          { valor: 'transferencia', rotulo: 'Transferência', cor: colors.primary },
         ]}
         valor={tipo}
         onChange={trocarTipo}
@@ -309,7 +394,7 @@ export default function NovoLancamentoForm({
               onChangeValue={setValorManual}
               decimalScale={2}
               placeholder="0,00"
-              style={[styles.valorInput, {color: corTotal}]}
+              style={[styles.valorInput, { color: corTotal }]}
               accessibilityLabel="Valor do lançamento"
             />
           </>
@@ -318,23 +403,73 @@ export default function NovoLancamentoForm({
             <Text style={styles.valorRotulo}>
               {`Soma de ${itens.length} ${itens.length === 1 ? 'item' : 'itens'}`}
             </Text>
-            <Text style={[styles.valorTotal, {color: corTotal}]}>
+            <Text style={[styles.valorTotal, { color: corTotal }]}>
               {toCurrency(totalLancamento)}
             </Text>
           </>
         )}
       </View>
 
-      <Text style={sharedStyles.label}>Categoria</Text>
-      <SeletorCategoria
-        categorias={catalogo.categorias}
-        tipo={tipo}
-        selecionada={categoriaId}
-        onSelecionar={(id): void => {
-          setCategoriaId(id);
-          setCategoriaManual(id !== null);
-        }}
-      />
+      {!ehTransferencia ? (
+        <>
+          <Text style={sharedStyles.label}>Conta</Text>
+          <ChipSelector
+            opcoes={catalogo.contas.map((conta) => ({
+              valor: conta.id,
+              rotulo: conta.nome,
+            }))}
+            selecionado={contaId}
+            onSelecionar={escolherConta}
+            scroll
+          />
+          {cicloFatura ? (
+            <Text style={styles.faturaEtiqueta}>
+              {`Cai na fatura de ${formatarData(cicloFatura.dataFechamento)} `}
+              {`(vence ${formatarData(cicloFatura.dataVencimento)})`}
+            </Text>
+          ) : null}
+        </>
+      ) : (
+        <>
+          <Text style={sharedStyles.label}>De (origem)</Text>
+          <ChipSelector
+            opcoes={catalogo.contas.map((conta) => ({
+              valor: conta.id,
+              rotulo: conta.nome,
+            }))}
+            selecionado={contaId}
+            onSelecionar={setContaId}
+            scroll
+          />
+          <Text style={sharedStyles.label}>Para (destino)</Text>
+          <ChipSelector
+            opcoes={catalogo.contas
+              .filter((conta) => conta.id !== contaId)
+              .map((conta) => ({
+                valor: conta.id,
+                rotulo: conta.nome,
+              }))}
+            selecionado={contaDestinoId}
+            onSelecionar={setContaDestinoId}
+            scroll
+          />
+        </>
+      )}
+
+      {!ehTransferencia ? (
+        <>
+          <Text style={sharedStyles.label}>Categoria</Text>
+          <SeletorCategoria
+            categorias={catalogo.categorias}
+            tipo={tipo === 'entrada' ? 'entrada' : 'saida'}
+            selecionada={categoriaId}
+            onSelecionar={(id): void => {
+              setCategoriaId(id);
+              setCategoriaManual(id !== null);
+            }}
+          />
+        </>
+      ) : null}
 
       <Text style={sharedStyles.label}>Descrição</Text>
       <TextInput
@@ -348,8 +483,8 @@ export default function NovoLancamentoForm({
       <View style={styles.dataLinha}>
         <ChipSelector
           opcoes={[
-            {valor: 'hoje' as const, rotulo: 'Hoje'},
-            {valor: 'ontem' as const, rotulo: 'Ontem'},
+            { valor: 'hoje' as const, rotulo: 'Hoje' },
+            { valor: 'ontem' as const, rotulo: 'Ontem' },
           ]}
           selecionado={atalhoData}
           onSelecionar={escolherData}
@@ -363,61 +498,64 @@ export default function NovoLancamentoForm({
         />
       </View>
 
-      <SeletorMultiplo
-        label="Empresa"
-        opcoes={catalogo.empresas.map((empresa) => ({
-          id: empresa.id,
-          nome: empresa.nome,
-        }))}
-        selecionados={empresaId ? [empresaId] : []}
-        onToggle={escolherEmpresa}
-        placeholderBusca="Buscar empresa"
-        textoTrigger="Selecionar empresa"
-        textoVazio="Nenhuma empresa cadastrada"
-        textoNenhumEncontrado="Nenhuma empresa encontrada"
-      />
+      {!ehTransferencia ? (
+        <>
+          <SeletorMultiplo
+            label="Empresa"
+            opcoes={catalogo.empresas.map((empresa) => ({
+              id: empresa.id,
+              nome: empresa.nome,
+            }))}
+            selecionados={empresaId ? [empresaId] : []}
+            onToggle={escolherEmpresa}
+            placeholderBusca="Buscar empresa"
+            textoTrigger="Selecionar empresa"
+            textoVazio="Nenhuma empresa cadastrada"
+            textoNenhumEncontrado="Nenhuma empresa encontrada"
+          />
 
-      <View style={styles.itensCabecalho}>
-        <Text style={sharedStyles.label}>Itens</Text>
+          <View style={styles.itensCabecalho}>
+            <Text style={sharedStyles.label}>Itens</Text>
+          </View>
 
-      </View>
+          {itens.length === 0 && !formItemAberto && (
+            <Text style={styles.itensDica}>
+              Opcional: detalhe os produtos comprados para acompanhar o histórico de preços.
+            </Text>
+          )}
 
-      {itens.length === 0 && !formItemAberto && (
-        <Text style={styles.itensDica}>
-          Opcional: detalhe os produtos comprados para acompanhar o histórico de preços.
-        </Text>
-      )}
+          {itens.map((item, index) => (
+            <LancamentoItemCard
+              key={item.localId}
+              item={item}
+              variante={catalogo.variantes.find((variante) => variante.id === item.varianteId)}
+              onEditar={(): void => abrirFormItem(index)}
+              onRemover={(): void => removerItem(index)}
+            />
+          ))}
+          {!formItemAberto && (
+            <Button
+              label="Adicionar item"
+              icon="add"
+              variant="ghost"
+              size="sm"
+              onPress={(): void => abrirFormItem(null)}
+            />
+          )}
 
-      {itens.map((item, index) => (
-        <LancamentoItemCard
-          key={item.localId}
-          item={item}
-          variante={catalogo.variantes.find((variante) => variante.id === item.varianteId)}
-          onEditar={(): void => abrirFormItem(index)}
-          onRemover={(): void => removerItem(index)}
-        />
-      ))}
-      {!formItemAberto && (
-        <Button
-          label="Adicionar item"
-          icon="add"
-          variant="ghost"
-          size="sm"
-          onPress={(): void => abrirFormItem(null)}
-        />
-      )}
-
-      {formItemAberto && (
-        <LancamentoItemForm
-          key={`item-${itemFormKey}`}
-          produtos={catalogo.produtos}
-          variantes={catalogo.variantes}
-          marcas={catalogo.marcas}
-          itemInicial={itemEditIndex !== null ? itens[itemEditIndex] : null}
-          onSalvar={salvarItem}
-          onCancelar={fecharFormItem}
-        />
-      )}
+          {formItemAberto && (
+            <LancamentoItemForm
+              key={`item-${itemFormKey}`}
+              produtos={catalogo.produtos}
+              variantes={catalogo.variantes}
+              marcas={catalogo.marcas}
+              itemInicial={itemEditIndex !== null ? itens[itemEditIndex] : null}
+              onSalvar={salvarItem}
+              onCancelar={fecharFormItem}
+            />
+          )}
+        </>
+      ) : null}
 
       {permiteParcelar && (
         <ParcelamentoSelector
@@ -468,6 +606,12 @@ const useStyles = makeStyles((colors) => ({
   },
   dataInput: {
     flex: 1,
+  },
+  faturaEtiqueta: {
+    fontSize: fontSize.caption,
+    color: colors.primary,
+    marginTop: spacing.xs,
+    marginBottom: spacing.md,
   },
   itensCabecalho: {
     flexDirection: 'row',

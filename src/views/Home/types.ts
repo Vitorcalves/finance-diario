@@ -9,7 +9,7 @@ export type ItemLancamento = {
   precoUnitario: number;
 };
 
-export type TipoLancamento = 'saida' | 'entrada';
+export type TipoLancamento = 'saida' | 'entrada' | 'transferencia';
 
 /** Parcelamento escolhido no formulario; ausente no lancamento a vista. */
 export type ParcelamentoLancamento = {
@@ -31,6 +31,13 @@ export type NovoLancamento = {
   itens: ItemLancamento[];
   /** Quando informado, o valor vira um plano e o caixa recebe as parcelas. */
   parcelamento?: ParcelamentoLancamento | null;
+  /**
+   * Conta do lancamento (origem, na transferencia). `null`/ausente usa a
+   * caixa padrao; conta cartao significa compra que cai na fatura do ciclo.
+   */
+  contaId?: string | null;
+  /** So transferencia: conta de destino do valor. */
+  contaDestinoId?: string | null;
 };
 
 /**

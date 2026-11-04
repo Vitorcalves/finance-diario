@@ -40,4 +40,6 @@ export type DadosFormularioAssinatura = {
   dataInicio: string;
   frequencia: FrequenciaPlano;
   intervalo: number;
+  /** Conta caixa que paga a cobranca; `null` usa a caixa padrao. */
+  contaId: string | null;
 };

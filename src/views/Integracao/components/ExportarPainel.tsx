@@ -1,8 +1,8 @@
-import {useState} from 'react';
-import {View} from 'react-native';
-import {Button, Text} from '../../../components/ui';
-import {fontSize, makeStyles, spacing, useTheme} from '../../../theme';
-import type {ResultadoExportacao} from '../types';
+import { useState } from 'react';
+import { View } from 'react-native';
+import { Button, Text } from '../../../components/ui';
+import { fontSize, makeStyles, spacing, useTheme } from '../../../theme';
+import type { ResultadoExportacao } from '../types';
 import CaixaJson from './CaixaJson';
 import ResumoTabelas from './ResumoTabelas';
 
@@ -30,14 +30,14 @@ const formatarDataHora = (iso: string): string => {
 
 /** Aba de exportacao: gera o JSON do banco e o entrega para copiar, salvar ou compartilhar. */
 export default function ExportarPainel({
-                                         exportacao,
-                                         carregando,
-                                         salvandoArquivo,
-                                         onGerar,
-                                         onCompartilhar,
-                                         onSalvarArquivo,
-                                       }: ExportarPainelProps): React.ReactNode {
-  const {sharedStyles} = useTheme();
+  exportacao,
+  carregando,
+  salvandoArquivo,
+  onGerar,
+  onCompartilhar,
+  onSalvarArquivo,
+}: ExportarPainelProps): React.ReactNode {
+  const { sharedStyles } = useTheme();
   const styles = useStyles();
   const [mostrarJson, setMostrarJson] = useState(false);
 
@@ -60,7 +60,7 @@ export default function ExportarPainel({
 
       {exportacao === null ? null : (
         <>
-          <ResumoTabelas titulo="Registros exportados" itens={exportacao.resumo}/>
+          <ResumoTabelas titulo="Registros exportados" itens={exportacao.resumo} />
 
           <View style={styles.metadados}>
             <Text style={styles.metadado}>Gerado em {formatarDataHora(exportacao.geradoEm)}</Text>
@@ -87,7 +87,7 @@ export default function ExportarPainel({
           </View>
 
           {jsonVisivel ? (
-            <CaixaJson valor={exportacao.json}/>
+            <CaixaJson valor={exportacao.json} />
           ) : (
             <Button
               label="Mostrar JSON na tela"
@@ -98,8 +98,8 @@ export default function ExportarPainel({
 
           {grande && !mostrarJson ? (
             <Text style={sharedStyles.sectionHint}>
-              O JSON é grande; exibi-lo na tela pode deixar o app lento. Prefira salvar como
-              arquivo ou compartilhar.
+              O JSON é grande; exibi-lo na tela pode deixar o app lento. Prefira salvar como arquivo
+              ou compartilhar.
             </Text>
           ) : null}
         </>
@@ -109,7 +109,7 @@ export default function ExportarPainel({
 }
 
 const useStyles = makeStyles((colors) => ({
-  painel: {gap: spacing.md},
-  metadados: {gap: 2},
-  metadado: {fontSize: fontSize.caption, color: colors.textSubtle},
+  painel: { gap: spacing.md },
+  metadados: { gap: 2 },
+  metadado: { fontSize: fontSize.caption, color: colors.textSubtle },
 }));

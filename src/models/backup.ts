@@ -267,11 +267,24 @@ const inserirLinhas = async (
 };
 
 /**
+ * Tabelas que precisam entrar antes das outras por causa das chaves
+ * estrangeiras: `transacoes` aponta para `contas` (nas duas pontas) e para
+ * `faturas`.
+ */
+const ORDEM_IMPORTACAO = ['contas', 'faturas'];
+
+const prioridadeDeImportacao = (tabela: string): number => {
+  const indice = ORDEM_IMPORTACAO.indexOf(tabela);
+  return indice === -1 ? ORDEM_IMPORTACAO.length : indice;
+};
+
+/**
  * Substitui todo o conteudo do banco pelo do backup.
  *
- * As FKs ficam desligadas durante a carga porque as tabelas sao gravadas em
- * ordem arbitraria; se algo falhar, a transacao volta atras e o banco continua
- * como estava. O schema (tabelas, indices, migrations aplicadas) nao e tocado.
+ * As FKs ficam desligadas durante a carga; mesmo assim as tabelas entram em
+ * ordem de dependencia (contas e faturas antes de transacoes). Se algo
+ * falhar, a transacao volta atras e o banco continua como estava. O schema
+ * (tabelas, indices, migrations aplicadas) nao e tocado.
  */
 export const importarBanco = async (backup: BackupJson): Promise<ResumoTabela[]> => {
   const db = await getConnection();
@@ -298,7 +311,11 @@ export const importarBanco = async (backup: BackupJson): Promise<ResumoTabela[]>
         await db.runAsync('DELETE FROM sqlite_sequence');
       }
 
-      for (const [tabela, linhas] of Object.entries(backup.tabelas)) {
+      const entradasOrdenadas = Object.entries(backup.tabelas).sort(
+        ([a], [b]) => prioridadeDeImportacao(a) - prioridadeDeImportacao(b),
+      );
+
+      for (const [tabela, linhas] of entradasOrdenadas) {
         await inserirLinhas(db, tabela, linhas);
       }
 

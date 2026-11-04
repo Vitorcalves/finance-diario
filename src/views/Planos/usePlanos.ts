@@ -7,6 +7,7 @@ import {
   type CategoriaLancamento,
   listCategoriasLancamento,
 } from '../../models/categoriasLancamento';
+import { type Conta, listContasPorTipo } from '../../models/contas';
 import { type Empresa, listEmpresas } from '../../models/empresas';
 import {
   cancelarPlano,
@@ -25,6 +26,7 @@ export type UsePlanos = {
   salvando: boolean;
   empresas: Empresa[];
   categorias: CategoriaLancamento[];
+  contas: Conta[];
   ativos: PlanoNaTela[];
   encerrados: PlanoNaTela[];
   resumo: ResumoPlanos;
@@ -43,6 +45,7 @@ export function usePlanos(): UsePlanos {
   const [cobrancas, setCobrancas] = useState<Transacoes[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [categorias, setCategorias] = useState<CategoriaLancamento[]>([]);
+  const [contas, setContas] = useState<Conta[]>([]);
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
 
@@ -50,17 +53,26 @@ export function usePlanos(): UsePlanos {
     try {
       await materializarPlanos();
 
-      const [planosDoBanco, empresasDoBanco, categoriasDoBanco, cobrancasDoBanco] =
-        await Promise.all([
-          listPlanos(),
-          listEmpresas(),
-          listCategoriasLancamento(),
-          listCobrancasDePlanos(),
-        ]);
+      const [
+        planosDoBanco,
+        empresasDoBanco,
+        categoriasDoBanco,
+        caixasDoBanco,
+        cartoesDoBanco,
+        cobrancasDoBanco,
+      ] = await Promise.all([
+        listPlanos(),
+        listEmpresas(),
+        listCategoriasLancamento(),
+        listContasPorTipo('caixa'),
+        listContasPorTipo('cartao'),
+        listCobrancasDePlanos(),
+      ]);
 
       setPlanos(planosDoBanco);
       setEmpresas(empresasDoBanco);
       setCategorias(categoriasDoBanco);
+      setContas([...caixasDoBanco, ...cartoesDoBanco]);
       setCobrancas(cobrancasDoBanco);
     } catch (error: unknown) {
       console.error('Erro ao carregar os planos:', error);
@@ -172,6 +184,7 @@ export function usePlanos(): UsePlanos {
           dataInicio: dados.dataInicio,
           frequencia: dados.frequencia,
           intervalo: Math.max(1, dados.intervalo),
+          contaId: dados.contaId,
         });
 
         await carregar();
@@ -251,6 +264,7 @@ export function usePlanos(): UsePlanos {
     salvando,
     empresas,
     categorias,
+    contas,
     ativos,
     encerrados,
     resumo,

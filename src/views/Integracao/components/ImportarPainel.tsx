@@ -1,7 +1,7 @@
-import {View} from 'react-native';
-import {Button, Text} from '../../../components/ui';
-import {fontSize, fontWeight, makeStyles, radius, spacing, useTheme} from '../../../theme';
-import type {PreviaImportacao} from '../types';
+import { View } from 'react-native';
+import { Button, Text } from '../../../components/ui';
+import { fontSize, fontWeight, makeStyles, radius, spacing, useTheme } from '../../../theme';
+import type { PreviaImportacao } from '../types';
 import CaixaJson from './CaixaJson';
 import ResumoTabelas from './ResumoTabelas';
 
@@ -24,16 +24,16 @@ const formatarDataHora = (iso: string): string => {
 
 /** Aba de importacao: cola ou escolhe um arquivo JSON, valida e sobrescreve o banco. */
 export default function ImportarPainel({
-                                         texto,
-                                         onChangeTexto,
-                                         previa,
-                                         carregando,
-                                         onValidar,
-                                         onImportar,
-                                         onLimpar,
-                                         onEscolherArquivo,
-                                       }: ImportarPainelProps): React.ReactNode {
-  const {sharedStyles} = useTheme();
+  texto,
+  onChangeTexto,
+  previa,
+  carregando,
+  onValidar,
+  onImportar,
+  onLimpar,
+  onEscolherArquivo,
+}: ImportarPainelProps): React.ReactNode {
+  const { sharedStyles } = useTheme();
   const styles = useStyles();
   return (
     <View style={styles.painel}>
@@ -82,7 +82,7 @@ export default function ImportarPainel({
         </Text>
       ) : (
         <>
-          <ResumoTabelas titulo="Registros que serão gravados" itens={previa.resumo}/>
+          <ResumoTabelas titulo="Registros que serão gravados" itens={previa.resumo} />
 
           <View style={styles.metadados}>
             <Text style={styles.metadado}>

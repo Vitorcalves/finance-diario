@@ -7,6 +7,7 @@ import {
   definirCategoriaTransacao,
   listCategoriasLancamento,
 } from '../../models/categoriasLancamento';
+import { listContasComSaldo, type ContaComSaldo } from '../../models/contas';
 import { type ItemTransacao, listItensTransacao } from '../../models/itensTransacao';
 import { registrarLancamento } from '../../models/lancamentos';
 import {
@@ -42,6 +43,13 @@ export type ResumoHome = {
   comprometidoMes: number;
   /** Fechamento previsto do mes: a mesma conta da tela do mes. */
   projecaoMes: number;
+  /**
+   * Reservas de investimento ativas, com saldo acumulado e meta. Fica fora
+   * do saldo disponivel: e dinheiro alocado, nao gasto nem receita.
+   */
+  reservas: ContaComSaldo[];
+  /** Soma dos saldos das reservas. */
+  totalReservas: number;
 };
 
 /** Um dia da lista de lancamentos, do mais recente para o mais antigo. */
@@ -73,6 +81,8 @@ const RESUMO_VAZIO: ResumoHome = {
   mediaDiaria: 0,
   comprometidoMes: 0,
   projecaoMes: 0,
+  reservas: [],
+  totalReservas: 0,
 };
 
 /**
@@ -113,17 +123,23 @@ export function useHome(): UseHome {
       empresasDoBanco,
       localPadraoDoBanco,
       categoriasDoBanco,
+      contasDoBanco,
     ] = await Promise.all([
-      listTransacoes(null, null, { ateData: fimMes }),
+      // O feed mostra tambem as compras no cartao: fora do caixa, mas o
+      // usuario precisa ve-las para excluir ou categorizar.
+      listTransacoes(null, null, { ateData: fimMes, incluirComprasCartao: true }),
       // Com inicio e fim informados a busca nao tem o limite de 50 linhas do
-      // feed recente, entao a media e a projecao saem do mes inteiro.
-      listTransacoes(inicioMes, fimMes),
+      // feed recente, entao a media e a projecao saem do mes inteiro. Visao
+      // de gastos: compra no cartao entra, pagamento de fatura e
+      // transferencias entre contas nao.
+      listTransacoes(inicioMes, fimMes, { fluxoGastos: true }),
       resumoCaixa(hoje, fimMes),
       listItensTransacao(),
       listTransacoesCompra(),
       listEmpresas(),
       getLocalPadrao(),
       listCategoriasLancamento(),
+      listContasComSaldo(),
     ]);
 
     const projecao = projetarMes(transacoesMes, {
@@ -137,6 +153,8 @@ export function useHome(): UseHome {
       return;
     }
 
+    const reservasAtivas = contasDoBanco.filter((conta) => conta.tipo === 'reserva' && conta.ativo);
+
     setTransacoes(transacoesDoBanco);
     setItens(itensDoBanco);
     setCompras(comprasDoBanco);
@@ -149,6 +167,8 @@ export function useHome(): UseHome {
       mediaDiaria: projecao.mediaDiaria,
       comprometidoMes: Math.abs(caixa.comprometido),
       projecaoMes: projecao.projecao,
+      reservas: reservasAtivas,
+      totalReservas: reservasAtivas.reduce((soma, reserva) => soma + reserva.saldo, 0),
     });
   }, []);
 

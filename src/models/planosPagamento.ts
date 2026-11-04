@@ -32,12 +32,14 @@ export type PlanoPagamento = {
   gerado_ate?: string | null;
   /** Categoria herdada por todas as cobrancas do plano. */
   categoria_id?: string | null;
+  /** Conta que paga as cobrancas; `null` = caixa padrao. */
+  conta_id?: string | null;
   created_at: string;
 };
 
 const COLUNAS = `id, tipo, descricao, empresa_id, valor_parcela, valor_total, total_parcelas,
                  frequencia, intervalo, data_inicio, data_fim, ativo, gerado_ate, categoria_id,
-                 created_at`;
+                 conta_id, created_at`;
 
 export const listPlanos = async (): Promise<PlanoPagamento[]> => {
   const db = await getConnection();
@@ -84,8 +86,8 @@ export const insertPlano = async (plano: PlanoPagamento): Promise<void> => {
     `
         INSERT INTO planos_pagamento (id, tipo, descricao, empresa_id, valor_parcela, valor_total,
                                       total_parcelas, frequencia, intervalo, data_inicio, data_fim,
-                                      ativo, gerado_ate, categoria_id, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                      ativo, gerado_ate, categoria_id, conta_id, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       plano.id,
@@ -102,6 +104,7 @@ export const insertPlano = async (plano: PlanoPagamento): Promise<void> => {
       plano.ativo,
       plano.gerado_ate ?? null,
       plano.categoria_id ?? null,
+      plano.conta_id ?? null,
       plano.created_at,
     ],
   );
@@ -124,7 +127,8 @@ export const updatePlano = async (plano: PlanoPagamento): Promise<void> => {
             data_fim       = ?,
             ativo          = ?,
             gerado_ate     = ?,
-            categoria_id   = ?
+            categoria_id   = ?,
+            conta_id       = ?
         WHERE id = ?
     `,
     [
@@ -140,6 +144,7 @@ export const updatePlano = async (plano: PlanoPagamento): Promise<void> => {
       plano.ativo,
       plano.gerado_ate ?? null,
       plano.categoria_id ?? null,
+      plano.conta_id ?? null,
       plano.id,
     ],
   );

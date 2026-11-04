@@ -10,7 +10,7 @@ import {
 } from '../utils/parcelas';
 import { CONTA_CAIXA_PADRAO, getContaById } from './contas';
 import { emTransacao, getConnection } from './database';
-import { garantirFatura } from './faturas';
+import { apagarFaturasVazias, garantirFatura } from './faturas';
 import {
   atualizarGeradoAte,
   insertPlano,
@@ -43,6 +43,11 @@ type OcorrenciaGravada = {
   contabilizado: boolean;
   /** Conta que recebe a cobranca; padrao: caixa global. */
   contaId?: string | null;
+  /**
+   * So entrada programada (salario): quando preenchido, a cobranca e gravada
+   * como entrada direta nessa conta (renda), sem origem.
+   */
+  contaDestinoId?: string | null;
 };
 
 /**
@@ -51,11 +56,38 @@ type OcorrenciaGravada = {
  *
  * Cobranca em cartao segue a regra da compra no cartao: fica fora do caixa
  * (`contabilizado_saldo = 0`) presa a fatura do ciclo; o caixa so e afetado
- * quando a fatura e paga.
+ * quando a fatura e paga. Cobranca com `contaDestinoId` e uma entrada
+ * programada (salario): valor positivo entrando direto na conta, sem
+ * transferencia de origem.
  */
 const gravarOcorrencia = async (ocorrencia: OcorrenciaGravada): Promise<void> => {
   const db = await getConnection();
   const conta = await getContaById(ocorrencia.contaId ?? CONTA_CAIXA_PADRAO);
+  const contaId = conta?.id ?? CONTA_CAIXA_PADRAO;
+
+  if (ocorrencia.contaDestinoId) {
+    await db.runAsync(
+      `
+          INSERT OR IGNORE INTO transacoes (id, descricao, valor, data, empresa_id,
+                                            contabilizado_saldo, plano_id, parcela_numero,
+                                            categoria_id, conta_id, created_at)
+          VALUES (?, ?, ?, ?, NULL, 1, ?, ?, ?, ?, ?)
+      `,
+      [
+        uuidv4(),
+        ocorrencia.descricao,
+        Math.abs(ocorrencia.valor),
+        ocorrencia.data,
+        ocorrencia.planoId,
+        ocorrencia.numero,
+        ocorrencia.categoriaId ?? null,
+        ocorrencia.contaDestinoId,
+        new Date().toISOString(),
+      ],
+    );
+
+    return;
+  }
 
   const fatura =
     conta?.tipo === 'cartao' && conta.dia_fechamento != null && conta.dia_vencimento != null
@@ -82,7 +114,7 @@ const gravarOcorrencia = async (ocorrencia: OcorrenciaGravada): Promise<void> =>
       ocorrencia.planoId,
       ocorrencia.numero,
       ocorrencia.categoriaId ?? null,
-      conta?.id ?? CONTA_CAIXA_PADRAO,
+      contaId,
       fatura?.id ?? null,
       new Date().toISOString(),
     ],
@@ -251,6 +283,7 @@ const gerarCobrancas = async (plano: PlanoPagamento, ateData: string): Promise<n
       categoriaId: plano.categoria_id ?? null,
       contabilizado: true,
       contaId: contaDoPlano(plano),
+      contaDestinoId: plano.conta_destino_id ?? null,
     });
   }
 
@@ -293,6 +326,11 @@ export type DadosAssinatura = {
   categoriaId?: string | null;
   /** Conta que paga a cobranca; padrao: caixa global. */
   contaId?: string | null;
+  /**
+   * So entrada programada (salario): caixa que recebe a cobranca. Quando
+   * preenchido, cada cobranca entra direto nessa conta, sem origem.
+   */
+  contaDestinoId?: string | null;
 };
 
 /** Cria a assinatura e ja materializa as cobrancas ate o horizonte. */
@@ -320,6 +358,7 @@ const gravarAssinatura = async (dados: DadosAssinatura, ateData: string): Promis
     gerado_ate: null,
     categoria_id: dados.categoriaId ?? null,
     conta_id: dados.contaId ?? null,
+    conta_destino_id: dados.contaDestinoId ?? null,
     created_at: new Date().toISOString(),
   });
 
@@ -339,4 +378,6 @@ export const cancelarPlano = async (
   emTransacao(async () => {
     await updatePlano({ ...plano, ativo: 0, data_fim: dataFim });
     await deleteTransacoesFuturasDoPlano(plano.id, dataFim);
+    // Parcelas futuras apagadas podem ter esvaziado a fatura do ciclo.
+    await apagarFaturasVazias();
   });

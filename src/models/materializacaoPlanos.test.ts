@@ -10,7 +10,12 @@ import {
   materializarPlanos,
 } from './materializacaoPlanos';
 import { getPlanoById, listPlanosAtivos } from './planosPagamento';
-import { listTransacoesByPlano, type Transacoes } from './transacoesModel';
+import {
+  listCobrancasDePlanos,
+  listTransacoes,
+  listTransacoesByPlano,
+  type Transacoes,
+} from './transacoesModel';
 
 /** Cobrancas do plano, sem a transacao da compra (parcela 0). */
 const parcelasDo = async (planoId: string): Promise<Transacoes[]> =>
@@ -318,5 +323,112 @@ describe('cancelarPlano', () => {
     await materializarPlanos('2026-12-31');
 
     assert.equal((await parcelasDo(planoId)).length, 3);
+  });
+
+  test('cancelar plano parcelado no cartao apaga as faturas que ficaram vazias', async () => {
+    await insertConta(cartao());
+
+    const { planoId } = await criarCompraParcelada({
+      descricao: 'Monitor',
+      empresaId: null,
+      valorTotal: -100,
+      dataCompra: '2026-02-01',
+      parcelas: 3,
+      primeiraParcela: '2026-02-10',
+      contaId: 'cartao1',
+    });
+
+    const plano = await getPlanoById(planoId);
+    assert.ok(plano);
+    await cancelarPlano(plano, '2026-02-15');
+
+    // So a parcela de fevereiro sobrou; as faturas de marco e abril sumiram.
+    assert.deepEqual(
+      (await listFaturas('cartao1')).map((fatura) => fatura.mes_ref),
+      ['2026-02'],
+    );
+  });
+});
+
+describe('salario (entrada programada com conta destino)', () => {
+  const caixa2 = (): Conta => ({
+    id: 'caixa2',
+    nome: 'Conta salário',
+    tipo: 'caixa',
+    dia_fechamento: null,
+    dia_vencimento: null,
+    meta_valor: null,
+    saldo_inicial: 0,
+    cor: null,
+    ativo: 1,
+    ordem: 0,
+    created_at: '2026-01-01T00:00:00.000Z',
+  });
+
+  const dadosSalario = {
+    descricao: 'Salário',
+    empresaId: null,
+    valorParcela: 5000,
+    dataInicio: '2026-01-10',
+    frequencia: 'mensal' as const,
+    intervalo: 1,
+    contaId: 'caixa2',
+    contaDestinoId: 'caixa2',
+  };
+
+  test('cada cobranca e gravada como entrada positiva na conta escolhida', async () => {
+    await insertConta(caixa2());
+
+    const planoId = await criarAssinatura(dadosSalario, '2026-03-31');
+    const parcelas = await parcelasDo(planoId);
+
+    assert.equal(parcelas.length, 3);
+    for (const parcela of parcelas) {
+      assert.equal(parcela.contabilizado_saldo, 1);
+      assert.equal(parcela.valor, 5000);
+      assert.equal(parcela.conta_id, 'caixa2');
+      assert.equal(parcela.conta_destino_id ?? null, null);
+      assert.equal(parcela.fatura_id ?? null, null);
+    }
+  });
+
+  test('o saldo do caixa sobe a cada entrada; o caixa padrao nao mexe', async () => {
+    await insertConta(caixa2());
+
+    await criarAssinatura(dadosSalario, '2026-03-31');
+
+    assert.equal(await saldoDaConta('caixa2'), 15000);
+    assert.equal(await saldoDaConta('caixa-padrao'), 0);
+  });
+
+  test('fluxo de gastos inclui a entrada como receita do mes', async () => {
+    await insertConta(caixa2());
+
+    const planoId = await criarAssinatura(dadosSalario, '2026-03-31');
+
+    const gastos = await listTransacoes('2026-02-01', '2026-02-28', { fluxoGastos: true });
+    const deFevereiro = gastos.find((transacao) => transacao.plano_id === planoId);
+
+    assert.ok(deFevereiro);
+    assert.equal(deFevereiro.valor, 5000);
+
+    // E o card do plano acompanha as entradas recebidas.
+    assert.ok((await listCobrancasDePlanos()).some((cobranca) => cobranca.plano_id === planoId));
+  });
+
+  test('cancelar o plano apaga as entradas futuras', async () => {
+    await insertConta(caixa2());
+
+    const planoId = await criarAssinatura(dadosSalario, '2026-05-31');
+    const plano = await getPlanoById(planoId);
+    assert.ok(plano);
+
+    await cancelarPlano(plano, '2026-02-15');
+
+    assert.deepEqual(
+      (await parcelasDo(planoId)).map((parcela) => parcela.data),
+      ['2026-01-10', '2026-02-10'],
+    );
+    assert.equal(await saldoDaConta('caixa2'), 10000);
   });
 });

@@ -20,6 +20,12 @@ type ContaCardProps = {
   onRemover: () => void;
   /** So cartao: abre a tela de faturas do ciclo. */
   onVerFaturas?: () => void;
+  /** So reserva: abre o detalhe com meta, progresso e extrato. */
+  onVerDetalhe?: () => void;
+  /** So reserva: abre o aporte rapido (caixa -> reserva). */
+  onAportar?: () => void;
+  /** So reserva: abre o resgate rapido (reserva -> caixa). */
+  onResgatar?: () => void;
 };
 
 /** Linha da lista de contas, com saldo e os detalhes do tipo. */
@@ -28,6 +34,9 @@ export default function ContaCard({
   onEditar,
   onRemover,
   onVerFaturas,
+  onVerDetalhe,
+  onAportar,
+  onResgatar,
 }: ContaCardProps): React.ReactNode {
   const { colors, sharedStyles } = useTheme();
   const negativa = conta.saldo < 0;
@@ -82,6 +91,15 @@ export default function ContaCard({
       <View style={sharedStyles.iconButtonRow}>
         {onVerFaturas ? (
           <IconButton icon="receipt-outline" variant="primary" onPress={onVerFaturas} />
+        ) : null}
+        {onVerDetalhe ? (
+          <IconButton icon="stats-chart-outline" variant="primary" onPress={onVerDetalhe} />
+        ) : null}
+        {onAportar ? (
+          <IconButton icon="arrow-down-circle" variant="info" onPress={onAportar} />
+        ) : null}
+        {onResgatar ? (
+          <IconButton icon="arrow-up-circle" variant="primary" onPress={onResgatar} />
         ) : null}
         <IconButton icon="pencil" variant="primary" onPress={onEditar} />
         <IconButton icon="trash" variant="danger" onPress={onRemover} />

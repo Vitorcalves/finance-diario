@@ -12,6 +12,8 @@ export type PlanoNaTela = {
   concluido: boolean;
   /** Ainda gera cobranca: nem encerrado a mao, nem quitado. */
   emAndamento: boolean;
+  /** Entrada programada (salario): valor entra na conta, nao sai. */
+  ehEntrada: boolean;
   /** Quantas cobrancas ja aconteceram. */
   cobrancasPagas: number;
   /** Quanto ja foi pago, somando as cobrancas realizadas. */
@@ -42,4 +44,9 @@ export type DadosFormularioAssinatura = {
   intervalo: number;
   /** Conta caixa que paga a cobranca; `null` usa a caixa padrao. */
   contaId: string | null;
+  /**
+   * So entrada programada (salario): caixa que recebe cada cobranca. Quando
+   * preenchido, o plano e renda que entra na conta todo mes, sem origem.
+   */
+  contaDestinoId: string | null;
 };

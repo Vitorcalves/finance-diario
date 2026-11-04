@@ -22,7 +22,7 @@ type AssinaturaFormModalProps = {
   visivel: boolean;
   empresas: Empresa[];
   categorias: CategoriaLancamento[];
-  /** Contas caixa e cartoes ativas: quem paga a cobranca. */
+  /** Contas caixa e cartoes ativas: quem paga a cobranca (ou recebe o salario). */
   contas: Conta[];
   salvando: boolean;
   onFechar: () => void;
@@ -49,6 +49,11 @@ export default function AssinaturaFormModal({
   const [frequencia, setFrequencia] = useState<FrequenciaPlano>('mensal');
   const [categoriaId, setCategoriaId] = useState<string | null>(CATEGORIA_PADRAO);
   const [contaId, setContaId] = useState<string | null>(null);
+  /** Salario (entrada programada): o valor entra no caixa escolhido todo mes. */
+  const [modo, setModo] = useState<'gasto' | 'salario'>('gasto');
+
+  const ehSalario = modo === 'salario';
+  const caixas = contas.filter((conta) => conta.tipo === 'caixa');
 
   const limpar = (): void => {
     setDescricao('');
@@ -59,14 +64,24 @@ export default function AssinaturaFormModal({
     setFrequencia('mensal');
     setCategoriaId(CATEGORIA_PADRAO);
     setContaId(null);
+    setModo('gasto');
   };
 
   const salvar = (): void => {
+    if (ehSalario && !contaId) {
+      return;
+    }
+
     void (async (): Promise<void> => {
       const salvou = await onSalvar({
-        descricao,
-        empresaId,
-        // A padrao pode ter sido excluida pelo usuario.
+        descricao:
+          descricao.trim() ||
+          (ehSalario
+            ? `Salário — ${caixas.find((conta) => conta.id === contaId)?.nome ?? 'caixa'}`
+            : ''),
+        // Salario e renda: sem empresa; categoria opcional de entrada.
+        empresaId: ehSalario ? null : empresaId,
+        // A padrao pode ter sido excluida pelo usuario ou nao servir para entrada.
         categoriaId: categorias.some((categoria) => categoria.id === categoriaId)
           ? categoriaId
           : null,
@@ -74,7 +89,8 @@ export default function AssinaturaFormModal({
         dataInicio,
         frequencia,
         intervalo: 1,
-        contaId: contas.some((conta) => conta.id === contaId) ? contaId : null,
+        contaId,
+        contaDestinoId: ehSalario && caixas.some((conta) => conta.id === contaId) ? contaId : null,
       });
 
       if (salvou) {
@@ -125,19 +141,41 @@ export default function AssinaturaFormModal({
       </View>
 
       <View style={sharedStyles.formGroup}>
+        <Text style={sharedStyles.label}>Tipo</Text>
+        <ChipSelector
+          opcoes={[
+            { valor: 'gasto' as const, rotulo: 'Cobrança' },
+            { valor: 'salario' as const, rotulo: 'Salário (entrada)' },
+          ]}
+          selecionado={modo}
+          onSelecionar={(valor): void => {
+            setModo(valor);
+            setContaId(null);
+            // A categoria padrao e de saida; entrada comeca sem categoria.
+            setCategoriaId(valor === 'salario' ? null : CATEGORIA_PADRAO);
+          }}
+        />
+        {ehSalario ? (
+          <Text style={sharedStyles.sectionHint}>
+            O valor entra no saldo do caixa todo mês, sem origem: é renda, não gasto.
+          </Text>
+        ) : null}
+      </View>
+
+      <View style={sharedStyles.formGroup}>
         <Text style={sharedStyles.label}>Categoria</Text>
         <SeletorCategoria
           categorias={categorias}
-          tipo="saida"
+          tipo={ehSalario ? 'entrada' : 'saida'}
           selecionada={categoriaId}
           onSelecionar={setCategoriaId}
         />
       </View>
 
       <View style={sharedStyles.formGroup}>
-        <Text style={sharedStyles.label}>Conta</Text>
+        <Text style={sharedStyles.label}>{ehSalario ? 'Para caixa' : 'Conta'}</Text>
         <ChipSelector
-          opcoes={contas.map((conta) => ({
+          opcoes={(ehSalario ? caixas : contas).map((conta) => ({
             valor: conta.id,
             rotulo: conta.nome,
           }))}
@@ -145,10 +183,12 @@ export default function AssinaturaFormModal({
           onSelecionar={setContaId}
           scroll
         />
-        <Text style={sharedStyles.sectionHint}>
-          Sem escolha, a cobrança cai na caixa padrão. No cartão, cada cobrança entra na fatura do
-          ciclo.
-        </Text>
+        {ehSalario ? null : (
+          <Text style={sharedStyles.sectionHint}>
+            Sem escolha, a cobrança cai na caixa padrão. No cartão, cada cobrança entra na fatura do
+            ciclo.
+          </Text>
+        )}
       </View>
 
       <View style={sharedStyles.formGroup}>
@@ -177,16 +217,18 @@ export default function AssinaturaFormModal({
         </Text>
       </View>
 
-      <SeletorMultiplo
-        label="Empresa"
-        opcoes={empresas.map((empresa) => ({ id: empresa.id, nome: empresa.nome }))}
-        selecionados={empresaId ? [empresaId] : []}
-        onToggle={(id): void => setEmpresaId((atual) => (atual === id ? null : id))}
-        placeholderBusca="Buscar empresa"
-        textoTrigger="Selecionar empresa"
-        textoVazio="Nenhuma empresa cadastrada"
-        textoNenhumEncontrado="Nenhuma empresa encontrada"
-      />
+      {ehSalario ? null : (
+        <SeletorMultiplo
+          label="Empresa"
+          opcoes={empresas.map((empresa) => ({ id: empresa.id, nome: empresa.nome }))}
+          selecionados={empresaId ? [empresaId] : []}
+          onToggle={(id): void => setEmpresaId((atual) => (atual === id ? null : id))}
+          placeholderBusca="Buscar empresa"
+          textoTrigger="Selecionar empresa"
+          textoVazio="Nenhuma empresa cadastrada"
+          textoNenhumEncontrado="Nenhuma empresa encontrada"
+        />
+      )}
     </BottomSheet>
   );
 }

@@ -138,6 +138,23 @@ export class FaturaError extends Error {
 }
 
 /**
+ * Apaga faturas em aberto que nao tem nenhuma transacao presa a elas.
+ * Cancelar um plano parcelado remove as parcelas futuras e pode deixar o
+ * ciclo vazio; a fatura some junto em vez de ficar como lixo na lista.
+ */
+export const apagarFaturasVazias = async (): Promise<void> => {
+  const db = await getConnection();
+
+  await db.runAsync(
+    `
+        DELETE FROM faturas
+        WHERE paga = 0
+          AND id NOT IN (SELECT fatura_id FROM transacoes WHERE fatura_id IS NOT NULL)
+    `,
+  );
+};
+
+/**
  * Paga a fatura: grava a transacao de pagamento (sai da conta pagante, quita
  * a divida do cartao) e marca a fatura como paga. Tudo numa transacao.
  *

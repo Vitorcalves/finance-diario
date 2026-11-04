@@ -29,9 +29,13 @@ export type DadosLancamento = {
   /** Valor ja com sinal: negativo para saida, positivo para entrada. */
   valor: number;
   itens: ItemDoLancamento[];
-  /** Quando informado, o valor vira um plano e o caixa recebe as parcelas. */
+  /** Quando informado, o valor vira um plano e a conta recebe as parcelas. */
   parcelamento?: { parcelas: number; primeiraParcela: string } | null;
-  /** Conta do lancamento; `null`/ausente usa a caixa padrao. Cartao exige a vista. */
+  /**
+   * Conta do lancamento; `null`/ausente usa a caixa padrao. No cartao, a
+   * compra a vista cai na fatura do ciclo e cada parcela cai na fatura do
+   * ciclo da propria parcela.
+   */
   contaId?: string | null;
   /**
    * Quando informado, o lancamento e uma transferencia entre contas (aporte
@@ -64,6 +68,10 @@ export const registrarLancamento = async (dados: DadosLancamento, local: number)
 
     // Transferencia entre contas: uma linha so, sem itens nem fatura.
     if (dados.contaDestinoId) {
+      if (!(Math.abs(dados.valor) > 0)) {
+        throw new Error('Transferência precisa de um valor maior que zero.');
+      }
+
       const destino = await getContaById(dados.contaDestinoId);
 
       if (!destino) {
@@ -91,15 +99,15 @@ export const registrarLancamento = async (dados: DadosLancamento, local: number)
       return;
     }
 
-    if (conta?.tipo === 'cartao' && parcelamento && parcelamento.parcelas > 1) {
-      throw new Error(
-        'Compra parcelada no cartão ainda não é suportada: pague a fatura em ciclos.',
-      );
-    }
-
     // Fatura do ciclo da compra no cartao; nasce aqui mesmo, se preciso.
+    // No parcelamento (2+), e o criarCompraParcelada que amarra cada parcela a
+    // fatura do ciclo da data da parcela (gravarOcorrencia).
+    const emPlano = Boolean(parcelamento && parcelamento.parcelas > 1);
     const fatura =
-      conta?.tipo === 'cartao' && conta.dia_fechamento != null && conta.dia_vencimento != null
+      conta?.tipo === 'cartao' &&
+      !emPlano &&
+      conta.dia_fechamento != null &&
+      conta.dia_vencimento != null
         ? await garantirFatura(
             conta.id,
             faturaDaCompra(dados.data, conta.dia_fechamento, conta.dia_vencimento),

@@ -26,6 +26,7 @@ export type UsePlanos = {
   salvando: boolean;
   empresas: Empresa[];
   categorias: CategoriaLancamento[];
+  /** Contas caixa e cartoes ativas: quem paga a cobranca (ou recebe o salario). */
   contas: Conta[];
   ativos: PlanoNaTela[];
   encerrados: PlanoNaTela[];
@@ -119,6 +120,7 @@ export function usePlanos(): UsePlanos {
         proximaCobranca: proxima?.data ?? null,
         concluido,
         emAndamento: plano.ativo === 1 && !concluido,
+        ehEntrada: Boolean(plano.conta_destino_id),
         cobrancasPagas: pagas.length,
         totalPago: pagas.reduce((soma, cobranca) => soma + Math.abs(cobranca.valor), 0),
         custoMensal: custoMensalEquivalente(
@@ -138,11 +140,19 @@ export function usePlanos(): UsePlanos {
     const hoje = hojeIso();
     const fimDoMes = dayjs().endOf('month').format('YYYY-MM-DD');
 
-    const assinaturasPorMes = ativos
+    // Salario e renda, nao compromisso: fica de fora das somas de gasto.
+    const gastos = ativos.filter((item) => !item.ehEntrada);
+
+    const assinaturasPorMes = gastos
       .filter((item) => item.plano.tipo === 'assinatura')
       .reduce((soma, item) => soma + item.custoMensal, 0);
 
-    const aVencer = cobrancas.filter((cobranca) => cobranca.data > hoje);
+    const planosEntradaIds = new Set(
+      ativos.filter((item) => item.ehEntrada).map((item) => item.plano.id),
+    );
+    const aVencer = cobrancas.filter(
+      (cobranca) => cobranca.data > hoje && !planosEntradaIds.has(cobranca.plano_id ?? ''),
+    );
 
     const parcelasAVencer = aVencer.reduce((soma, cobranca) => soma + Math.abs(cobranca.valor), 0);
 
@@ -172,19 +182,27 @@ export function usePlanos(): UsePlanos {
         return false;
       }
 
+      if (dados.contaDestinoId && !dados.contaId) {
+        Alert.alert('Erro', 'Escolha o caixa que recebe o salário');
+        return false;
+      }
+
       try {
         setSalvando(true);
 
+        const ehEntrada = Boolean(dados.contaDestinoId);
+
         await criarAssinatura({
           descricao,
-          empresaId: dados.empresaId,
+          empresaId: ehEntrada ? null : dados.empresaId,
           categoriaId: dados.categoriaId,
-          // Assinatura e sempre saida: o sinal negativo entra aqui.
-          valorParcela: -Math.abs(dados.valor),
+          // Cobranca e saida; salario e entrada (sinal positivo).
+          valorParcela: ehEntrada ? Math.abs(dados.valor) : -Math.abs(dados.valor),
           dataInicio: dados.dataInicio,
           frequencia: dados.frequencia,
           intervalo: Math.max(1, dados.intervalo),
-          contaId: dados.contaId,
+          contaId: ehEntrada ? null : dados.contaId,
+          contaDestinoId: dados.contaDestinoId,
         });
 
         await carregar();

@@ -40,11 +40,17 @@ export default function PlanoCard({
   return (
     <View style={[sharedStyles.card, !ativo && styles.cardEncerrado]}>
       <View style={styles.header}>
-        <View style={[styles.icone, !ativo && styles.iconeEncerrado]}>
+        <View
+          style={[
+            styles.icone,
+            item.ehEntrada && { backgroundColor: colors.successSoft },
+            !ativo && styles.iconeEncerrado,
+          ]}
+        >
           <Ionicons
-            name={assinatura ? 'repeat' : 'card-outline'}
+            name={item.ehEntrada ? 'cash-outline' : assinatura ? 'repeat' : 'card-outline'}
             size={iconSize.md}
-            color={ativo ? colors.primary : colors.textMuted}
+            color={!ativo ? colors.textMuted : item.ehEntrada ? colors.success : colors.primary}
           />
         </View>
 
@@ -53,12 +59,15 @@ export default function PlanoCard({
             {plano.descricao}
           </Text>
           <Text style={styles.meta} numberOfLines={1}>
+            {item.ehEntrada ? 'Entrada programada · ' : ''}
             {ritmo}
             {item.empresa ? ` · ${item.empresa}` : ''}
           </Text>
         </View>
 
-        <Text style={styles.valorParcela}>{toCurrency(item.valorParcela)}</Text>
+        <Text style={[styles.valorParcela, item.ehEntrada && { color: colors.success }]}>
+          {`${item.ehEntrada ? '+' : ''}${toCurrency(item.valorParcela)}`}
+        </Text>
       </View>
 
       {totalParcelas !== null && (
@@ -95,7 +104,7 @@ export default function PlanoCard({
 
         {assinatura && (
           <View style={styles.linha}>
-            <Text style={styles.rotulo}>Já pago</Text>
+            <Text style={styles.rotulo}>{item.ehEntrada ? 'Já recebido' : 'Já pago'}</Text>
             <Text style={styles.valor}>
               {`${item.cobrancasPagas} ${item.cobrancasPagas === 1 ? 'cobrança' : 'cobranças'} · ${toCurrency(item.totalPago)}`}
             </Text>
@@ -104,7 +113,13 @@ export default function PlanoCard({
 
         <View style={styles.linha}>
           <Text style={styles.rotulo}>
-            {ativo ? 'Próxima cobrança' : item.concluido ? 'Quitado' : 'Encerrado em'}
+            {ativo
+              ? item.ehEntrada
+                ? 'Próxima entrada'
+                : 'Próxima cobrança'
+              : item.concluido
+                ? 'Quitado'
+                : 'Encerrado em'}
           </Text>
           <Text style={[styles.valor, ativo && styles.valorDestaque]}>
             {ativo && item.proximaCobranca

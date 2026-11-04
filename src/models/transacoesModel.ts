@@ -143,6 +143,7 @@ export const listCobrancasDePlanos = async (): Promise<Transacoes[]> => {
         FROM transacoes
         WHERE plano_id IS NOT NULL
           AND contabilizado_saldo = 1
+          AND conta_destino_id IS NULL
         ORDER BY data DESC, created_at DESC
     `,
   );

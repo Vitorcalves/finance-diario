@@ -1,4 +1,11 @@
 import { getConnection } from './database';
+import { type Transacoes } from './transacoesModel';
+
+/** Colunas do extrato de movimentos (mesma ordem do type `Transacoes`). */
+const COLUNAS_TRANSACOES = `
+    id, descricao, valor, data, empresa_id, contabilizado_saldo, plano_id, parcela_numero,
+    local, categoria_id, conta_id, conta_destino_id, fatura_id, created_at
+`;
 
 /**
  * Contas: onde o dinheiro esta.
@@ -122,6 +129,46 @@ export const saldoDaConta = async (contaId: string): Promise<number> => {
   const row = await db.getFirstAsync<{ saldo: number | null }>(SQL_SALDO, [contaId]);
 
   return row?.saldo ?? 0;
+};
+
+/**
+ * Movimentos que tocaram a conta em qualquer das pontas (origem ou destino),
+ * mais recentes primeiro: aportes, resgates e transferencias com ela.
+ */
+export const listMovimentosDaConta = async (
+  contaId: string,
+  limite = 100,
+): Promise<Transacoes[]> => {
+  const db = await getConnection();
+
+  return await db.getAllAsync<Transacoes>(
+    `
+        SELECT ${COLUNAS_TRANSACOES}
+        FROM transacoes
+        WHERE conta_id = ?
+           OR conta_destino_id = ?
+        ORDER BY data DESC, created_at DESC
+        LIMIT ?
+    `,
+    [contaId, contaId, limite],
+  );
+};
+
+/** Total aportado na conta (entrada como destino) no mes corrente. */
+export const totalAportadoNoMes = async (contaId: string, mesRef: string): Promise<number> => {
+  const db = await getConnection();
+
+  const row = await db.getFirstAsync<{ total: number | null }>(
+    `
+        SELECT SUM(-valor) AS total
+        FROM transacoes
+        WHERE conta_destino_id = ?
+          AND strftime('%Y-%m', data) = ?
+    `,
+    [contaId, mesRef],
+  );
+
+  return row?.total ?? 0;
 };
 
 export type TotaisPorTipo = {

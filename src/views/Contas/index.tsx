@@ -9,6 +9,11 @@ import type { MenuStackParamList } from '../../routes/types';
 import { useTheme } from '../../theme';
 import ContaCard from './components/ContaCard';
 import ContaFormModal from './components/ContaFormModal';
+import ReservaDetalheModal from './components/ReservaDetalheModal';
+import TransferenciaReservaModal, {
+  type DadosTransferenciaReserva,
+  type ModoTransferenciaReserva,
+} from './components/TransferenciaReservaModal';
 import { useContas } from './useContas';
 
 type NavegacaoContas = NativeStackNavigationProp<MenuStackParamList, 'Contas'>;
@@ -20,17 +25,42 @@ type NavegacaoContas = NativeStackNavigationProp<MenuStackParamList, 'Contas'>;
  */
 export default function ContasView(): React.ReactNode {
   const { sharedStyles } = useTheme();
-  const { contas, loading, salvar, remover } = useContas();
+  const {
+    contas,
+    caixas,
+    loading,
+    salvar,
+    remover,
+    transferir,
+    detalhe,
+    abrirDetalhe,
+    fecharDetalhe,
+  } = useContas();
   const navigation = useNavigation<NavegacaoContas>();
   const [showForm, setShowForm] = useState(false);
   /** Nova chave a cada abertura: o formulario nasce limpo. */
   const [formKey, setFormKey] = useState(0);
   const [contaEditando, setContaEditando] = useState<ContaComSaldo | null>(null);
+  /** Reserva e modo do modal de aporte/resgate; `null` com o painel fechado. */
+  const [transferencia, setTransferencia] = useState<{
+    modo: ModoTransferenciaReserva;
+    reserva: ContaComSaldo;
+  } | null>(null);
+  const [salvandoTransferencia, setSalvandoTransferencia] = useState(false);
 
   const abrirFormulario = (conta: ContaComSaldo | null): void => {
     setContaEditando(conta);
     setFormKey((atual) => atual + 1);
     setShowForm(true);
+  };
+
+  const confirmarTransferencia = async (dados: DadosTransferenciaReserva): Promise<boolean> => {
+    setSalvandoTransferencia(true);
+    try {
+      return await transferir(dados);
+    } finally {
+      setSalvandoTransferencia(false);
+    }
   };
 
   return (
@@ -66,6 +96,19 @@ export default function ContasView(): React.ReactNode {
                   ? (): void => navigation.navigate('Faturas', { contaId: conta.id })
                   : undefined
               }
+              onVerDetalhe={
+                conta.tipo === 'reserva' ? (): void => void abrirDetalhe(conta) : undefined
+              }
+              onAportar={
+                conta.tipo === 'reserva' && caixas.length > 0
+                  ? (): void => setTransferencia({ modo: 'aporte', reserva: conta })
+                  : undefined
+              }
+              onResgatar={
+                conta.tipo === 'reserva' && caixas.length > 0
+                  ? (): void => setTransferencia({ modo: 'resgate', reserva: conta })
+                  : undefined
+              }
             />
           ))}
         </ScrollView>
@@ -78,6 +121,18 @@ export default function ContasView(): React.ReactNode {
         onFechar={(): void => setShowForm(false)}
         onSalvar={salvar}
       />
+
+      <TransferenciaReservaModal
+        visivel={transferencia !== null}
+        modo={transferencia?.modo ?? 'aporte'}
+        reserva={transferencia?.reserva ?? null}
+        caixas={caixas}
+        salvando={salvandoTransferencia}
+        onFechar={(): void => setTransferencia(null)}
+        onConfirmar={confirmarTransferencia}
+      />
+
+      <ReservaDetalheModal detalhe={detalhe} onFechar={fecharDetalhe} />
     </SafeAreaView>
   );
 }

@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import dayjs from 'dayjs';
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '../../components/ui';
 import {
@@ -10,10 +11,16 @@ import {
   inativarConta,
   insertConta,
   listContasComSaldo,
+  listMovimentosDaConta,
   normalizarDadosConta,
+  totalAportadoNoMes,
   updateConta,
   ValidacaoContaError,
 } from '../../models/contas';
+import { registrarLancamento } from '../../models/lancamentos';
+import { Locais } from '../../utils/local';
+import type { DetalheReserva } from './components/ReservaDetalheModal';
+import type { DadosTransferenciaReserva } from './components/TransferenciaReservaModal';
 
 /** Campos do formulario de conta, ainda como texto digitado. */
 export type DadosContaForm = {
@@ -28,11 +35,20 @@ export type DadosContaForm = {
 
 export type UseContas = {
   contas: ContaComSaldo[];
+  /** Caixas ativas, parceiras dos aportes/resgates. */
+  caixas: ContaComSaldo[];
   loading: boolean;
   /** Cria ou atualiza a conta e devolve `true` quando deu certo. */
   salvar: (dados: DadosContaForm, contaEditando: ContaComSaldo | null) => Promise<boolean>;
   /** Com transacoes apenas inativa; sem nenhuma, exclui de verdade. */
   remover: (conta: ContaComSaldo) => void;
+  /** Grava o aporte/resgate como transferencia entre as duas contas. */
+  transferir: (dados: DadosTransferenciaReserva) => Promise<boolean>;
+  /** Detalhe carregado da reserva (saldo, meta, extrato); `null` com painel fechado. */
+  detalhe: DetalheReserva | null;
+  /** Carrega saldo, movimentos e aportes do mes da reserva. */
+  abrirDetalhe: (reserva: ContaComSaldo) => Promise<void>;
+  fecharDetalhe: () => void;
 };
 
 const paraInteiro = (texto: string): number | null => {
@@ -45,6 +61,7 @@ export function useContas(): UseContas {
   const toast = useToast();
   const [contas, setContas] = useState<ContaComSaldo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [detalhe, setDetalhe] = useState<DetalheReserva | null>(null);
 
   const carregar = useCallback(async (): Promise<void> => {
     try {
@@ -165,5 +182,76 @@ export function useContas(): UseContas {
     [carregar, toast],
   );
 
-  return { contas, loading, salvar, remover };
+  const transferir = useCallback(
+    async (dados: DadosTransferenciaReserva): Promise<boolean> => {
+      const aporte = dados.modo === 'aporte';
+      const reserva = contas.find((conta) => conta.id === dados.reservaId);
+      const rotulo = reserva?.nome ?? 'reserva';
+
+      if (!(dados.valor > 0)) {
+        Alert.alert('Confira o valor', 'Informe um valor maior que zero.');
+        return false;
+      }
+
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dados.data)) {
+        Alert.alert('Confira a data', 'Informe uma data válida.');
+        return false;
+      }
+
+      try {
+        await registrarLancamento(
+          {
+            descricao: dados.descricao || (aporte ? `Aporte — ${rotulo}` : `Resgate — ${rotulo}`),
+            data: dados.data,
+            empresaId: null,
+            categoriaId: null,
+            // Uma linha so: sai da origem com sinal invertido e entra no destino.
+            valor: -Math.abs(dados.valor),
+            itens: [],
+            contaId: aporte ? dados.caixaId : dados.reservaId,
+            contaDestinoId: aporte ? dados.reservaId : dados.caixaId,
+          },
+          Locais.padrao,
+        );
+
+        await carregar();
+        toast.mostrar(aporte ? 'Aporte registrado' : 'Resgate registrado');
+        return true;
+      } catch (error: unknown) {
+        console.error('Erro ao registrar transferência:', error);
+        Alert.alert('Erro', 'Não foi possível registrar a transferência');
+        return false;
+      }
+    },
+    [carregar, contas, toast],
+  );
+
+  const abrirDetalhe = useCallback(async (reserva: ContaComSaldo): Promise<void> => {
+    try {
+      const mesAtual = dayjs().format('YYYY-MM');
+      const [movimentos, aportadoNoMes] = await Promise.all([
+        listMovimentosDaConta(reserva.id),
+        totalAportadoNoMes(reserva.id, mesAtual),
+      ]);
+
+      setDetalhe({ reserva, movimentos, aportadoNoMes, mesAtual });
+    } catch (error: unknown) {
+      console.error('Erro ao carregar o detalhe da reserva:', error);
+      Alert.alert('Erro', 'Não foi possível carregar o detalhe da reserva');
+    }
+  }, []);
+
+  const fecharDetalhe = useCallback((): void => setDetalhe(null), []);
+
+  return {
+    contas,
+    caixas: contas.filter((conta) => conta.tipo === 'caixa' && conta.ativo),
+    loading,
+    salvar,
+    remover,
+    transferir,
+    detalhe,
+    abrirDetalhe,
+    fecharDetalhe,
+  };
 }

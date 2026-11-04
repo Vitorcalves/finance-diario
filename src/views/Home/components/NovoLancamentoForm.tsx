@@ -158,35 +158,36 @@ export default function NovoLancamentoForm({
   const contaSelecionada = catalogo.contas.find((conta) => conta.id === contaId);
   const ehTransferencia = tipo === 'transferencia';
 
+  /** Entrada parcelada nao faz sentido aqui: o parcelamento e do que se compra. */
+  const permiteParcelar = tipo === 'saida';
+
   /**
    * Compra no cartao: qual fatura recebe o lancamento, atualizado em tempo
-   * real conforme a data muda. A view nunca calcula data na mao: quem decide
-   * o ciclo e o util de calendario.
+   * real conforme a data muda. Parcelado, a referencia e a data da 1a parcela
+   * (cada parcela cai no ciclo da propria data). A view nunca calcula data na
+   * mao: quem decide o ciclo e o util de calendario.
    */
   const cicloFatura = useMemo(() => {
     if (
       contaSelecionada?.tipo !== 'cartao' ||
       contaSelecionada.dia_fechamento == null ||
-      contaSelecionada.dia_vencimento == null ||
-      !/^\d{4}-\d{2}-\d{2}$/.test(data)
+      contaSelecionada.dia_vencimento == null
     ) {
       return null;
     }
 
-    return faturaDaCompra(data, contaSelecionada.dia_fechamento, contaSelecionada.dia_vencimento);
-  }, [contaSelecionada, data]);
+    const referencia = permiteParcelar && parcelado ? primeiraParcela : data;
 
-  const escolherConta = (id: string): void => {
-    setContaId(id);
-
-    // Compra no cartao nao e parcelada aqui: a fatura ja e o parcelamento.
-    if (catalogo.contas.find((conta) => conta.id === id)?.tipo === 'cartao') {
-      setParcelado(false);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(referencia)) {
+      return null;
     }
-  };
 
-  /** Entrada parcelada nao faz sentido aqui: o parcelamento e do que se compra. */
-  const permiteParcelar = tipo === 'saida' && contaSelecionada?.tipo !== 'cartao';
+    return faturaDaCompra(
+      referencia,
+      contaSelecionada.dia_fechamento,
+      contaSelecionada.dia_vencimento,
+    );
+  }, [contaSelecionada, data, permiteParcelar, parcelado, primeiraParcela]);
 
   const atalhoData: AtalhoData | null =
     data === todayIso() ? 'hoje' : data === ontemIso() ? 'ontem' : null;
@@ -419,12 +420,14 @@ export default function NovoLancamentoForm({
               rotulo: conta.nome,
             }))}
             selecionado={contaId}
-            onSelecionar={escolherConta}
+            onSelecionar={setContaId}
             scroll
           />
           {cicloFatura ? (
             <Text style={styles.faturaEtiqueta}>
-              {`Cai na fatura de ${formatarData(cicloFatura.dataFechamento)} `}
+              {permiteParcelar && parcelado
+                ? `1ª parcela cai na fatura de ${formatarData(cicloFatura.dataFechamento)} `
+                : `Cai na fatura de ${formatarData(cicloFatura.dataFechamento)} `}
               {`(vence ${formatarData(cicloFatura.dataVencimento)})`}
             </Text>
           ) : null}

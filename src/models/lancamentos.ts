@@ -92,7 +92,7 @@ export const registrarLancamento = async (dados: DadosLancamento, local: number)
         local,
         conta_id: contaId,
         conta_destino_id: destino.id,
-        contabilizado_saldo: 1,
+        natureza: 'transferencia',
         created_at: agora,
       });
 
@@ -147,7 +147,7 @@ export const registrarLancamento = async (dados: DadosLancamento, local: number)
         local,
         conta_id: fatura ? conta?.id : contaId,
         fatura_id: fatura?.id ?? null,
-        contabilizado_saldo: fatura ? 0 : 1,
+        natureza: fatura ? 'compra_cartao' : 'movimento',
         created_at: agora,
       });
     }

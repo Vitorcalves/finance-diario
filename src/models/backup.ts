@@ -1,6 +1,11 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { getConnection } from './database';
 import { semearCategoriasLancamento } from './migrations/008_categorias_lancamento';
+import {
+  derivarNaturezaTransacoes,
+  garantirCaixaPadrao,
+  migration015,
+} from './migrations/015_natureza_transacao';
 
 /**
  * Export/import do banco inteiro em JSON.
@@ -323,6 +328,15 @@ export const importarBanco = async (backup: BackupJson): Promise<ResumoTabela[]>
       // sem nenhuma categoria para escolher.
       if (!('categorias_lancamento' in backup.tabelas)) {
         await semearCategoriasLancamento(db);
+      }
+
+      // Backup de antes da 015: aplica nos dados importados os mesmos reparos
+      // que as migrations 012 e 015 fizeram no banco local. Sem o caixa
+      // padrao, o historico ficaria fora de qualquer saldo e todo lancamento
+      // novo falharia na FK; sem a natureza, cada linha viraria `movimento`.
+      if (backup.schema_version < migration015.id) {
+        await garantirCaixaPadrao(db);
+        await derivarNaturezaTransacoes(db);
       }
     });
   } finally {

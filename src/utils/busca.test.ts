@@ -1,6 +1,6 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { correspondeBusca, filtrarPorTexto, normalizarTexto } from './busca';
+import { correspondeBusca, filtrarPorTexto, normalizarTexto, totalizarBusca } from './busca';
 
 const empresas = new Map([['e1', 'Supermercado Bahamas']]);
 const nomeEmpresa = (id?: string | null): string => (id ? (empresas.get(id) ?? '') : '');
@@ -63,5 +63,20 @@ describe('correspondeBusca', () => {
 
   test('termo vazio aceita tudo', () => {
     assert.equal(correspondeBusca('Qualquer', '   '), true);
+  });
+});
+
+describe('totalizarBusca', () => {
+  test('conta todos os lancamentos, mas so soma gasto e receita', () => {
+    const totais = totalizarBusca([
+      { valor: -80, natureza: 'compra_cartao' },
+      { valor: -20, natureza: 'movimento' },
+      { valor: 500, natureza: 'movimento' },
+      // Quitar a fatura nao e gastar de novo; aportar nao e gastar.
+      { valor: -80, natureza: 'pagamento_fatura' },
+      { valor: -300, natureza: 'transferencia' },
+    ]);
+
+    assert.deepEqual(totais, { quantidade: 5, saidas: 100, entradas: 500 });
   });
 });

@@ -6,7 +6,8 @@ import { insertConta, saldoDaConta } from './contas';
 import { getConnection } from './database';
 import { faturaDaCompra } from '../utils/cartao';
 import { FaturaError, garantirFatura, listFaturas, pagarFatura, totalDaFatura } from './faturas';
-import { registrarLancamento } from './lancamentos';
+import { type DadosLancamento, registrarLancamento } from './lancamentos';
+import { excluirTransacao, restaurarTransacao } from './transacoesModel';
 
 beforeEach(async () => {
   await prepararBanco();
@@ -233,5 +234,74 @@ describe('pagarFatura', () => {
     const fatura = await garantirFatura('cartao1', faturaDaCompra('2026-03-15', 30, 10));
 
     await assert.rejects(() => pagarFatura(fatura.id, 'caixa-padrao', '2026-04-05'), FaturaError);
+  });
+});
+
+describe('compra retroativa e exclusao do pagamento', () => {
+  const compraNoCartao = (descricao: string, valor: number, data: string): DadosLancamento => ({
+    descricao,
+    data,
+    empresaId: null,
+    categoriaId: null,
+    valor,
+    itens: [],
+    contaId: 'cartao1',
+  });
+
+  test('compra lancada depois reabre a fatura paga; o novo pagamento cobre so a diferenca', async () => {
+    await criarCartao();
+    await registrarLancamento(compraNoCartao('Mercado', -100, '2026-03-15'), 1);
+
+    const [fatura] = await listFaturas('cartao1');
+    await pagarFatura(fatura.id, 'caixa-padrao', '2026-04-05');
+    assert.equal((await listFaturas('cartao1'))[0].paga, 1);
+
+    // Lancada so agora, mas a data e do ciclo ja pago.
+    await registrarLancamento(compraNoCartao('Farmácia', -30, '2026-03-20'), 1);
+
+    const reaberta = (await listFaturas('cartao1'))[0];
+    assert.equal(reaberta.id, fatura.id);
+    assert.equal(reaberta.paga, 0);
+    assert.equal(reaberta.total, -130);
+    assert.equal(reaberta.restante, -30);
+
+    await pagarFatura(fatura.id, 'caixa-padrao', '2026-04-08');
+
+    const quitada = (await listFaturas('cartao1'))[0];
+    assert.equal(quitada.paga, 1);
+    assert.equal(quitada.restante, 0);
+    assert.equal(await saldoDaConta('cartao1'), 0);
+    assert.equal(await saldoDaConta('caixa-padrao', '2026-04-30'), -130);
+
+    const db = await getConnection();
+    const complemento = await db.getFirstAsync<{ valor: number; descricao: string }>(
+      `SELECT valor, descricao FROM transacoes WHERE data = '2026-04-08'`,
+    );
+    assert.equal(complemento?.valor, -30);
+    assert.match(complemento?.descricao ?? '', /complemento/);
+  });
+
+  test('excluir o pagamento reabre a fatura; desfazer fecha de novo', async () => {
+    await criarCartao();
+    await registrarLancamento(compraNoCartao('Mercado', -100, '2026-03-15'), 1);
+
+    const [fatura] = await listFaturas('cartao1');
+    await pagarFatura(fatura.id, 'caixa-padrao', '2026-04-05');
+
+    const db = await getConnection();
+    const pagamento = await db.getFirstAsync<{ id: string }>(
+      `SELECT id FROM transacoes WHERE natureza = 'pagamento_fatura'`,
+    );
+    assert.ok(pagamento);
+
+    const excluida = await excluirTransacao(pagamento.id);
+    assert.ok(excluida);
+
+    const reaberta = (await listFaturas('cartao1'))[0];
+    assert.equal(reaberta.paga, 0);
+    assert.equal(reaberta.restante, -100);
+
+    await restaurarTransacao(excluida);
+    assert.equal((await listFaturas('cartao1'))[0].paga, 1);
   });
 });

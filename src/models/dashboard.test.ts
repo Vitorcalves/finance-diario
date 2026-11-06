@@ -42,6 +42,7 @@ const criarCompra = async (params: {
     data: params.data,
     empresa_id: params.empresaId ?? null,
     local: params.local,
+    natureza: 'movimento',
     created_at: AGORA,
   });
   await insertItemTransacao({

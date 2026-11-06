@@ -20,7 +20,7 @@ import {
 } from '../../models/transacoesModel';
 import type { FiltrosIniciaisBusca } from '../../routes/types';
 import { agruparPorDia, type GrupoDia } from '../../utils/agruparPorDia';
-import { filtrarPorTexto } from '../../utils/busca';
+import { filtrarPorTexto, type TotaisBusca, totalizarBusca } from '../../utils/busca';
 import { agruparItensPorTransacao } from '../../utils/itensPorTransacao';
 import { type Intervalo, intervaloDoPeriodo, type PeriodoBusca } from '../../utils/periodos';
 
@@ -29,12 +29,7 @@ export type TipoFiltro = 'todos' | 'saida' | 'entrada';
 /** Espera depois da ultima tecla antes de filtrar, para nao refazer a lista a cada letra. */
 const ESPERA_DIGITACAO = 250;
 
-export type TotaisBusca = {
-  quantidade: number;
-  /** Soma das saidas encontradas (positivo). */
-  saidas: number;
-  entradas: number;
-};
+export type { TotaisBusca };
 
 export type UseBuscaLancamentos = {
   loading: boolean;
@@ -182,18 +177,7 @@ export function useBuscaLancamentos(iniciais?: FiltrosIniciaisBusca): UseBuscaLa
 
   const secoes = useMemo(() => agruparPorDia(filtrados), [filtrados]);
 
-  const totais = useMemo(
-    (): TotaisBusca =>
-      filtrados.reduce(
-        (soma, transacao) => ({
-          quantidade: soma.quantidade + 1,
-          saidas: soma.saidas + (transacao.valor < 0 ? Math.abs(transacao.valor) : 0),
-          entradas: soma.entradas + (transacao.valor > 0 ? transacao.valor : 0),
-        }),
-        { quantidade: 0, saidas: 0, entradas: 0 },
-      ),
-    [filtrados],
-  );
+  const totais = useMemo((): TotaisBusca => totalizarBusca(filtrados), [filtrados]);
 
   const itensPorTransacao = useMemo(
     () => agruparItensPorTransacao(itens, compras, filtrados),

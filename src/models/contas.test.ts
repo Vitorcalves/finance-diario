@@ -2,14 +2,22 @@ import { beforeEach, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { prepararBanco } from '../../tests/setup/banco';
 import { getConnection } from './database';
+import { garantirFatura } from './faturas';
+import { criarCompraParcelada } from './materializacaoPlanos';
+import { contabilizadoDe, type NaturezaTransacao } from './naturezaTransacao';
 import {
   type Conta,
+  CONTA_CAIXA_PADRAO,
   contarTransacoesDaConta,
+  deleteContaById,
+  getContaById,
   inativarConta,
   insertConta,
   listContas,
+  listContasComSaldo,
   listContasPorTipo,
   normalizarDadosConta,
+  podeMudarTipo,
   reativarConta,
   saldoDaConta,
   totaisPorTipo,
@@ -35,31 +43,63 @@ const contaBase = (parcial: Partial<Conta> = {}): Conta => ({
   created_at: '2026-01-01T00:00:00.000Z',
 });
 
+/**
+ * Grava uma linha crua. Sem `natureza`, ela sai das pontas como o app grava:
+ * destino com fatura e pagamento, destino sem fatura e transferencia, so
+ * fatura e compra no cartao, o resto e movimento.
+ */
 const inserirTransacao = async (
   parcial: Partial<{
     id: string;
     valor: number;
+    data: string;
     conta_id: string | null;
     conta_destino_id: string | null;
-    contabilizado_saldo: number;
+    fatura_id: string | null;
+    natureza: NaturezaTransacao;
   }> = {},
 ): Promise<void> => {
   const db = await getConnection();
+  const destino = parcial.conta_destino_id ?? null;
+  const fatura = parcial.fatura_id ?? null;
+  const natureza: NaturezaTransacao =
+    parcial.natureza ??
+    (destino
+      ? fatura
+        ? 'pagamento_fatura'
+        : 'transferencia'
+      : fatura
+        ? 'compra_cartao'
+        : 'movimento');
 
   await db.runAsync(
     `
-        INSERT INTO transacoes (id, descricao, valor, data, conta_id, conta_destino_id,
-                                contabilizado_saldo, created_at)
-        VALUES (?, 'Teste', ?, '2026-01-10', ?, ?, ?, '2026-01-10')
+        INSERT INTO transacoes (id, descricao, valor, data, conta_id, conta_destino_id, natureza,
+                                contabilizado_saldo, fatura_id, created_at)
+        VALUES (?, 'Teste', ?, ?, ?, ?, ?, ?, ?, '2026-01-10')
     `,
     [
       parcial.id ?? Math.random().toString(36).slice(2),
       parcial.valor ?? -10,
+      parcial.data ?? '2026-01-10',
       parcial.conta_id ?? null,
-      parcial.conta_destino_id ?? null,
-      parcial.contabilizado_saldo ?? 1,
+      destino,
+      natureza,
+      contabilizadoDe(natureza),
+      fatura,
     ],
   );
+};
+
+/** Fatura real do cartao: compra no cartao sempre tem `fatura_id` (e a FK confere). */
+const faturaDe = async (contaId: string, mesRef = '2026-01'): Promise<string> => {
+  const fatura = await garantirFatura(contaId, {
+    mesRef,
+    dataFechamento: `${mesRef}-28`,
+    dataVencimento: `${mesRef}-28`,
+  });
+
+  return fatura.id;
 };
 
 describe('crud de contas', () => {
@@ -222,8 +262,12 @@ describe('saldoDaConta', () => {
     );
     await insertConta(contaBase({ id: 'caixa1' }));
 
-    // Compra no cartao: fora do caixa, so pesa na divida.
-    await inserirTransacao({ valor: -300, conta_id: 'cartao1', contabilizado_saldo: 0 });
+    // Compra no cartao: fora do caixa, presa a fatura, so pesa na divida.
+    await inserirTransacao({
+      valor: -300,
+      conta_id: 'cartao1',
+      fatura_id: await faturaDe('cartao1'),
+    });
     assert.equal(await saldoDaConta('cartao1'), -300);
     assert.equal(await saldoDaConta('caixa1'), 0);
 
@@ -231,6 +275,72 @@ describe('saldoDaConta', () => {
     await inserirTransacao({ valor: -300, conta_id: 'caixa1', conta_destino_id: 'cartao1' });
     assert.equal(await saldoDaConta('cartao1'), 0);
     assert.equal(await saldoDaConta('caixa1'), -300);
+  });
+
+  test('a compra parcelada conta uma vez so: a parcela 0 so guarda os itens', async () => {
+    await criarCompraParcelada({
+      descricao: 'Geladeira',
+      empresaId: null,
+      valorTotal: -300,
+      dataCompra: '2026-01-10',
+      parcelas: 3,
+      primeiraParcela: '2026-01-10',
+    });
+
+    assert.equal(await saldoDaConta(CONTA_CAIXA_PADRAO, '2026-01-15'), -100);
+    assert.equal(await saldoDaConta(CONTA_CAIXA_PADRAO, '2026-03-31'), -300);
+  });
+
+  test('soma todo o historico, sem o limite de 50 do feed', async () => {
+    for (let dia = 0; dia < 60; dia++) {
+      await inserirTransacao({
+        valor: -10,
+        conta_id: CONTA_CAIXA_PADRAO,
+        data: `2026-0${1 + Math.floor(dia / 28)}-${String((dia % 28) + 1).padStart(2, '0')}`,
+      });
+    }
+    await inserirTransacao({ valor: 1000, conta_id: CONTA_CAIXA_PADRAO, data: '2026-01-05' });
+
+    assert.equal(await saldoDaConta(CONTA_CAIXA_PADRAO, '2026-12-31'), 1000 - 600);
+  });
+});
+
+describe('saldo na data', () => {
+  test('caixa e reserva contam so o que ja aconteceu', async () => {
+    await insertConta(contaBase({ id: 'reserva1', tipo: 'reserva' }));
+    await inserirTransacao({ valor: -50, conta_id: CONTA_CAIXA_PADRAO, data: '2026-01-10' });
+    await inserirTransacao({ valor: -30, conta_id: CONTA_CAIXA_PADRAO, data: '2026-01-20' });
+    await inserirTransacao({
+      valor: -100,
+      conta_id: CONTA_CAIXA_PADRAO,
+      conta_destino_id: 'reserva1',
+      data: '2026-01-25',
+    });
+
+    assert.equal(await saldoDaConta(CONTA_CAIXA_PADRAO, '2026-01-15'), -50);
+    assert.equal(await saldoDaConta('reserva1', '2026-01-15'), 0);
+    assert.equal(await saldoDaConta(CONTA_CAIXA_PADRAO, '2026-01-31'), -180);
+    assert.equal(await saldoDaConta('reserva1', '2026-01-31'), 100);
+  });
+
+  test('no cartao a divida nasce na compra: parcela com data futura ja conta', async () => {
+    await insertConta(
+      contaBase({ id: 'cartao1', tipo: 'cartao', dia_fechamento: 28, dia_vencimento: 28 }),
+    );
+    await inserirTransacao({
+      valor: -40,
+      conta_id: 'cartao1',
+      fatura_id: await faturaDe('cartao1', '2026-01'),
+      data: '2026-01-10',
+    });
+    await inserirTransacao({
+      valor: -40,
+      conta_id: 'cartao1',
+      fatura_id: await faturaDe('cartao1', '2026-02'),
+      data: '2026-02-10',
+    });
+
+    assert.equal(await saldoDaConta('cartao1', '2026-01-15'), -80);
   });
 });
 
@@ -244,7 +354,11 @@ describe('totaisPorTipo', () => {
 
     await inserirTransacao({ valor: -50, conta_id: 'caixa1' });
     await inserirTransacao({ valor: -200, conta_id: 'caixa1', conta_destino_id: 'reserva1' });
-    await inserirTransacao({ valor: -300, conta_id: 'cartao1', contabilizado_saldo: 0 });
+    await inserirTransacao({
+      valor: -300,
+      conta_id: 'cartao1',
+      fatura_id: await faturaDe('cartao1'),
+    });
 
     const totais = await totaisPorTipo();
 
@@ -252,6 +366,26 @@ describe('totaisPorTipo', () => {
     assert.equal(totais.caixaDisponivel, 750);
     assert.equal(totais.totalReservas, 200);
     assert.equal(totais.totalFaturasAbertas, 300);
+  });
+
+  test('resgate volta para o caixa disponivel (o "Saldo atual" da Home)', async () => {
+    await insertConta(contaBase({ id: 'reserva1', tipo: 'reserva' }));
+    await inserirTransacao({ valor: 1000, conta_id: CONTA_CAIXA_PADRAO });
+    await inserirTransacao({
+      valor: -500,
+      conta_id: CONTA_CAIXA_PADRAO,
+      conta_destino_id: 'reserva1',
+    });
+    await inserirTransacao({
+      valor: -200,
+      conta_id: 'reserva1',
+      conta_destino_id: CONTA_CAIXA_PADRAO,
+    });
+
+    const totais = await totaisPorTipo();
+
+    assert.equal(totais.caixaDisponivel, 700);
+    assert.equal(totais.totalReservas, 300);
   });
 
   test('conta inativa nao entra nos totais', async () => {
@@ -274,5 +408,96 @@ describe('contarTransacoesDaConta', () => {
 
     assert.equal(await contarTransacoesDaConta('caixa1'), 1);
     assert.equal(await contarTransacoesDaConta('reserva1'), 1);
+  });
+});
+
+describe('protecao do caixa padrao e do tipo', () => {
+  const caixaPadrao = async (): Promise<Conta> => {
+    const conta = await getContaById(CONTA_CAIXA_PADRAO);
+    assert.ok(conta);
+    return conta;
+  };
+
+  test('o caixa padrao nao pode ser excluido nem inativado, mesmo sem lancamentos', async () => {
+    await assert.rejects(() => deleteContaById(CONTA_CAIXA_PADRAO), ValidacaoContaError);
+    await assert.rejects(() => inativarConta(CONTA_CAIXA_PADRAO), ValidacaoContaError);
+
+    const conta = await caixaPadrao();
+    assert.equal(conta.ativo, 1);
+  });
+
+  test('o caixa padrao nao muda de tipo nem fica inativo pela edicao, mas pode ser renomeado', async () => {
+    const atual = await caixaPadrao();
+
+    await assert.rejects(() => updateConta({ ...atual, tipo: 'reserva' }), ValidacaoContaError);
+    await assert.rejects(() => updateConta({ ...atual, ativo: 0 }), ValidacaoContaError);
+
+    await updateConta({ ...atual, nome: 'Carteira' });
+    const depois = await caixaPadrao();
+    assert.equal(depois.nome, 'Carteira');
+    assert.equal(depois.tipo, 'caixa');
+  });
+
+  test('o tipo so muda enquanto a conta nao tem lancamentos', async () => {
+    await insertConta(contaBase({ id: 'c1', tipo: 'caixa' }));
+
+    // Sem lancamentos: escolheu errado, pode corrigir.
+    await updateConta(contaBase({ id: 'c1', tipo: 'reserva' }));
+    assert.equal((await getContaById('c1'))?.tipo, 'reserva');
+
+    await inserirTransacao({ valor: -10, conta_id: 'c1' });
+
+    await assert.rejects(
+      () => updateConta(contaBase({ id: 'c1', tipo: 'caixa' })),
+      /tipo dela não pode mudar/,
+    );
+    assert.equal((await getContaById('c1'))?.tipo, 'reserva');
+  });
+
+  test('conta com lancamentos nao e excluida: so inativada', async () => {
+    await insertConta(contaBase({ id: 'c1' }));
+    await inserirTransacao({ valor: -10, conta_id: 'c1' });
+
+    await assert.rejects(() => deleteContaById('c1'), /não pode ser excluída/);
+
+    await inativarConta('c1');
+    assert.equal((await getContaById('c1'))?.ativo, 0);
+  });
+
+  test('excluir um cartao sem compras leva as faturas vazias junto', async () => {
+    await insertConta(
+      contaBase({ id: 'cartao1', tipo: 'cartao', dia_fechamento: 28, dia_vencimento: 28 }),
+    );
+    await faturaDe('cartao1');
+
+    await deleteContaById('cartao1');
+
+    const db = await getConnection();
+    const faturas = await db.getFirstAsync<{ total: number }>(
+      `SELECT COUNT(*) AS total FROM faturas WHERE conta_id = 'cartao1'`,
+    );
+    assert.equal(faturas?.total, 0);
+  });
+
+  test('possui_lancamentos trava o tipo na tela; o caixa padrao sempre trava', async () => {
+    await insertConta(contaBase({ id: 'c1' }));
+    await insertConta(contaBase({ id: 'reserva1', tipo: 'reserva' }));
+
+    const antes = await listContasComSaldo();
+    const c1Antes = antes.find((conta) => conta.id === 'c1');
+    assert.ok(c1Antes);
+    assert.equal(c1Antes.possui_lancamentos, 0);
+    assert.equal(podeMudarTipo(c1Antes), true);
+
+    const padrao = antes.find((conta) => conta.id === CONTA_CAIXA_PADRAO);
+    assert.ok(padrao);
+    assert.equal(podeMudarTipo(padrao), false);
+
+    // A reserva so aparece como destino: tambem conta como lancamento dela.
+    await inserirTransacao({ valor: -10, conta_id: 'c1', conta_destino_id: 'reserva1' });
+
+    const depois = await listContasComSaldo();
+    assert.equal(depois.find((conta) => conta.id === 'c1')?.possui_lancamentos, 1);
+    assert.equal(depois.find((conta) => conta.id === 'reserva1')?.possui_lancamentos, 1);
   });
 });

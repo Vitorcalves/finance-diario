@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { EmptyState, LoadingState, ScreenHeader } from '../../components/ui';
-import type { ContaComSaldo } from '../../models/contas';
+import { type ContaComSaldo, podeRemoverConta } from '../../models/contas';
 import type { MenuStackParamList } from '../../routes/types';
 import { useTheme } from '../../theme';
 import ContaCard from './components/ContaCard';
@@ -90,7 +90,7 @@ export default function ContasView(): React.ReactNode {
               key={conta.id}
               conta={conta}
               onEditar={(): void => abrirFormulario(conta)}
-              onRemover={(): void => remover(conta)}
+              onRemover={podeRemoverConta(conta) ? (): void => remover(conta) : undefined}
               onVerFaturas={
                 conta.tipo === 'cartao'
                   ? (): void => navigation.navigate('Faturas', { contaId: conta.id })

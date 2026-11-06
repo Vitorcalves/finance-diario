@@ -27,7 +27,15 @@ export default function FaturaCard({ fatura, hoje, onPagar }: FaturaCardProps): 
     : fatura.data_fechamento < hoje
       ? { rotulo: 'Fechada', cor: colors.danger }
       : { rotulo: 'Aberta', cor: colors.primary };
-  const vencida = !fatura.paga && fatura.data_vencimento < hoje;
+  const aPagar = !fatura.paga && fatura.restante < 0;
+  const vencida = aPagar && fatura.data_vencimento < hoje;
+  /**
+   * Ja teve pagamento, mas uma compra lancada depois deixou diferenca.
+   * Compara em centavos: a soma das compras pode vir com ruido de ponto
+   * flutuante, e o restante ja vem arredondado.
+   */
+  const pagaEmParte =
+    aPagar && Math.round(fatura.restante * 100) !== Math.round(fatura.total * 100);
 
   return (
     <View style={sharedStyles.listCard}>
@@ -38,6 +46,7 @@ export default function FaturaCard({ fatura, hoje, onPagar }: FaturaCardProps): 
         </Text>
         <Text style={[sharedStyles.listCardDetail, { color: colors.textStrong }]}>
           Total: {toCurrency(Math.abs(fatura.total))}
+          {pagaEmParte ? ` · falta ${toCurrency(Math.abs(fatura.restante))}` : ''}
         </Text>
         {vencida ? (
           <Text style={[sharedStyles.listCardDetail, { color: colors.danger }]}>Vencida</Text>
@@ -48,9 +57,7 @@ export default function FaturaCard({ fatura, hoje, onPagar }: FaturaCardProps): 
         <View style={[sharedStyles.chip, { borderColor: status.cor }]}>
           <Text style={[sharedStyles.chipText, { color: status.cor }]}>{status.rotulo}</Text>
         </View>
-        {!fatura.paga && fatura.total < 0 ? (
-          <Button label="Pagar" variant="primary" size="sm" onPress={onPagar} />
-        ) : null}
+        {aPagar ? <Button label="Pagar" variant="primary" size="sm" onPress={onPagar} /> : null}
       </View>
     </View>
   );

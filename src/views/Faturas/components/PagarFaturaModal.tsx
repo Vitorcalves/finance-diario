@@ -68,7 +68,7 @@ export default function PagarFaturaModal({
         <View style={sharedStyles.actionsRow}>
           <Button label="Cancelar" variant="secondary" flex onPress={onFechar} />
           <Button
-            label={`Pagar ${fatura ? toCurrency(Math.abs(fatura.total)) : ''}`}
+            label={`Pagar ${fatura ? toCurrency(Math.abs(fatura.restante)) : ''}`}
             icon="checkmark"
             loading={salvando}
             flex

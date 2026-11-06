@@ -11,6 +11,7 @@ import {
 import { CONTA_CAIXA_PADRAO, getContaById } from './contas';
 import { emTransacao, getConnection } from './database';
 import { apagarFaturasVazias, garantirFatura } from './faturas';
+import { contabilizadoDe, type NaturezaTransacao } from './naturezaTransacao';
 import {
   atualizarGeradoAte,
   insertPlano,
@@ -39,9 +40,7 @@ type OcorrenciaGravada = {
   data: string;
   empresaId?: string | null;
   categoriaId?: string | null;
-  /** Se a cobranca ja sai do caixa; no cartao ela vai para a fatura do ciclo. */
-  contabilizado: boolean;
-  /** Conta que recebe a cobranca; padrao: caixa global. */
+  /** Conta que recebe a cobranca; padrao: caixa global. No cartao, vai para a fatura do ciclo. */
   contaId?: string | null;
   /**
    * So entrada programada (salario): quando preenchido, a cobranca e gravada
@@ -54,11 +53,10 @@ type OcorrenciaGravada = {
  * `INSERT OR IGNORE` + indice unico `(plano_id, parcela_numero)`: se o gerador
  * rodar duas vezes para o mesmo periodo, a segunda passada nao cria nada.
  *
- * Cobranca em cartao segue a regra da compra no cartao: fica fora do caixa
- * (`contabilizado_saldo = 0`) presa a fatura do ciclo; o caixa so e afetado
- * quando a fatura e paga. Cobranca com `contaDestinoId` e uma entrada
- * programada (salario): valor positivo entrando direto na conta, sem
- * transferencia de origem.
+ * Cobranca em cartao segue a regra da compra no cartao (`compra_cartao`):
+ * fica presa a fatura do ciclo e o caixa so e afetado quando a fatura e paga.
+ * Cobranca com `contaDestinoId` e uma entrada programada (salario): valor
+ * positivo entrando direto na conta, sem transferencia de origem.
  */
 const gravarOcorrencia = async (ocorrencia: OcorrenciaGravada): Promise<void> => {
   const db = await getConnection();
@@ -68,16 +66,17 @@ const gravarOcorrencia = async (ocorrencia: OcorrenciaGravada): Promise<void> =>
   if (ocorrencia.contaDestinoId) {
     await db.runAsync(
       `
-          INSERT OR IGNORE INTO transacoes (id, descricao, valor, data, empresa_id,
+          INSERT OR IGNORE INTO transacoes (id, descricao, valor, data, empresa_id, natureza,
                                             contabilizado_saldo, plano_id, parcela_numero,
                                             categoria_id, conta_id, created_at)
-          VALUES (?, ?, ?, ?, NULL, 1, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, NULL, 'movimento', ?, ?, ?, ?, ?, ?)
       `,
       [
         uuidv4(),
         ocorrencia.descricao,
         Math.abs(ocorrencia.valor),
         ocorrencia.data,
+        contabilizadoDe('movimento'),
         ocorrencia.planoId,
         ocorrencia.numero,
         ocorrencia.categoriaId ?? null,
@@ -96,13 +95,14 @@ const gravarOcorrencia = async (ocorrencia: OcorrenciaGravada): Promise<void> =>
           faturaDaCompra(ocorrencia.data, conta.dia_fechamento, conta.dia_vencimento),
         )
       : null;
+  const natureza: NaturezaTransacao = fatura ? 'compra_cartao' : 'movimento';
 
   await db.runAsync(
     `
-        INSERT OR IGNORE INTO transacoes (id, descricao, valor, data, empresa_id,
+        INSERT OR IGNORE INTO transacoes (id, descricao, valor, data, empresa_id, natureza,
                                           contabilizado_saldo, plano_id, parcela_numero,
                                           categoria_id, conta_id, fatura_id, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       uuidv4(),
@@ -110,7 +110,8 @@ const gravarOcorrencia = async (ocorrencia: OcorrenciaGravada): Promise<void> =>
       ocorrencia.valor,
       ocorrencia.data,
       ocorrencia.empresaId ?? null,
-      fatura ? 0 : ocorrencia.contabilizado ? 1 : 0,
+      natureza,
+      contabilizadoDe(natureza),
       ocorrencia.planoId,
       ocorrencia.numero,
       ocorrencia.categoriaId ?? null,
@@ -212,12 +213,13 @@ const gravarCompraParcelada = async (
 
   const db = await getConnection();
 
+  // Registro da compra (parcela 0): dono dos itens, fora de qualquer saldo.
   await db.runAsync(
     `
-        INSERT INTO transacoes (id, descricao, valor, data, empresa_id, contabilizado_saldo,
-                                plano_id, parcela_numero, local, categoria_id, conta_id,
-                                created_at)
-        VALUES (?, ?, ?, ?, ?, 0, ?, 0, ?, ?, ?, ?)
+        INSERT INTO transacoes (id, descricao, valor, data, empresa_id, natureza,
+                                contabilizado_saldo, plano_id, parcela_numero, local,
+                                categoria_id, conta_id, created_at)
+        VALUES (?, ?, ?, ?, ?, 'registro_compra', ?, ?, 0, ?, ?, ?, ?)
     `,
     [
       compraTransacaoId,
@@ -225,6 +227,7 @@ const gravarCompraParcelada = async (
       dados.valorTotal,
       dados.dataCompra,
       dados.empresaId,
+      contabilizadoDe('registro_compra'),
       planoId,
       dados.local ?? Locais.padrao,
       dados.categoriaId ?? null,
@@ -242,7 +245,6 @@ const gravarCompraParcelada = async (
       data: parcela.data,
       empresaId: dados.empresaId,
       categoriaId: dados.categoriaId ?? null,
-      contabilizado: true,
       contaId: dados.contaId,
     });
   }
@@ -281,7 +283,6 @@ const gerarCobrancas = async (plano: PlanoPagamento, ateData: string): Promise<n
       data: ocorrencia.data,
       empresaId: plano.empresa_id,
       categoriaId: plano.categoria_id ?? null,
-      contabilizado: true,
       contaId: contaDoPlano(plano),
       contaDestinoId: plano.conta_destino_id ?? null,
     });

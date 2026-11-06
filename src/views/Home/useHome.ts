@@ -7,7 +7,7 @@ import {
   definirCategoriaTransacao,
   listCategoriasLancamento,
 } from '../../models/categoriasLancamento';
-import { listContasComSaldo, type ContaComSaldo } from '../../models/contas';
+import { listContasComSaldo, type ContaComSaldo, somarPorTipo } from '../../models/contas';
 import { type ItemTransacao, listItensTransacao } from '../../models/itensTransacao';
 import { registrarLancamento } from '../../models/lancamentos';
 import {
@@ -15,7 +15,6 @@ import {
   listTransacoes,
   listTransacoesCompra,
   restaurarTransacao,
-  resumoCaixa,
   type TransacaoExcluida,
   type Transacoes,
 } from '../../models/transacoesModel';
@@ -33,13 +32,19 @@ dayjs.locale('pt-br');
 const hojeIso = (): string => dayjs().format('YYYY-MM-DD');
 
 export type ResumoHome = {
-  /** Entradas menos saidas de todo o historico, contando so o que ja aconteceu. */
+  /**
+   * Soma das contas caixa ativas, contando so o que ja aconteceu: o mesmo
+   * saldo que a tela de Contas mostra para elas.
+   */
   saldoAtual: number;
   /** Saidas ja realizadas no mes corrente (positivo). */
   gastoMes: number;
   /** Media diaria de gastos do mes corrente, com base nos dias ja decorridos. */
   mediaDiaria: number;
-  /** Parcelas e assinaturas lancadas para o resto do mes (positivo). */
+  /**
+   * Gastos do mes que ainda vao vencer, como parcelas e assinaturas
+   * (positivo). Vem da mesma conta da projecao e da tela do mes.
+   */
   comprometidoMes: number;
   /** Fechamento previsto do mes: a mesma conta da tela do mes. */
   projecaoMes: number;
@@ -117,7 +122,6 @@ export function useHome(): UseHome {
     const [
       transacoesDoBanco,
       transacoesMes,
-      caixa,
       itensDoBanco,
       comprasDoBanco,
       empresasDoBanco,
@@ -133,13 +137,13 @@ export function useHome(): UseHome {
       // de gastos: compra no cartao entra, pagamento de fatura e
       // transferencias entre contas nao.
       listTransacoes(inicioMes, fimMes, { fluxoGastos: true }),
-      resumoCaixa(hoje, fimMes),
       listItensTransacao(),
       listTransacoesCompra(),
       listEmpresas(),
       getLocalPadrao(),
       listCategoriasLancamento(),
-      listContasComSaldo(),
+      // Saldo de hoje por conta: o "Saldo atual" e as reservas saem daqui.
+      listContasComSaldo(hoje),
     ]);
 
     const projecao = projetarMes(transacoesMes, {
@@ -154,6 +158,7 @@ export function useHome(): UseHome {
     }
 
     const reservasAtivas = contasDoBanco.filter((conta) => conta.tipo === 'reserva' && conta.ativo);
+    const totais = somarPorTipo(contasDoBanco);
 
     setTransacoes(transacoesDoBanco);
     setItens(itensDoBanco);
@@ -162,13 +167,13 @@ export function useHome(): UseHome {
     setLocalPadrao(localPadraoDoBanco);
     setCategorias(categoriasDoBanco);
     setResumo({
-      saldoAtual: caixa.saldoAtual,
+      saldoAtual: totais.caixaDisponivel,
       gastoMes: projecao.gastoRealizado,
       mediaDiaria: projecao.mediaDiaria,
-      comprometidoMes: Math.abs(caixa.comprometido),
+      comprometidoMes: projecao.comprometido,
       projecaoMes: projecao.projecao,
       reservas: reservasAtivas,
-      totalReservas: reservasAtivas.reduce((soma, reserva) => soma + reserva.saldo, 0),
+      totalReservas: totais.totalReservas,
     });
   }, []);
 

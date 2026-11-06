@@ -26,7 +26,15 @@ const lancar = async (
   data: string,
   extra: Partial<Transacoes> = {},
 ): Promise<void> =>
-  insertTransacao({ id, descricao: id, valor, data, created_at: AGORA, ...extra });
+  insertTransacao({
+    id,
+    descricao: id,
+    valor,
+    data,
+    created_at: AGORA,
+    ...extra,
+    natureza: extra.natureza ?? 'movimento',
+  });
 
 beforeEach(async () => {
   await prepararBanco();

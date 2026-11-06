@@ -1,20 +1,24 @@
 import { beforeEach, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { AGORA, prepararBanco } from '../../tests/setup/banco';
+import { Locais } from '../utils/local';
+import { insertConta } from './contas';
 import { emTransacao, getConnection } from './database';
+import { listFaturas, pagarFatura } from './faturas';
 import { insertItemTransacao, listItensTransacaoByTransacao } from './itensTransacao';
-import { criarCompraParcelada } from './materializacaoPlanos';
+import { registrarLancamento } from './lancamentos';
+import { criarAssinatura, criarCompraParcelada } from './materializacaoPlanos';
 import {
+  buscarTransacoes,
   excluirTransacao,
   insertTransacao,
   listCobrancasDePlanos,
   listTransacoes,
   restaurarTransacao,
-  resumoCaixa,
 } from './transacoesModel';
 
 const lancar = async (id: string, valor: number, data: string): Promise<void> =>
-  insertTransacao({ id, descricao: id, valor, data, created_at: AGORA });
+  insertTransacao({ id, descricao: id, valor, data, natureza: 'movimento', created_at: AGORA });
 
 beforeEach(async () => {
   await prepararBanco();
@@ -58,57 +62,6 @@ describe('listCobrancasDePlanos', () => {
     assert.equal(cobrancas.length, 1);
     assert.equal(cobrancas[0].data, '2010-01-10');
     assert.equal(cobrancas[0].parcela_numero, 1);
-  });
-});
-
-describe('resumoCaixa', () => {
-  test('soma o saldo de todas as transacoes, sem o limite de 50 do feed', async () => {
-    for (let dia = 0; dia < 60; dia++) {
-      await lancar(
-        `gasto-${dia}`,
-        -10,
-        `2026-0${1 + Math.floor(dia / 28)}-${String((dia % 28) + 1).padStart(2, '0')}`,
-      );
-    }
-    await lancar('salario', 1000, '2026-01-05');
-
-    const { saldoAtual } = await resumoCaixa('2026-12-31', '2026-12-31');
-
-    assert.equal((await listTransacoes()).length, 50);
-    assert.equal(saldoAtual, 1000 - 600);
-  });
-
-  test('o que vence depois de hoje fica fora do saldo e entra no comprometido ate a data limite', async () => {
-    await lancar('mercado', -50, '2026-01-10');
-    await lancar('parcela-jan', -30, '2026-01-20');
-    await lancar('parcela-fev', -30, '2026-02-20');
-
-    const resumo = await resumoCaixa('2026-01-15', '2026-01-31');
-
-    assert.equal(resumo.saldoAtual, -50);
-    assert.equal(resumo.comprometido, -30);
-  });
-
-  test('a compra parcelada (fora do caixa) nao entra no saldo; so as parcelas entram', async () => {
-    await criarCompraParcelada({
-      descricao: 'Geladeira',
-      empresaId: null,
-      valorTotal: -300,
-      dataCompra: '2026-01-10',
-      parcelas: 3,
-      primeiraParcela: '2026-01-10',
-    });
-
-    const { saldoAtual } = await resumoCaixa('2026-01-15', '2026-01-31');
-
-    assert.equal(saldoAtual, -100);
-  });
-
-  test('banco vazio devolve zero, e nao null', async () => {
-    assert.deepEqual(await resumoCaixa('2026-01-15', '2026-01-31'), {
-      saldoAtual: 0,
-      comprometido: 0,
-    });
   });
 });
 
@@ -211,5 +164,95 @@ describe('emTransacao', () => {
     });
 
     assert.equal(total, 1);
+  });
+});
+
+describe('cartao na busca e nos planos', () => {
+  const criarCartao = (): Promise<void> =>
+    insertConta({
+      id: 'cartao1',
+      nome: 'Visa',
+      tipo: 'cartao',
+      dia_fechamento: 30,
+      dia_vencimento: 10,
+      meta_valor: null,
+      saldo_inicial: 0,
+      cor: null,
+      ativo: 1,
+      ordem: 0,
+      created_at: AGORA,
+    });
+
+  test('a busca acha a compra no cartao, inclusive filtrando pelo cartao', async () => {
+    await criarCartao();
+    await registrarLancamento(
+      {
+        descricao: 'Livraria',
+        data: '2026-03-15',
+        empresaId: null,
+        categoriaId: null,
+        valor: -80,
+        itens: [],
+        contaId: 'cartao1',
+      },
+      Locais.padrao,
+    );
+    const [fatura] = await listFaturas('cartao1');
+    await pagarFatura(fatura.id, 'caixa-padrao', '2026-04-10');
+
+    const tudo = await buscarTransacoes();
+    assert.ok(tudo.some((transacao) => transacao.descricao === 'Livraria'));
+
+    // No cartao aparecem a compra e o pagamento que a quitou.
+    const doCartao = await buscarTransacoes({ contaId: 'cartao1' });
+    assert.deepEqual(doCartao.map((transacao) => transacao.natureza).sort(), [
+      'compra_cartao',
+      'pagamento_fatura',
+    ]);
+  });
+
+  test('a busca mostra as parcelas, mas nao o registro da compra parcelada', async () => {
+    await criarCartao();
+    await registrarLancamento(
+      {
+        descricao: 'Monitor',
+        data: '2026-03-15',
+        empresaId: null,
+        categoriaId: null,
+        valor: -100,
+        itens: [],
+        contaId: 'cartao1',
+        parcelamento: { parcelas: 2, primeiraParcela: '2026-03-15' },
+      },
+      Locais.padrao,
+    );
+
+    const encontrados = await buscarTransacoes();
+
+    assert.equal(encontrados.length, 2);
+    assert.ok(encontrados.every((transacao) => transacao.natureza === 'compra_cartao'));
+  });
+
+  test('os planos no cartao trazem as cobrancas (antes vinham zeradas)', async () => {
+    await criarCartao();
+    const planoId = await criarAssinatura(
+      {
+        descricao: 'Streaming',
+        empresaId: null,
+        valorParcela: -40,
+        dataInicio: '2026-01-10',
+        frequencia: 'mensal',
+        intervalo: 1,
+        contaId: 'cartao1',
+      },
+      '2026-03-31',
+    );
+
+    const cobrancas = (await listCobrancasDePlanos()).filter(
+      (cobranca) => cobranca.plano_id === planoId,
+    );
+
+    assert.equal(cobrancas.length, 3);
+    assert.ok(cobrancas.every((cobranca) => cobranca.natureza === 'compra_cartao'));
   });
 });

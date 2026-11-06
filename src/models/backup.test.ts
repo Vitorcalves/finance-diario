@@ -10,12 +10,16 @@ import {
   importarBanco,
   resumirBackup,
   type BackupJson,
+  type LinhaBackup,
 } from './backup';
 import { getConnection } from './database';
 import { insertCategoria } from './categorias';
+import { CONTA_CAIXA_PADRAO, saldoDaConta } from './contas';
 import { insertEmpresa } from './empresas';
+import { registrarLancamento } from './lancamentos';
 import { insertMarca, listMarcas } from './marcas';
 import { migrations } from './migrations';
+import { Locais } from '../utils/local';
 import { Unidades } from '../utils/unidades';
 
 /** Versao do schema = id da ultima migration, para o teste nao quebrar a cada migration nova. */
@@ -216,6 +220,128 @@ describe('importarBanco sobrescreve', () => {
     const migracoes = await db.getAllAsync<{ id: number }>('SELECT id FROM migrations');
     assert.equal(migracoes.length, migrations.length);
     assert.equal((await exportarBanco()).schema_version, SCHEMA_VERSION);
+  });
+
+  test('backup de antes das contas recria o caixa padrao com o historico dentro', async () => {
+    await importarBanco(
+      analisarBackup(
+        backupBase({
+          schema_version: 11,
+          tabelas: {
+            transacoes: [
+              {
+                id: 't1',
+                descricao: 'Salário',
+                valor: 1000,
+                data: '2026-01-05',
+                contabilizado_saldo: 1,
+                created_at: '2026-01-05T10:00:00.000Z',
+              },
+              {
+                id: 't2',
+                descricao: 'Mercado',
+                valor: -200,
+                data: '2026-01-06',
+                contabilizado_saldo: 1,
+                created_at: '2026-01-06T10:00:00.000Z',
+              },
+            ],
+          },
+        }),
+      ),
+    );
+
+    assert.equal(await saldoDaConta(CONTA_CAIXA_PADRAO), 800);
+
+    // Sem a conta, a FK de `transacoes.conta_id` recusaria qualquer lancamento novo.
+    await registrarLancamento(
+      {
+        descricao: 'Padaria',
+        data: '2026-01-07',
+        empresaId: null,
+        categoriaId: null,
+        valor: -50,
+        itens: [],
+      },
+      Locais.padrao,
+    );
+    assert.equal(await saldoDaConta(CONTA_CAIXA_PADRAO), 750);
+  });
+
+  test('backup de antes da natureza tem a natureza deduzida e o caixa padrao reativado', async () => {
+    const conta = (id: string, tipo: string, ativo: number): LinhaBackup => ({
+      id,
+      nome: id,
+      tipo,
+      dia_fechamento: tipo === 'cartao' ? 30 : null,
+      dia_vencimento: tipo === 'cartao' ? 10 : null,
+      saldo_inicial: 0,
+      ativo,
+      ordem: 0,
+      created_at: '2026-01-01T00:00:00.000Z',
+    });
+    const linha = (id: string, valor: number, extra: LinhaBackup): LinhaBackup => ({
+      id,
+      descricao: id,
+      valor,
+      data: '2026-03-15',
+      created_at: '2026-03-15T10:00:00.000Z',
+      ...extra,
+    });
+
+    await importarBanco(
+      analisarBackup(
+        backupBase({
+          schema_version: 14,
+          tabelas: {
+            // O caixa padrao chega inativo, como a tela de Contas deixava.
+            contas: [
+              conta(CONTA_CAIXA_PADRAO, 'caixa', 0),
+              conta('visa', 'cartao', 1),
+              conta('reserva', 'reserva', 1),
+            ],
+            faturas: [
+              {
+                id: 'f1',
+                conta_id: 'visa',
+                mes_ref: '2026-03',
+                data_fechamento: '2026-03-30',
+                data_vencimento: '2026-04-10',
+                paga: 0,
+                created_at: '2026-03-15T10:00:00.000Z',
+              },
+            ],
+            transacoes: [
+              linha('salario', 1000, { conta_id: CONTA_CAIXA_PADRAO, contabilizado_saldo: 1 }),
+              linha('livraria', -80, { conta_id: 'visa', fatura_id: 'f1', contabilizado_saldo: 0 }),
+              linha('aporte', -300, {
+                conta_id: CONTA_CAIXA_PADRAO,
+                conta_destino_id: 'reserva',
+                contabilizado_saldo: 1,
+              }),
+            ],
+          },
+        }),
+      ),
+    );
+
+    const db = await getConnection();
+    const naturezas = await db.getAllAsync<{ id: string; natureza: string }>(
+      'SELECT id, natureza FROM transacoes ORDER BY id',
+    );
+    assert.deepEqual(naturezas, [
+      { id: 'aporte', natureza: 'transferencia' },
+      { id: 'livraria', natureza: 'compra_cartao' },
+      { id: 'salario', natureza: 'movimento' },
+    ]);
+
+    const caixa = await db.getFirstAsync<{ ativo: number }>(
+      'SELECT ativo FROM contas WHERE id = ?',
+      [CONTA_CAIXA_PADRAO],
+    );
+    assert.equal(caixa?.ativo, 1);
+    assert.equal(await saldoDaConta(CONTA_CAIXA_PADRAO), 700);
+    assert.equal(await saldoDaConta('visa'), -80);
   });
 });
 

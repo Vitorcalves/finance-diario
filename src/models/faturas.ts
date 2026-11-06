@@ -3,13 +3,18 @@ import type { CicloFatura } from '../utils/cartao';
 import { Locais } from '../utils/local';
 import { getContaById } from './contas';
 import { emTransacao, getConnection } from './database';
+import { contabilizadoDe } from './naturezaTransacao';
 
 /**
  * Fatura: um ciclo de fechamento de um cartao de credito.
  *
- * Nasce vazia no ato da compra (`garantirFatura`) e acumula as transacoes do
- * ciclo (`fatura_id`). O pagamento e a unica transacao que sai do caixa e,
- * como carrega `conta_destino_id` do cartao, nao entra no total da fatura.
+ * Nasce vazia no ato da compra (`garantirFatura`) e acumula as compras do
+ * ciclo (`compra_cartao` com `fatura_id`). O pagamento (`pagamento_fatura`)
+ * tambem aponta para ela, mas nao entra no total: ele quita o total.
+ *
+ * A situacao (paga ou nao) sai dos valores, e nao de uma flag gravada: uma
+ * compra lancada depois, com data de um ciclo ja pago, reabre a fatura, e o
+ * novo pagamento cobre so a diferenca.
  */
 
 export type Fatura = {
@@ -19,6 +24,10 @@ export type Fatura = {
   mes_ref: string;
   data_fechamento: string;
   data_vencimento: string;
+  /**
+   * `1` quando havia compra e nao falta nada a pagar. Calculado pelos valores;
+   * a coluna `faturas.paga` ficou como legado e nao e lida.
+   */
   paga: number;
   created_at: string;
 };
@@ -26,16 +35,34 @@ export type Fatura = {
 export type FaturaComTotal = Fatura & {
   /** Soma das compras do ciclo (negativo); o pagamento nao entra. */
   total: number;
+  /** O que falta pagar (negativo, como o total); `0` quando quitada. */
+  restante: number;
 };
 
-const COLUNAS = `id, conta_id, mes_ref, data_fechamento, data_vencimento, paga, created_at`;
-
+/** Soma das compras do ciclo `f` (negativa). */
 const TOTAL_DAS_COMPRAS = `
     COALESCE((SELECT SUM(t.valor)
               FROM transacoes t
               WHERE t.fatura_id = f.id
-                AND t.conta_id = f.conta_id), 0)
+                AND t.natureza = 'compra_cartao'), 0)
 `;
+
+/** Soma dos pagamentos do ciclo `f` (negativa: o valor saiu da conta pagante). */
+const TOTAL_PAGO = `
+    COALESCE((SELECT SUM(t.valor)
+              FROM transacoes t
+              WHERE t.fatura_id = f.id
+                AND t.natureza = 'pagamento_fatura'), 0)
+`;
+
+/** O que falta pagar: negativo enquanto houver divida, zero (ou credito) depois. */
+const RESTANTE = `ROUND(${TOTAL_DAS_COMPRAS} - ${TOTAL_PAGO}, 2)`;
+
+/** Paga: havia compra e nao falta nada. */
+const PAGA = `CASE WHEN ${TOTAL_DAS_COMPRAS} < 0 AND ${RESTANTE} >= 0 THEN 1 ELSE 0 END`;
+
+const COLUNAS = `f.id, f.conta_id, f.mes_ref, f.data_fechamento, f.data_vencimento,
+                 ${PAGA} AS paga, f.created_at`;
 
 export const getFaturaById = async (id: string): Promise<Fatura | null> => {
   const db = await getConnection();
@@ -43,8 +70,8 @@ export const getFaturaById = async (id: string): Promise<Fatura | null> => {
   return await db.getFirstAsync<Fatura>(
     `
         SELECT ${COLUNAS}
-        FROM faturas
-        WHERE id = ?
+        FROM faturas f
+        WHERE f.id = ?
     `,
     [id],
   );
@@ -53,7 +80,8 @@ export const getFaturaById = async (id: string): Promise<Fatura | null> => {
 /**
  * Devolve a fatura do ciclo, criando-a se ainda nao existir: compra no
  * cartao nunca falha por calendario. O `UNIQUE (conta_id, mes_ref)` faz o
- * upsert; chamadas concurrentes repetidas devolvem a mesma linha.
+ * upsert; chamadas concurrentes repetidas devolvem a mesma linha. Uma fatura
+ * ja paga tambem e devolvida: a compra nova a reabre.
  */
 export const garantirFatura = async (contaId: string, ciclo: CicloFatura): Promise<Fatura> =>
   emTransacao(async () => {
@@ -79,9 +107,9 @@ export const garantirFatura = async (contaId: string, ciclo: CicloFatura): Promi
     const fatura = await db.getFirstAsync<Fatura>(
       `
           SELECT ${COLUNAS}
-          FROM faturas
-          WHERE conta_id = ?
-            AND mes_ref = ?
+          FROM faturas f
+          WHERE f.conta_id = ?
+            AND f.mes_ref = ?
       `,
       [contaId, ciclo.mesRef],
     );
@@ -93,7 +121,7 @@ export const garantirFatura = async (contaId: string, ciclo: CicloFatura): Promi
     return fatura;
   });
 
-/** Faturas de um cartao (ou de todos), do ciclo mais recente para o mais antigo, com o total. */
+/** Faturas de um cartao (ou de todos), do ciclo mais recente para o mais antigo, com os valores. */
 export const listFaturas = async (contaId?: string): Promise<FaturaComTotal[]> => {
   const db = await getConnection();
 
@@ -102,10 +130,9 @@ export const listFaturas = async (contaId?: string): Promise<FaturaComTotal[]> =
 
   return await db.getAllAsync<FaturaComTotal>(
     `
-        SELECT ${COLUNAS.split(', ')
-          .map((coluna) => `f.${coluna}`)
-          .join(', ')},
-               ${TOTAL_DAS_COMPRAS} AS total
+        SELECT ${COLUNAS},
+               ${TOTAL_DAS_COMPRAS} AS total,
+               ${RESTANTE} AS restante
         FROM faturas f
         ${condicao}
         ORDER BY f.mes_ref DESC
@@ -114,21 +141,32 @@ export const listFaturas = async (contaId?: string): Promise<FaturaComTotal[]> =
   );
 };
 
-/** Soma das compras do ciclo: e o valor que a fatura pede de pagamento. */
-export const totalDaFatura = async (faturaId: string): Promise<number> => {
+type ValoresFatura = { total: number; pago: number; restante: number };
+
+const valoresDaFatura = async (faturaId: string): Promise<ValoresFatura> => {
   const db = await getConnection();
 
-  const row = await db.getFirstAsync<{ total: number | null }>(
+  const row = await db.getFirstAsync<ValoresFatura>(
     `
-        SELECT ${TOTAL_DAS_COMPRAS} AS total
+        SELECT ${TOTAL_DAS_COMPRAS} AS total,
+               ${TOTAL_PAGO} AS pago,
+               ${RESTANTE} AS restante
         FROM faturas f
         WHERE f.id = ?
     `,
     [faturaId],
   );
 
-  return row?.total ?? 0;
+  return row ?? { total: 0, pago: 0, restante: 0 };
 };
+
+/** Soma das compras do ciclo (negativa), sem descontar o que ja foi pago. */
+export const totalDaFatura = async (faturaId: string): Promise<number> =>
+  (await valoresDaFatura(faturaId)).total;
+
+/** O que falta pagar (negativo); `0` quando a fatura esta quitada. */
+export const restanteDaFatura = async (faturaId: string): Promise<number> =>
+  (await valoresDaFatura(faturaId)).restante;
 
 export class FaturaError extends Error {
   constructor(message: string) {
@@ -138,9 +176,10 @@ export class FaturaError extends Error {
 }
 
 /**
- * Apaga faturas em aberto que nao tem nenhuma transacao presa a elas.
- * Cancelar um plano parcelado remove as parcelas futuras e pode deixar o
- * ciclo vazio; a fatura some junto em vez de ficar como lixo na lista.
+ * Apaga as faturas que nao tem nenhuma transacao presa a elas. Cancelar um
+ * plano parcelado remove as parcelas futuras e pode deixar o ciclo vazio; a
+ * fatura some junto em vez de ficar como lixo na lista. Fatura paga nunca e
+ * vazia: o pagamento aponta para ela.
  */
 export const apagarFaturasVazias = async (): Promise<void> => {
   const db = await getConnection();
@@ -148,17 +187,17 @@ export const apagarFaturasVazias = async (): Promise<void> => {
   await db.runAsync(
     `
         DELETE FROM faturas
-        WHERE paga = 0
-          AND id NOT IN (SELECT fatura_id FROM transacoes WHERE fatura_id IS NOT NULL)
+        WHERE id NOT IN (SELECT fatura_id FROM transacoes WHERE fatura_id IS NOT NULL)
     `,
   );
 };
 
 /**
- * Paga a fatura: grava a transacao de pagamento (sai da conta pagante, quita
- * a divida do cartao) e marca a fatura como paga. Tudo numa transacao.
+ * Paga o que falta da fatura: grava o pagamento (sai da conta pagante, quita
+ * a divida do cartao), tudo numa transacao. Depois de uma compra retroativa,
+ * o pagamento novo cobre so a diferenca.
  *
- * Idempotente: uma fatura ja paga nao gera outro pagamento.
+ * Idempotente: uma fatura quitada nao gera outro pagamento.
  */
 export const pagarFatura = async (
   faturaId: string,
@@ -177,26 +216,30 @@ export const pagarFatura = async (
       return;
     }
 
-    const [total, cartao] = await Promise.all([
-      totalDaFatura(faturaId),
+    const [valores, cartao] = await Promise.all([
+      valoresDaFatura(faturaId),
       getContaById(fatura.conta_id),
     ]);
 
-    if (total >= 0) {
+    if (valores.restante >= 0) {
       throw new FaturaError('Fatura sem compras: nada a pagar.');
     }
 
+    const complemento = valores.pago < 0 ? ' (complemento)' : '';
+
     await db.runAsync(
       `
-          INSERT INTO transacoes (id, descricao, valor, data, empresa_id, contabilizado_saldo,
-                                  local, conta_id, conta_destino_id, fatura_id, created_at)
-          VALUES (?, ?, ?, ?, NULL, 1, ?, ?, ?, ?, ?)
+          INSERT INTO transacoes (id, descricao, valor, data, empresa_id, natureza,
+                                  contabilizado_saldo, local, conta_id, conta_destino_id,
+                                  fatura_id, created_at)
+          VALUES (?, ?, ?, ?, NULL, 'pagamento_fatura', ?, ?, ?, ?, ?, ?)
       `,
       [
         uuidv4(),
-        `Pagamento fatura ${fatura.mes_ref}${cartao ? ` — ${cartao.nome}` : ''}`,
-        total,
+        `Pagamento fatura ${fatura.mes_ref}${cartao ? ` — ${cartao.nome}` : ''}${complemento}`,
+        valores.restante,
         dataPagamento,
+        contabilizadoDe('pagamento_fatura'),
         Locais.padrao,
         contaPaganteId,
         fatura.conta_id,
@@ -205,5 +248,6 @@ export const pagarFatura = async (
       ],
     );
 
+    // Legado: a situacao e calculada pelos valores, mas a coluna acompanha.
     await db.runAsync('UPDATE faturas SET paga = 1 WHERE id = ?', [faturaId]);
   });

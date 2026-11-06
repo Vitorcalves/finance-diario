@@ -190,4 +190,26 @@ describe('clearDatabase e recriarDatabase', () => {
     assert.deepEqual(categorias, []);
     assert.equal(aplicadas.length, migrations.length);
   });
+
+  test('o apagar tudo funciona mesmo com referencia orfa no banco', async () => {
+    // O import de backup roda com as FKs desligadas e pode deixar uma
+    // referencia orfa. Os down que recriam tabela nao repoem FKs justamente
+    // para a copia das linhas nao falhar aqui.
+    const db = await getConnection();
+    await db.execAsync('PRAGMA foreign_keys = OFF;');
+    await db.runAsync(
+      `INSERT INTO transacoes (id, descricao, valor, data, categoria_id, created_at)
+       VALUES ('t1', 'Mercado', -10, '2026-01-10', 'categoria-que-sumiu', 'x')`,
+    );
+    await db.execAsync('PRAGMA foreign_keys = ON;');
+
+    await recriarDatabase();
+
+    const depois = await getConnection();
+    const transacoes = await depois.getAllAsync('SELECT id FROM transacoes');
+    const aplicadas = await depois.getAllAsync('SELECT id FROM migrations');
+
+    assert.deepEqual(transacoes, []);
+    assert.equal(aplicadas.length, migrations.length);
+  });
 });

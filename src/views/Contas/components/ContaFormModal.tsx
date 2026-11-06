@@ -2,7 +2,13 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import BrazilianIntegerInput from '../../../components/BrazilianIntegerInput';
 import { BottomSheet, Button, SegmentedControl, Text, TextInput } from '../../../components/ui';
-import type { ContaComSaldo, TipoConta } from '../../../models/contas';
+import {
+  type ContaComSaldo,
+  CONTA_CAIXA_PADRAO,
+  podeMudarTipo,
+  ROTULO_TIPO_CONTA,
+  type TipoConta,
+} from '../../../models/contas';
 import { useTheme } from '../../../theme';
 import type { DadosContaForm } from '../useContas';
 
@@ -35,6 +41,8 @@ export default function ContaFormModal({
   const [metaValor, setMetaValor] = useState(conta?.meta_valor ? String(conta.meta_valor) : '');
   const [saldoInicial, setSaldoInicial] = useState(conta ? String(conta.saldo_inicial) : '');
   const [salvando, setSalvando] = useState(false);
+  /** Os lancamentos ja gravados dependem do tipo: so muda numa conta sem nenhum. */
+  const tipoTravado = conta !== null && !podeMudarTipo(conta);
 
   const salvar = (): void => {
     void (async (): Promise<void> => {
@@ -75,15 +83,25 @@ export default function ContaFormModal({
 
       <View style={sharedStyles.formGroup}>
         <Text style={sharedStyles.label}>Tipo</Text>
-        <SegmentedControl
-          opcoes={[
-            { valor: 'caixa' as const, rotulo: 'Caixa', cor: colors.primary },
-            { valor: 'reserva' as const, rotulo: 'Reserva', cor: colors.success },
-            { valor: 'cartao' as const, rotulo: 'Cartão', cor: colors.danger },
-          ]}
-          valor={tipo}
-          onChange={setTipo}
-        />
+        {tipoTravado ? (
+          <Text style={sharedStyles.listCardDetail}>
+            {`${ROTULO_TIPO_CONTA[tipo]} · ${
+              conta?.id === CONTA_CAIXA_PADRAO
+                ? 'o caixa padrão recebe os lançamentos sem conta e é sempre caixa'
+                : 'o tipo não muda depois que a conta tem lançamentos'
+            }`}
+          </Text>
+        ) : (
+          <SegmentedControl
+            opcoes={[
+              { valor: 'caixa' as const, rotulo: 'Caixa', cor: colors.primary },
+              { valor: 'reserva' as const, rotulo: 'Reserva', cor: colors.success },
+              { valor: 'cartao' as const, rotulo: 'Cartão', cor: colors.danger },
+            ]}
+            valor={tipo}
+            onChange={setTipo}
+          />
+        )}
       </View>
 
       {tipo === 'cartao' ? (

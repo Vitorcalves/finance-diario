@@ -17,7 +17,8 @@ export const ICONE_TIPO_CONTA: Record<TipoConta, NomeIcone> = {
 type ContaCardProps = {
   conta: ContaComSaldo;
   onEditar: () => void;
-  onRemover: () => void;
+  /** Ausente no caixa padrao, que nao pode ser excluido nem inativado. */
+  onRemover?: () => void;
   /** So cartao: abre a tela de faturas do ciclo. */
   onVerFaturas?: () => void;
   /** So reserva: abre o detalhe com meta, progresso e extrato. */
@@ -102,7 +103,7 @@ export default function ContaCard({
           <IconButton icon="arrow-up-circle" variant="primary" onPress={onResgatar} />
         ) : null}
         <IconButton icon="pencil" variant="primary" onPress={onEditar} />
-        <IconButton icon="trash" variant="danger" onPress={onRemover} />
+        {onRemover ? <IconButton icon="trash" variant="danger" onPress={onRemover} /> : null}
       </View>
     </View>
   );

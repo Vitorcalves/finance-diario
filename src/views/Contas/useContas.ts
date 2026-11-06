@@ -13,6 +13,7 @@ import {
   listContasComSaldo,
   listMovimentosDaConta,
   normalizarDadosConta,
+  podeRemoverConta,
   totalAportadoNoMes,
   updateConta,
   ValidacaoContaError,
@@ -127,6 +128,25 @@ export function useContas(): UseContas {
 
   const remover = useCallback(
     (conta: ContaComSaldo): void => {
+      // O model recusa de qualquer jeito; aqui so evita abrir a confirmacao.
+      if (!podeRemoverConta(conta)) {
+        Alert.alert(
+          'Caixa padrão',
+          'O caixa padrão recebe os lançamentos sem conta e não pode ser excluído nem inativado.',
+        );
+        return;
+      }
+
+      /** Mostra a regra quando o model recusa (`ValidacaoContaError`); senao, o erro generico. */
+      const avisarFalha = (error: unknown, mensagemGenerica: string): void => {
+        if (error instanceof ValidacaoContaError) {
+          Alert.alert('Confira a conta', error.message);
+        } else {
+          console.error(mensagemGenerica, error);
+          Alert.alert('Erro', mensagemGenerica);
+        }
+      };
+
       void (async (): Promise<void> => {
         const usada = (await contarTransacoesDaConta(conta.id)) > 0;
 
@@ -147,8 +167,7 @@ export function useContas(): UseContas {
                       await carregar();
                       toast.mostrar('Conta inativada');
                     } catch (error: unknown) {
-                      console.error('Erro ao inativar conta:', error);
-                      Alert.alert('Erro', 'Não foi possível inativar a conta');
+                      avisarFalha(error, 'Não foi possível inativar a conta');
                     }
                   })();
                 },
@@ -170,8 +189,7 @@ export function useContas(): UseContas {
                   await carregar();
                   toast.mostrar('Conta excluída');
                 } catch (error: unknown) {
-                  console.error('Erro ao excluir conta:', error);
-                  Alert.alert('Erro', 'Não foi possível excluir a conta');
+                  avisarFalha(error, 'Não foi possível excluir a conta');
                 }
               })();
             },

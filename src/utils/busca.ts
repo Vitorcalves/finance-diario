@@ -1,3 +1,5 @@
+import { NATUREZAS_DO_FLUXO, type NaturezaTransacao } from '../models/naturezaTransacao';
+
 /** Minusculo, sem acentos e sem espacos nas pontas: "Açúcar " vira "acucar". */
 export const normalizarTexto = (texto: string): string =>
   texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
@@ -50,3 +52,33 @@ export const filtrarPorTexto = <T extends Pesquisavel>(
     ),
   );
 };
+
+export type TotaisBusca = {
+  quantidade: number;
+  /** Soma dos gastos encontrados (positivo). */
+  saidas: number;
+  /** Soma das receitas encontradas (positivo). */
+  entradas: number;
+};
+
+/**
+ * Totais do resultado da busca. Todo lancamento conta na quantidade, mas so
+ * gasto e receita entram nas somas: transferencia e pagamento de fatura so
+ * mudam o dinheiro de lugar, e somar o pagamento junto com as compras do
+ * cartao contaria o mesmo gasto duas vezes.
+ */
+export const totalizarBusca = (
+  lancamentos: { valor: number; natureza: NaturezaTransacao }[],
+): TotaisBusca =>
+  lancamentos.reduce(
+    (soma, lancamento) => {
+      const doFluxo = NATUREZAS_DO_FLUXO.includes(lancamento.natureza);
+
+      return {
+        quantidade: soma.quantidade + 1,
+        saidas: soma.saidas + (doFluxo && lancamento.valor < 0 ? Math.abs(lancamento.valor) : 0),
+        entradas: soma.entradas + (doFluxo && lancamento.valor > 0 ? lancamento.valor : 0),
+      };
+    },
+    { quantidade: 0, saidas: 0, entradas: 0 },
+  );

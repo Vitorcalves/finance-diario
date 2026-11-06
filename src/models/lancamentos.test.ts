@@ -33,11 +33,36 @@ const compraParceladaNoCartao: DadosLancamento = {
   contaId: 'cartao1',
 };
 
+/** Dinheiro em centavos inteiros, sem ruido de ponto flutuante (`+ 0` troca -0 por 0). */
+const centavos = (valor: number): number => Math.round(valor * 100) + 0;
+
 beforeEach(async () => {
   await prepararBanco();
 });
 
 describe('registrarLancamento — compra parcelada no cartao', () => {
+  test('a divida do cartao e o valor da compra, nao o dobro', async () => {
+    await insertConta(cartao());
+
+    await registrarLancamento(compraParceladaNoCartao, Locais.padrao);
+
+    // So as parcelas pesam: a parcela 0 guarda os itens, fora de qualquer saldo.
+    assert.equal(centavos(await saldoDaConta('cartao1')), -10000);
+  });
+
+  test('pagar as tres faturas zera a divida e tira R$ 100 do caixa', async () => {
+    await insertConta(cartao());
+
+    await registrarLancamento(compraParceladaNoCartao, Locais.padrao);
+
+    for (const fatura of await listFaturas('cartao1')) {
+      await pagarFatura(fatura.id, 'caixa-padrao', fatura.data_vencimento);
+    }
+
+    assert.equal(centavos(await saldoDaConta('cartao1')), 0);
+    assert.equal(centavos(await saldoDaConta('caixa-padrao', '2027-01-31')), -10000);
+  });
+
   test('cria uma fatura por ciclo, na data de cada parcela', async () => {
     await insertConta(cartao());
 
@@ -109,9 +134,10 @@ describe('registrarLancamento — compra parcelada no cartao', () => {
 
     await pagarFatura(dezembro.id, 'caixa-padrao', '2026-12-20');
 
-    // O caixa pagante sai; o cartao quita so a parcela daquele ciclo.
-    assert.equal(await saldoDaConta('caixa-padrao'), parcela.valor);
-    assert.equal(await saldoDaConta('cartao1'), -200 - parcela.valor);
+    // O caixa pagante sai na data do pagamento; o cartao quita so a parcela
+    // daquele ciclo e continua devendo as outras duas.
+    assert.equal(await saldoDaConta('caixa-padrao', '2026-12-31'), parcela.valor);
+    assert.equal(centavos(await saldoDaConta('cartao1')), centavos(-100 - parcela.valor));
   });
 
   test('fluxo de gastos inclui a parcela do cartao e exclui o pagamento da fatura', async () => {

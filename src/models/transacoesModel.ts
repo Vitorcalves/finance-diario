@@ -6,6 +6,14 @@ import {
   type ItemTransacao,
   listItensTransacaoByTransacao,
 } from './itensTransacao';
+import {
+  contabilizadoDe,
+  NATUREZAS_DE_CAIXA,
+  NATUREZAS_DO_FLUXO,
+  NATUREZAS_VISIVEIS,
+  type NaturezaTransacao,
+  naturezasSql,
+} from './naturezaTransacao';
 
 export type Transacoes = {
   id: string;
@@ -13,11 +21,11 @@ export type Transacoes = {
   valor: number;
   data: string;
   empresa_id?: string | null;
+  /** O que a linha e (gasto, compra no cartao, transferencia...); ver `naturezaTransacao.ts`. */
+  natureza: NaturezaTransacao;
   /**
-   * `1` entra no fluxo de caixa; `0` fica de fora.
-   *
-   * A compra parcelada grava duas coisas: a compra em si (valor cheio, com os
-   * itens, `0`) e as parcelas (`1`). Somar as duas contaria a compra em dobro.
+   * Legado: `0` para compra no cartao e registro de compra parcelada, `1` no
+   * resto. Gravado a partir da `natureza`; nenhuma consulta le.
    */
   contabilizado_saldo: number;
   /** Plano que gerou a linha; `null` nos lancamentos avulsos. */
@@ -37,7 +45,11 @@ export type Transacoes = {
   created_at: string;
 };
 
-/** Campos com valor padrao no insert, para o lancamento avulso continuar simples. */
+/**
+ * Campos com valor padrao no insert, para o lancamento avulso continuar
+ * simples. A `natureza` e obrigatoria: quem grava decide o que a linha e. O
+ * `contabilizado_saldo` sai dela.
+ */
 export type NovaTransacao = Omit<
   Transacoes,
   | 'contabilizado_saldo'
@@ -52,7 +64,6 @@ export type NovaTransacao = Omit<
   Partial<
     Pick<
       Transacoes,
-      | 'contabilizado_saldo'
       | 'plano_id'
       | 'parcela_numero'
       | 'local'
@@ -64,7 +75,7 @@ export type NovaTransacao = Omit<
   >;
 
 export type OpcoesListaTransacoes = {
-  /** Traz tambem as transacoes de compra fora do caixa (`contabilizado_saldo = 0`). */
+  /** Traz tudo, inclusive compra no cartao e registro da compra parcelada. */
   incluirNaoContabilizadas?: boolean;
   /**
    * Teto de data para a listagem sem periodo.
@@ -75,17 +86,16 @@ export type OpcoesListaTransacoes = {
   ateData?: string;
   /**
    * Visao de gastos do mes (Home e Mensal): a compra no cartao conta como
-   * gasto do mes da compra (`contabilizado_saldo = 0`, com fatura), e o
-   * pagamento da fatura e as transferencias entre contas (`conta_destino_id`)
-   * ficam de fora para nao contar em dobro.
+   * gasto do mes da compra, e o pagamento da fatura e as transferencias entre
+   * contas ficam de fora para nao contar em dobro.
    */
   fluxoGastos?: boolean;
-  /** Visao de caixa da Home: inclui tambem as compras no cartao do feed. */
+  /** Feed da Home: tudo o que o usuario lancou, inclusive as compras no cartao. */
   incluirComprasCartao?: boolean;
 };
 
 const COLUNAS =
-  'id, descricao, valor, data, empresa_id, contabilizado_saldo, plano_id, parcela_numero, local, categoria_id, conta_id, conta_destino_id, fatura_id, created_at';
+  'id, descricao, valor, data, empresa_id, natureza, contabilizado_saldo, plano_id, parcela_numero, local, categoria_id, conta_id, conta_destino_id, fatura_id, created_at';
 
 export const listTransacoes = async (
   start: string | null = null,
@@ -97,14 +107,11 @@ export const listTransacoes = async (
   const params: (string | number)[] = [];
 
   if (opcoes.fluxoGastos) {
-    condicoes.push(`(
-            contabilizado_saldo = 1 AND conta_destino_id IS NULL
-        OR contabilizado_saldo = 0 AND fatura_id IS NOT NULL
-    )`);
+    condicoes.push(`natureza IN (${naturezasSql(NATUREZAS_DO_FLUXO)})`);
   } else if (opcoes.incluirComprasCartao) {
-    condicoes.push('(contabilizado_saldo = 1 OR fatura_id IS NOT NULL)');
+    condicoes.push(`natureza IN (${naturezasSql(NATUREZAS_VISIVEIS)})`);
   } else if (!opcoes.incluirNaoContabilizadas) {
-    condicoes.push('contabilizado_saldo = 1');
+    condicoes.push(`natureza IN (${naturezasSql(NATUREZAS_DE_CAIXA)})`);
   }
 
   if (start && end) {
@@ -133,7 +140,11 @@ export const listTransacoes = async (
   return await db.getAllAsync<Transacoes>(query, params);
 };
 
-/** Todas as cobrancas de planos, sem corte de data nem o limite de 50 do feed. */
+/**
+ * Todas as cobrancas de planos, no caixa e no cartao, sem corte de data nem o
+ * limite de 50 do feed. O registro da compra parcelada (parcela 0) nao e
+ * cobranca e fica de fora.
+ */
 export const listCobrancasDePlanos = async (): Promise<Transacoes[]> => {
   const db = await getConnection();
 
@@ -142,8 +153,7 @@ export const listCobrancasDePlanos = async (): Promise<Transacoes[]> => {
         SELECT ${COLUNAS}
         FROM transacoes
         WHERE plano_id IS NOT NULL
-          AND contabilizado_saldo = 1
-          AND conta_destino_id IS NULL
+          AND natureza IN (${naturezasSql(NATUREZAS_DO_FLUXO)})
         ORDER BY data DESC, created_at DESC
     `,
   );
@@ -168,10 +178,10 @@ export const insertTransacao = async (transacao: NovaTransacao): Promise<void> =
   const db = await getConnection();
   await db.runAsync(
     `
-        INSERT INTO transacoes (id, descricao, valor, data, empresa_id, contabilizado_saldo,
-                                plano_id, parcela_numero, local, categoria_id, conta_id,
-                                conta_destino_id, fatura_id, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO transacoes (id, descricao, valor, data, empresa_id, natureza,
+                                contabilizado_saldo, plano_id, parcela_numero, local,
+                                categoria_id, conta_id, conta_destino_id, fatura_id, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       transacao.id,
@@ -179,7 +189,8 @@ export const insertTransacao = async (transacao: NovaTransacao): Promise<void> =
       transacao.valor,
       transacao.data,
       transacao.empresa_id ?? null,
-      transacao.contabilizado_saldo ?? 1,
+      transacao.natureza,
+      contabilizadoDe(transacao.natureza),
       transacao.plano_id ?? null,
       transacao.parcela_numero ?? null,
       transacao.local ?? Locais.padrao,
@@ -192,7 +203,7 @@ export const insertTransacao = async (transacao: NovaTransacao): Promise<void> =
   );
 };
 
-/** Transacoes de compra parcelada (parcela 0): fora do caixa, donas dos itens. */
+/** Registros de compra parcelada (parcela 0): fora de qualquer saldo, donos dos itens. */
 export const listTransacoesCompra = async (): Promise<Transacoes[]> => {
   const db = await getConnection();
 
@@ -200,7 +211,7 @@ export const listTransacoesCompra = async (): Promise<Transacoes[]> => {
     `
         SELECT ${COLUNAS}
         FROM transacoes
-        WHERE parcela_numero = 0
+        WHERE natureza = 'registro_compra'
     `,
   );
 };
@@ -220,35 +231,6 @@ export const deleteTransacoesFuturasDoPlano = async (
     'DELETE FROM transacoes WHERE plano_id = ? AND data > ? AND parcela_numero > 0',
     [planoId, aPartirDe],
   );
-};
-
-export type ResumoCaixa = {
-  /** Entradas menos saidas ate `hoje`, inclusive. */
-  saldoAtual: number;
-  /** Saidas ja lancadas depois de `hoje` e ate `ate` (valor negativo). */
-  comprometido: number;
-};
-
-/**
- * Saldo e comprometido somados no proprio banco.
- *
- * O feed da Home traz so as 50 transacoes mais recentes: somar aquela lista
- * dava um saldo errado assim que o historico passava disso.
- */
-export const resumoCaixa = async (hoje: string, ate: string): Promise<ResumoCaixa> => {
-  const db = await getConnection();
-
-  const row = await db.getFirstAsync<{ saldo: number | null; comprometido: number | null }>(
-    `
-        SELECT SUM(CASE WHEN data <= ? THEN valor ELSE 0 END)                           AS saldo,
-               SUM(CASE WHEN data > ? AND data <= ? AND valor < 0 THEN valor ELSE 0 END) AS comprometido
-        FROM transacoes
-        WHERE contabilizado_saldo = 1
-    `,
-    [hoje, hoje, ate],
-  );
-
-  return { saldoAtual: row?.saldo ?? 0, comprometido: row?.comprometido ?? 0 };
 };
 
 /** O que foi apagado por `excluirTransacao`, guardado para o "Desfazer". */
@@ -314,16 +296,18 @@ export type TransacaoBuscada = Transacoes & {
 };
 
 /**
- * Lancamentos do caixa que atendem aos filtros, do mais recente ao mais
- * antigo, sem o limite de 50 do feed da Home.
+ * Lancamentos que atendem aos filtros, do mais recente ao mais antigo, sem o
+ * limite de 50 do feed da Home: tudo o que o usuario lancou, inclusive as
+ * compras no cartao, as transferencias e os pagamentos de fatura.
  *
  * O texto e filtrado depois, em JS, para ignorar acentos ("acucar" acha
  * "Açúcar") - o LIKE do SQLite nao faz isso. Os itens de uma compra parcelada
- * ficam na compra (parcela 0), entao contam para a 1a parcela.
+ * ficam no registro da compra (parcela 0), que nao aparece: contam para a 1a
+ * parcela.
  */
 export const buscarTransacoes = async (filtros: FiltrosBusca = {}): Promise<TransacaoBuscada[]> => {
   const db = await getConnection();
-  const condicoes = ['t.contabilizado_saldo = 1'];
+  const condicoes = [`t.natureza IN (${naturezasSql(NATUREZAS_VISIVEIS)})`];
   const params: string[] = [];
 
   if (filtros.inicio) {

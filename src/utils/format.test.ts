@@ -6,6 +6,7 @@ import {
   formatarDiaRelativo,
   toCurrency,
   toCurrencyCurto,
+  toCurrencyFino,
   toCurrencyPorUnidade,
   toPercent,
 } from './format';
@@ -51,6 +52,17 @@ describe('toPercent', () => {
 
   test('corta em uma casa decimal', () => {
     assert.equal(toPercent(3.14159), '+3,1%');
+  });
+});
+
+describe('toCurrencyFino', () => {
+  test('duas casas a partir de R$ 1,00', () => {
+    assert.equal(texto(toCurrencyFino(4.998)), 'R$ 5,00');
+  });
+
+  test('abaixo de R$ 1,00 abre ate quatro casas', () => {
+    assert.equal(texto(toCurrencyFino(0.0125)), 'R$ 0,0125');
+    assert.equal(texto(toCurrencyFino(0.5)), 'R$ 0,50');
   });
 });
 

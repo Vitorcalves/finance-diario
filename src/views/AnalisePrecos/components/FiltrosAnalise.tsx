@@ -1,7 +1,10 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { View } from 'react-native';
-import { ChipSelector, Text } from '../../../components/ui';
+import { ChipSelector, PressableScale, Text } from '../../../components/ui';
 import type { ProdutoComMovimento } from '../../../models/dashboard';
-import { makeStyles, spacing, useTheme } from '../../../theme';
+import { fontSize, iconSize, makeStyles, spacing, useTheme } from '../../../theme';
+import { vibrarSelecao } from '../../../utils/haptics';
+import type { UnidadeBase } from '../types';
 
 type FiltrosAnaliseProps = {
   produtos: ProdutoComMovimento[];
@@ -10,12 +13,19 @@ type FiltrosAnaliseProps = {
   variantes: { id: string; rotulo: string }[];
   varianteId: string | null;
   onSelecionarVariante: (id: string | null) => void;
+  unidadeBase: UnidadeBase;
+  porUnidade: boolean;
+  onAlternarPorUnidade: () => void;
 };
 
 /** Valor do chip "Todas"; os ids reais sao UUIDs e nunca colidem com ele. */
 const TODAS = '__todas__';
 
-/** Escolha do produto e, quando ele tem mais de uma, da variante analisada. */
+/**
+ * Escolha do produto e, quando ele tem mais de uma, da variante analisada.
+ * Com medida cadastrada, a caixa troca o preco do produto pelo preco por
+ * unidade base (R$/kg), como no historico de precos.
+ */
 export default function FiltrosAnalise({
   produtos,
   produtoId,
@@ -23,8 +33,11 @@ export default function FiltrosAnalise({
   variantes,
   varianteId,
   onSelecionarVariante,
+  unidadeBase,
+  porUnidade,
+  onAlternarPorUnidade,
 }: FiltrosAnaliseProps): React.ReactNode {
-  const { sharedStyles } = useTheme();
+  const { colors, sharedStyles } = useTheme();
   const styles = useStyles();
   return (
     <View style={styles.container}>
@@ -50,12 +63,55 @@ export default function FiltrosAnalise({
           />
         </>
       )}
+
+      {unidadeBase.status === 'ok' && (
+        <>
+          <PressableScale
+            escala={0.96}
+            hitSlop={spacing.sm}
+            style={styles.caixa}
+            onPress={(): void => {
+              vibrarSelecao();
+              onAlternarPorUnidade();
+            }}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: porUnidade }}
+          >
+            <Ionicons
+              name={porUnidade ? 'checkbox' : 'square-outline'}
+              size={iconSize.sm}
+              color={porUnidade ? colors.primary : colors.textSubtle}
+            />
+            <Text style={styles.caixaTexto}>{`Preço por ${unidadeBase.sigla}`}</Text>
+          </PressableScale>
+
+          {porUnidade && unidadeBase.semMedida > 0 && (
+            <Text style={styles.aviso}>
+              {`${unidadeBase.semMedida} registro(s) sem medida cadastrada ficaram de fora.`}
+            </Text>
+          )}
+        </>
+      )}
     </View>
   );
 }
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((colors) => ({
   container: {
     gap: spacing.xs,
+  },
+  caixa: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: spacing.xs,
+  },
+  caixaTexto: {
+    fontSize: fontSize.small,
+    color: colors.text,
+  },
+  aviso: {
+    fontSize: fontSize.micro,
+    color: colors.textSubtle,
   },
 }));

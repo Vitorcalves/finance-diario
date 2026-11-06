@@ -11,9 +11,9 @@ import {
 } from '../../models/dashboard';
 import { listMarcas, type Marca } from '../../models/marcas';
 import { listProdutoVariantes, type ProdutoVariantes } from '../../models/produtoVariantes';
-import { rotuloVariantePorId } from '../../utils/variantes';
-import { agruparPorDia, resumirPrecos } from './series';
-import type { ResumoPrecos, Serie } from './types';
+import { precoPorUnidadePrimaria, rotuloVariantePorId } from '../../utils/variantes';
+import { agruparPorDia, definirUnidadeBase, resumirPrecos, valoresNaBase } from './series';
+import type { RegistroUnitario, ResumoPrecos, Serie, UnidadeBase } from './types';
 
 export type UseAnalisePrecos = {
   loading: boolean;
@@ -27,6 +27,13 @@ export type UseAnalisePrecos = {
   /** `null` mostra todas as variantes juntas. */
   varianteId: string | null;
   selecionarVariante: (id: string | null) => void;
+  /** Unidade base comum aos precos do filtro; so com `ok` da para ver R$/kg. */
+  unidadeBase: UnidadeBase;
+  /** Escolha do usuario: preco por unidade base em vez do preco do produto. */
+  porUnidade: boolean;
+  alternarPorUnidade: () => void;
+  /** Sigla em que os valores estao expressos (`kg`); `null` = preco do produto. */
+  sigla: string | null;
   series: Serie[];
   resumo: ResumoPrecos;
 };
@@ -40,6 +47,8 @@ export function useAnalisePrecos(produtoInicial?: string): UseAnalisePrecos {
   const [marcas, setMarcas] = useState<Marca[]>([]);
   const [produtoId, setProdutoId] = useState<string | null>(produtoInicial ?? null);
   const [varianteId, setVarianteId] = useState<string | null>(null);
+  // Fica ligado ao trocar de produto: quem compara por kg quer comparar todos assim.
+  const [porUnidade, setPorUnidade] = useState(false);
   // Series guardadas junto com o produto a que pertencem: ao trocar de produto
   // o dado antigo e ignorado ate a nova leitura chegar, sem precisar zerar
   // estado dentro do efeito.
@@ -147,19 +156,60 @@ export function useAnalisePrecos(produtoInicial?: string): UseAnalisePrecos {
       .sort((a, b) => a.rotulo.localeCompare(b.rotulo, 'pt-BR'));
   }, [pagos, historico, variantesCadastro, marcas]);
 
+  const variantePorId = useMemo(
+    () => new Map(variantesCadastro.map((variante) => [variante.id, variante])),
+    [variantesCadastro],
+  );
+
+  /** Registros do filtro, cada um tambem com o preco reduzido a unidade base. */
+  const registros = useMemo(() => {
+    const daVariante = <T extends { variante_id: string | null }>(lista: T[]): T[] =>
+      varianteId ? lista.filter((registro) => registro.variante_id === varianteId) : lista;
+
+    const comUnitario = (registro: PrecoPago | PrecoHistorico): RegistroUnitario => ({
+      data: registro.data,
+      preco: registro.preco,
+      unitario: precoPorUnidadePrimaria(
+        registro.preco,
+        registro.variante_id ? variantePorId.get(registro.variante_id) : undefined,
+      ),
+    });
+
+    return {
+      pagos: daVariante(pagos).map(comUnitario),
+      historico: daVariante(historico).map(comUnitario),
+    };
+  }, [pagos, historico, varianteId, variantePorId]);
+
+  const unidadeBase = useMemo(
+    (): UnidadeBase => definirUnidadeBase([...registros.pagos, ...registros.historico]),
+    [registros],
+  );
+
+  // Sem base comum (sem medida ou kg x un) a escolha fica guardada, mas os
+  // valores voltam para o preco do produto.
+  const sigla = porUnidade && unidadeBase.status === 'ok' ? unidadeBase.sigla : null;
+
   const series = useMemo((): Serie[] => {
-    const pagosFiltrados = varianteId
-      ? pagos.filter((pago) => pago.variante_id === varianteId)
-      : pagos;
-    const historicoFiltrado = varianteId
-      ? historico.filter((registro) => registro.variante_id === varianteId)
-      : historico;
+    const naBase = sigla !== null;
 
     return [
-      { id: 'historico', rotulo: 'Histórico de preços', pontos: agruparPorDia(historicoFiltrado) },
-      { id: 'pago', rotulo: 'Valor pago', pontos: agruparPorDia(pagosFiltrados) },
+      {
+        id: 'historico',
+        rotulo: 'Histórico de preços',
+        pontos: agruparPorDia(valoresNaBase(registros.historico, naBase)),
+      },
+      {
+        id: 'pago',
+        rotulo: 'Valor pago',
+        pontos: agruparPorDia(valoresNaBase(registros.pagos, naBase)),
+      },
     ];
-  }, [pagos, historico, varianteId]);
+  }, [registros, sigla]);
+
+  const alternarPorUnidade = useCallback((): void => {
+    setPorUnidade((atual) => !atual);
+  }, []);
 
   const resumo = useMemo(
     (): ResumoPrecos =>
@@ -179,6 +229,10 @@ export function useAnalisePrecos(produtoInicial?: string): UseAnalisePrecos {
     variantes,
     varianteId,
     selecionarVariante: setVarianteId,
+    unidadeBase,
+    porUnidade,
+    alternarPorUnidade,
+    sigla,
     series,
     resumo,
   };

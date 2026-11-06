@@ -1,22 +1,43 @@
 import { View } from 'react-native';
 import { fontSize, fontWeight, makeStyles, radius, spacing, useTheme } from '../../../theme';
-import { toCurrency, toPercent } from '../../../utils/format';
+import { toCurrency, toCurrencyFino, toPercent } from '../../../utils/format';
 import type { ResumoPrecos } from '../types';
 import { Text } from '../../../components/ui';
 
 type ResumoPrecosCardProps = {
   resumo: ResumoPrecos;
+  /** Sigla da unidade base (`kg`) quando os valores sao por unidade; `null` = preco do produto. */
+  sigla: string | null;
 };
 
 const SEM_VALOR = '—';
 
-const moeda = (valor: number | null): string => (valor === null ? SEM_VALOR : toCurrency(valor));
-
 /** Numeros-chave do produto: ultimo pago, variacao, faixa e ultimo registro. */
-export default function ResumoPrecosCard({ resumo }: ResumoPrecosCardProps): React.ReactNode {
+export default function ResumoPrecosCard({
+  resumo,
+  sigla,
+}: ResumoPrecosCardProps): React.ReactNode {
   const { sharedStyles } = useTheme();
   const styles = useStyles();
   const variacao = resumo.variacaoPago;
+
+  /** Valor em reais; por unidade, o `/kg` vai menor ao lado para caber no bloco. */
+  const moeda = (valor: number | null): React.ReactNode => {
+    if (valor === null) {
+      return SEM_VALOR;
+    }
+
+    if (sigla === null) {
+      return toCurrency(valor);
+    }
+
+    return (
+      <>
+        {toCurrencyFino(valor)}
+        <Text style={styles.sufixo}>{`/${sigla}`}</Text>
+      </>
+    );
+  };
 
   return (
     <View style={sharedStyles.card}>
@@ -107,5 +128,10 @@ const useStyles = makeStyles((colors) => ({
     fontSize: fontSize.body,
     fontWeight: fontWeight.bold,
     color: colors.text,
+  },
+  sufixo: {
+    fontSize: fontSize.caption,
+    fontWeight: fontWeight.medium,
+    color: colors.textMuted,
   },
 }));

@@ -1,5 +1,13 @@
 import dayjs from 'dayjs';
-import type { Dominio, PontoProjetado, PontoSerie, ResumoPrecos, Serie } from './types';
+import type {
+  Dominio,
+  PontoProjetado,
+  PontoSerie,
+  RegistroUnitario,
+  ResumoPrecos,
+  Serie,
+  UnidadeBase,
+} from './types';
 
 /** Altura util da area de desenho, em pixels. */
 export const ALTURA_GRAFICO = 180;
@@ -40,6 +48,39 @@ export const agruparPorDia = (registros: { data: string; preco: number }[]): Pon
     }))
     .sort((a, b) => toTimestamp(a.data) - toTimestamp(b.data));
 };
+
+/**
+ * Unidade base comum aos registros, com a regra do historico de precos:
+ * registro sem medida fica de fora (e e contado), e medidas de grupos
+ * diferentes (kg x un) nao tem base comum.
+ */
+export const definirUnidadeBase = (registros: RegistroUnitario[]): UnidadeBase => {
+  const unitarios = registros.flatMap((registro) => (registro.unitario ? [registro.unitario] : []));
+
+  if (unitarios.length === 0) {
+    return { status: 'semMedida' };
+  }
+
+  const { unidadeId, sigla } = unitarios[0];
+
+  if (unitarios.some((unitario) => unitario.unidadeId !== unidadeId)) {
+    return { status: 'unidadesIncompativeis' };
+  }
+
+  return { status: 'ok', unidadeId, sigla, semMedida: registros.length - unitarios.length };
+};
+
+/**
+ * Precos que vao para o grafico: o do produto ou, com `porUnidade`, o
+ * reduzido a unidade base - registro sem medida fica de fora.
+ */
+export const valoresNaBase = (
+  registros: RegistroUnitario[],
+  porUnidade: boolean,
+): { data: string; preco: number }[] =>
+  porUnidade
+    ? registros.flatMap(({ data, unitario }) => (unitario ? [{ data, preco: unitario.valor }] : []))
+    : registros;
 
 /** Passo "redondo" (1, 2, 5 x 10^n) para dividir um intervalo em ~`alvo` ticks. */
 const passoRedondo = (intervalo: number, alvo: number): number => {
@@ -89,7 +130,11 @@ export const calcularDominio = (series: Serie[]): Dominio | null => {
   const menor = Math.min(...valores);
   const maior = Math.max(...valores);
   // Valor unico ou todos iguais: abre 10% (ou R$ 1) para nao dividir por zero.
-  const intervalo = maior > menor ? maior - menor : Math.max(1, Math.abs(maior) * 0.1);
+  // Valores proximos: a escala trata a variacao como de ao menos 10% do maior
+  // valor (e 4 centavos). Fracao de centavo (R$ 4,998/kg x R$ 5,00/kg) nao vira
+  // um sobe e desce do grafico inteiro, e as marcas nunca pedem mais de 2 casas.
+  const intervalo =
+    maior > menor ? Math.max(maior - menor, maior * 0.1, 0.04) : Math.max(1, Math.abs(maior) * 0.1);
   const passo = passoRedondo(intervalo, TICKS_Y);
 
   const minimo = Math.max(0, Math.floor((menor - intervalo * 0.05) / passo) * passo);
@@ -103,6 +148,13 @@ export const calcularDominio = (series: Serie[]): Dominio | null => {
 
   return { inicio, fim, minimo, maximo, ticks };
 };
+
+/**
+ * `true` quando alguma marca do eixo vertical cai entre dois reais (R$ 4,50):
+ * sem os centavos o rotulo dela repetiria o da vizinha.
+ */
+export const eixoComCentavos = (dominio: Dominio): boolean =>
+  dominio.ticks.some((tick) => !Number.isInteger(tick));
 
 /** Converte os pontos de uma serie para pixels dentro da area util. */
 export const projetarPontos = (

@@ -1,4 +1,35 @@
+import type { PrecoPorUnidade } from '../../utils/variantes';
+
 export type SerieId = 'pago' | 'historico';
+
+/** Preco pago ou do historico, com o valor ja reduzido a unidade base. */
+export type RegistroUnitario = {
+  /** Data no formato YYYY-MM-DD. */
+  data: string;
+  /** Preco do produto: o da embalagem ou o da medida a granel. */
+  preco: number;
+  /** `null` quando a variante nao tem quantidade e unidade cadastradas. */
+  unitario: PrecoPorUnidade | null;
+};
+
+/**
+ * Unidade base em que os precos do filtro podem ser comparados (R$/kg, R$/L,
+ * R$/un), a mesma reducao usada no historico de precos.
+ *
+ * `semMedida`: nenhum registro tem variante com quantidade e unidade.
+ * `unidadesIncompativeis`: o filtro mistura medidas de grupos diferentes
+ * (ex.: uma variante em gramas e outra avulsa), entao nao ha base comum.
+ */
+export type UnidadeBase =
+  | {
+      status: 'ok';
+      unidadeId: number;
+      sigla: string;
+      /** Registros deixados de fora por nao terem medida cadastrada. */
+      semMedida: number;
+    }
+  | { status: 'semMedida' }
+  | { status: 'unidadesIncompativeis' };
 
 /** Um ponto do grafico: o preco medio de um dia. */
 export type PontoSerie = {

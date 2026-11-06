@@ -54,13 +54,15 @@ export const formatarMoeda = (valor: number): string => formatadorValor.format(v
 export const toCurrencyCurto = (valor: number): string => formatadorMoedaCurta.format(valor);
 
 /**
- * Ex.: `R$ 9,99/kg`. Abaixo de R$ 1,00 mostra ate 4 casas para nao virar
- * `R$ 0,00` em produtos vendidos em unidades pequenas.
+ * Ex.: `R$ 9,99` ou `R$ 0,0125`. Abaixo de R$ 1,00 mostra ate 4 casas para
+ * nao virar `R$ 0,00` em produtos vendidos em unidades pequenas.
  */
-export const toCurrencyPorUnidade = (valor: number, sigla: string): string => {
-  const formatador = Math.abs(valor) < 1 ? formatadorMoedaFina : formatadorMoeda;
-  return `${formatador.format(valor)}/${sigla}`;
-};
+export const toCurrencyFino = (valor: number): string =>
+  (Math.abs(valor) < 1 ? formatadorMoedaFina : formatadorMoeda).format(valor);
+
+/** Ex.: `R$ 9,99/kg`, com as casas de `toCurrencyFino`. */
+export const toCurrencyPorUnidade = (valor: number, sigla: string): string =>
+  `${toCurrencyFino(valor)}/${sigla}`;
 
 /** Ex.: `+12,5%`. */
 export const toPercent = (valor: number): string =>

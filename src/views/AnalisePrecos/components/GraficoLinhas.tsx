@@ -16,12 +16,18 @@ import {
   spacing,
   useTheme,
 } from '../../../theme';
-import { formatarData, toCurrency, toCurrencyCurto } from '../../../utils/format';
+import {
+  formatarData,
+  toCurrency,
+  toCurrencyCurto,
+  toCurrencyPorUnidade,
+} from '../../../utils/format';
 import {
   ALTURA_GRAFICO,
   MARGEM,
   calcularDominio,
   caminhoLinha,
+  eixoComCentavos,
   pontoMaisProximo,
   posicaoY,
   projetarPontos,
@@ -32,6 +38,8 @@ import { Text } from '../../../components/ui';
 
 type GraficoLinhasProps = {
   series: Serie[];
+  /** Sigla da unidade base (`kg`) quando os valores sao por unidade; `null` = preco do produto. */
+  sigla: string | null;
 };
 
 /** Cor de cada serie; `pago` e a marca, `historico` fica em azul de apoio. */
@@ -54,7 +62,7 @@ type SerieProjetada = {
  * Grafico de linhas: uma linha por serie sobre a mesma escala de datas e valores.
  * Tocar no grafico destaca o ponto mais proximo e mostra os valores do dia.
  */
-export default function GraficoLinhas({ series }: GraficoLinhasProps): React.ReactNode {
+export default function GraficoLinhas({ series, sigla }: GraficoLinhasProps): React.ReactNode {
   const { colors, sharedStyles } = useTheme();
   const styles = useStyles();
   const COR_SERIE = corSerie(colors);
@@ -74,6 +82,8 @@ export default function GraficoLinhas({ series }: GraficoLinhasProps): React.Rea
 
   const largura = Math.max(0, larguraTotal - MARGEM.esquerda - MARGEM.direita);
   const dominio = useMemo(() => calcularDominio(series), [series]);
+  // Precos por unidade costumam ser pequenos (R$ 4,50/kg): ai a escala precisa de centavos.
+  const rotuloTick = dominio && eixoComCentavos(dominio) ? toCurrency : toCurrencyCurto;
 
   const projetadas = useMemo((): SerieProjetada[] => {
     if (!dominio || largura === 0) {
@@ -127,7 +137,9 @@ export default function GraficoLinhas({ series }: GraficoLinhasProps): React.Rea
 
   return (
     <View style={sharedStyles.card}>
-      <Text style={sharedStyles.sectionTitle}>Preço ao longo do tempo</Text>
+      <Text style={sharedStyles.sectionTitle}>
+        {sigla ? `Preço por ${sigla} ao longo do tempo` : 'Preço ao longo do tempo'}
+      </Text>
 
       <Pressable onLayout={aoMedir} onPress={(event): void => aoTocar(event.nativeEvent.locationX)}>
         {dominio && larguraTotal > 0 ? (
@@ -145,7 +157,7 @@ export default function GraficoLinhas({ series }: GraficoLinhasProps): React.Rea
                       fill={colors.textSubtle}
                       textAnchor="end"
                     >
-                      {toCurrencyCurto(tick)}
+                      {rotuloTick(tick)}
                     </SvgText>
                   </G>
                 );
@@ -229,7 +241,9 @@ export default function GraficoLinhas({ series }: GraficoLinhasProps): React.Rea
         <View style={styles.detalhe}>
           <Text style={styles.detalheData}>{formatarData(pontoSelecionado.ponto.data)}</Text>
           <Text style={[styles.detalheValor, ESTILO_VALOR[selecionado.serie]]}>
-            {toCurrency(pontoSelecionado.ponto.valor)}
+            {sigla
+              ? toCurrencyPorUnidade(pontoSelecionado.ponto.valor, sigla)
+              : toCurrency(pontoSelecionado.ponto.valor)}
           </Text>
           <Text style={styles.detalheHint}>
             {selecionado.serie === 'pago' ? 'pago' : 'no histórico'}

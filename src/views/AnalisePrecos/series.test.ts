@@ -4,12 +4,15 @@ import {
   agruparPorDia,
   calcularDominio,
   caminhoLinha,
+  definirUnidadeBase,
+  eixoComCentavos,
   pontoMaisProximo,
   projetarPontos,
   resumirPrecos,
   ticksEixoX,
+  valoresNaBase,
 } from './series';
-import type { Dominio, Serie } from './types';
+import type { Dominio, RegistroUnitario, Serie } from './types';
 
 const serie = (id: Serie['id'], pontos: { data: string; valor: number }[]): Serie => ({
   id,
@@ -51,6 +54,78 @@ describe('agruparPorDia', () => {
 
   test('sem registros devolve lista vazia', () => {
     assert.deepEqual(agruparPorDia([]), []);
+  });
+});
+
+/** Registro com preco por kg ja calculado (unidade 2 = Quilogramas). */
+const porKg = (data: string, preco: number, valorKg: number): RegistroUnitario => ({
+  data,
+  preco,
+  unitario: { valor: valorKg, unidadeId: 2, sigla: 'kg' },
+});
+
+const semMedida = (data: string, preco: number): RegistroUnitario => ({
+  data,
+  preco,
+  unitario: null,
+});
+
+describe('definirUnidadeBase', () => {
+  test('todos na mesma unidade primaria tem base comum', () => {
+    assert.deepEqual(
+      definirUnidadeBase([porKg('2026-01-01', 24.99, 4.998), porKg('2026-02-01', 5, 10)]),
+      { status: 'ok', unidadeId: 2, sigla: 'kg', semMedida: 0 },
+    );
+  });
+
+  test('registro sem medida fica de fora, mas e contado', () => {
+    const base = definirUnidadeBase([
+      porKg('2026-01-01', 24.99, 4.998),
+      semMedida('2026-02-01', 3),
+    ]);
+
+    assert.equal(base.status, 'ok');
+    assert.equal(base.status === 'ok' && base.semMedida, 1);
+  });
+
+  test('nenhum registro com medida nao tem base', () => {
+    assert.equal(definirUnidadeBase([semMedida('2026-01-01', 3)]).status, 'semMedida');
+    assert.equal(definirUnidadeBase([]).status, 'semMedida');
+  });
+
+  test('medidas de grupos diferentes nao tem base comum', () => {
+    const base = definirUnidadeBase([
+      porKg('2026-01-01', 24.99, 4.998),
+      { data: '2026-02-01', preco: 8, unitario: { valor: 8, unidadeId: 7, sigla: 'un' } },
+    ]);
+
+    assert.equal(base.status, 'unidadesIncompativeis');
+  });
+});
+
+describe('valoresNaBase', () => {
+  const registros = [porKg('2026-01-01', 24.99, 4.998), semMedida('2026-02-01', 3)];
+
+  test('no preco do produto mantem todos os registros', () => {
+    assert.deepEqual(
+      valoresNaBase(registros, false).map(({ data, preco }) => ({ data, preco })),
+      [
+        { data: '2026-01-01', preco: 24.99 },
+        { data: '2026-02-01', preco: 3 },
+      ],
+    );
+  });
+
+  test('por unidade usa o valor reduzido e tira quem nao tem medida', () => {
+    assert.deepEqual(valoresNaBase(registros, true), [{ data: '2026-01-01', preco: 4.998 }]);
+  });
+
+  test('embalagens diferentes viram o mesmo ponto quando o preco por kg e igual', () => {
+    const pontos = agruparPorDia(
+      valoresNaBase([porKg('2026-01-01', 25, 5), porKg('2026-01-01', 5, 5)], true),
+    );
+
+    assert.deepEqual(pontos, [{ data: '2026-01-01', valor: 5, registros: 2 }]);
   });
 });
 
@@ -112,6 +187,55 @@ describe('calcularDominio', () => {
     assert.ok(dominio.minimo <= 5);
     assert.ok(dominio.maximo >= 20);
     assert.deepEqual(ticksEixoX(dominio, 2), ['2026-01-01', '2026-03-01']);
+  });
+
+  test('fracao de centavo nao vira um sobe e desce da altura inteira', () => {
+    // R$ 24,99 em 5 kg x R$ 5,00 em 1 kg: praticamente o mesmo preco por kg.
+    const dominio = calcularDominio([
+      serie('pago', [
+        { data: '2026-01-01', valor: 4.998 },
+        { data: '2026-02-01', valor: 5 },
+      ]),
+    ]);
+
+    assert.ok(dominio);
+    assert.ok(dominio.minimo <= 4.998 && dominio.maximo >= 5);
+    assert.ok((5 - 4.998) / (dominio.maximo - dominio.minimo) < 0.05);
+  });
+
+  test('valores pequenos (preco por unidade) nunca pedem mais de duas casas no eixo', () => {
+    const dominio = calcularDominio([
+      serie('pago', [
+        { data: '2026-01-01', valor: 0.0125 },
+        { data: '2026-02-01', valor: 0.013 },
+      ]),
+    ]);
+
+    assert.ok(dominio);
+
+    for (const tick of dominio.ticks) {
+      assert.equal(Number(tick.toFixed(2)), tick);
+    }
+
+    assert.ok(dominio.minimo <= 0.0125 && dominio.maximo >= 0.013);
+  });
+});
+
+describe('eixoComCentavos', () => {
+  const comTicks = (ticks: number[]): Dominio => ({
+    inicio: 0,
+    fim: 1,
+    minimo: ticks[0],
+    maximo: ticks[ticks.length - 1],
+    ticks,
+  });
+
+  test('ticks inteiros dispensam centavos', () => {
+    assert.equal(eixoComCentavos(comTicks([0, 5, 10, 15])), false);
+  });
+
+  test('tick entre dois reais pede centavos', () => {
+    assert.equal(eixoComCentavos(comTicks([4, 4.5, 5, 5.5])), true);
   });
 });
 

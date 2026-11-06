@@ -27,6 +27,10 @@ export default function AnalisePrecosView(): React.ReactNode {
     variantes,
     varianteId,
     selecionarVariante,
+    unidadeBase,
+    porUnidade,
+    alternarPorUnidade,
+    sigla,
     series,
     resumo,
   } = useAnalisePrecos(route.params?.produtoId);
@@ -50,9 +54,13 @@ export default function AnalisePrecosView(): React.ReactNode {
 
     return (
       <>
-        <ResumoPrecosCard resumo={resumo} />
-        {/* A chave zera o ponto selecionado ao trocar de produto/variante. */}
-        <GraficoLinhas key={`${produtoId ?? ''}:${varianteId ?? ''}`} series={series} />
+        <ResumoPrecosCard resumo={resumo} sigla={sigla} />
+        {/* A chave zera o ponto selecionado ao trocar de produto, variante ou escala. */}
+        <GraficoLinhas
+          key={`${produtoId ?? ''}:${varianteId ?? ''}:${sigla ?? ''}`}
+          series={series}
+          sigla={sigla}
+        />
       </>
     );
   };
@@ -85,6 +93,9 @@ export default function AnalisePrecosView(): React.ReactNode {
             variantes={variantes}
             varianteId={varianteId}
             onSelecionarVariante={selecionarVariante}
+            unidadeBase={unidadeBase}
+            porUnidade={porUnidade}
+            onAlternarPorUnidade={alternarPorUnidade}
           />
 
           {renderConteudo()}

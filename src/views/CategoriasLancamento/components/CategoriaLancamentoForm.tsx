@@ -3,6 +3,7 @@ import type { ComponentProps } from 'react';
 import { useState } from 'react';
 import { View } from 'react-native';
 import CategoriaIcone from '../../../components/CategoriaIcone';
+import SeletorCor from '../../../components/SeletorCor';
 import {
   BottomSheet,
   Button,
@@ -15,7 +16,7 @@ import type {
   CategoriaLancamento,
   TipoCategoriaLancamento,
 } from '../../../models/categoriasLancamento';
-import { CORES_CATEGORIA, iconSize, makeStyles, radius, spacing, useTheme } from '../../../theme';
+import { iconSize, makeStyles, radius, spacing, useTheme } from '../../../theme';
 import { vibrarSelecao } from '../../../utils/haptics';
 import type { DadosCategoriaLancamento } from '../useCategoriasLancamento';
 
@@ -133,31 +134,8 @@ export default function CategoriaLancamentoForm({
       </View>
 
       <Text style={sharedStyles.label}>Cor</Text>
-      <View style={[styles.grade, styles.bloco]}>
-        {CORES_CATEGORIA.map((chave) => {
-          const ativa = chave === cor;
-
-          return (
-            <PressableScale
-              key={chave}
-              escala={0.88}
-              accessibilityRole="button"
-              accessibilityLabel={`Cor ${chave}`}
-              accessibilityState={{ selected: ativa }}
-              style={[
-                styles.cor,
-                { backgroundColor: corCategoria(chave) },
-                ativa && styles.corAtiva,
-              ]}
-              onPress={(): void => {
-                vibrarSelecao();
-                setCor(chave);
-              }}
-            >
-              {ativa && <Ionicons name="checkmark" size={iconSize.sm} color={colors.onHero} />}
-            </PressableScale>
-          );
-        })}
+      <View style={styles.bloco}>
+        <SeletorCor valor={cor} onChange={setCor} />
       </View>
 
       <Text style={sharedStyles.label}>Ícone</Text>
@@ -203,20 +181,6 @@ const useStyles = makeStyles((colors) => ({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
-  },
-  cor: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  corAtiva: {
-    borderWidth: 3,
-    borderColor: colors.surface,
-    // Anel externo para a cor escolhida se destacar das outras.
-    outlineWidth: 2,
-    outlineColor: colors.textStrong,
   },
   icone: {
     width: 48,

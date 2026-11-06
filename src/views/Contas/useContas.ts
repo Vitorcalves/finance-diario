@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import dayjs from 'dayjs';
@@ -14,11 +14,15 @@ import {
   listMovimentosDaConta,
   normalizarDadosConta,
   podeRemoverConta,
+  reativarConta,
+  somarPorTipo,
+  type TotaisPorTipo,
   totalAportadoNoMes,
   updateConta,
   ValidacaoContaError,
 } from '../../models/contas';
 import { registrarLancamento } from '../../models/lancamentos';
+import { agruparContas, type SecaoContas } from '../../utils/contas';
 import { Locais } from '../../utils/local';
 import type { DetalheReserva } from './components/ReservaDetalheModal';
 import type { DadosTransferenciaReserva } from './components/TransferenciaReservaModal';
@@ -36,6 +40,12 @@ export type DadosContaForm = {
 
 export type UseContas = {
   contas: ContaComSaldo[];
+  /** Caixas, reservas, cartoes e inativas, nessa ordem; secao vazia some. */
+  secoes: SecaoContas[];
+  /** Saldo atual, total das reservas e o que esta em aberto nos cartoes (so ativas). */
+  totais: TotaisPorTipo;
+  /** Contas ativas de cada tipo, para o resumo esconder o quadro de um tipo sem conta. */
+  quantidade: { caixas: number; reservas: number; cartoes: number };
   /** Caixas ativas, parceiras dos aportes/resgates. */
   caixas: ContaComSaldo[];
   loading: boolean;
@@ -43,6 +53,8 @@ export type UseContas = {
   salvar: (dados: DadosContaForm, contaEditando: ContaComSaldo | null) => Promise<boolean>;
   /** Com transacoes apenas inativa; sem nenhuma, exclui de verdade. */
   remover: (conta: ContaComSaldo) => void;
+  /** Devolve uma conta inativa aos seletores. */
+  reativar: (conta: ContaComSaldo) => void;
   /** Grava o aporte/resgate como transferencia entre as duas contas. */
   transferir: (dados: DadosTransferenciaReserva) => Promise<boolean>;
   /** Detalhe carregado da reserva (saldo, meta, extrato); `null` com painel fechado. */
@@ -261,12 +273,49 @@ export function useContas(): UseContas {
 
   const fecharDetalhe = useCallback((): void => setDetalhe(null), []);
 
+  const reativar = useCallback(
+    (conta: ContaComSaldo): void => {
+      void (async (): Promise<void> => {
+        try {
+          await reativarConta(conta.id);
+          await carregar();
+          toast.mostrar('Conta reativada');
+        } catch (error: unknown) {
+          console.error('Erro ao reativar conta:', error);
+          Alert.alert('Erro', 'Não foi possível reativar a conta');
+        }
+      })();
+    },
+    [carregar, toast],
+  );
+
+  const secoes = useMemo(() => agruparContas(contas), [contas]);
+  const totais = useMemo(() => somarPorTipo(contas), [contas]);
+  const caixas = useMemo(
+    () => contas.filter((conta) => conta.tipo === 'caixa' && conta.ativo),
+    [contas],
+  );
+  const quantidade = useMemo(() => {
+    const ativasDoTipo = (tipo: ContaComSaldo['tipo']): number =>
+      contas.filter((conta) => conta.ativo && conta.tipo === tipo).length;
+
+    return {
+      caixas: ativasDoTipo('caixa'),
+      reservas: ativasDoTipo('reserva'),
+      cartoes: ativasDoTipo('cartao'),
+    };
+  }, [contas]);
+
   return {
     contas,
-    caixas: contas.filter((conta) => conta.tipo === 'caixa' && conta.ativo),
+    secoes,
+    totais,
+    quantidade,
+    caixas,
     loading,
     salvar,
     remover,
+    reativar,
     transferir,
     detalhe,
     abrirDetalhe,

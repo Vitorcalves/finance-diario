@@ -4,6 +4,7 @@ import { BottomSheet, BarraProgresso, Text } from '../../../components/ui';
 import type { ContaComSaldo } from '../../../models/contas';
 import type { Transacoes } from '../../../models/transacoesModel';
 import { fontSize, fontWeight, makeStyles, spacing, useTheme } from '../../../theme';
+import { corDaConta, progressoDaMeta } from '../../../utils/contas';
 import { formatarData, toCurrency } from '../../../utils/format';
 
 export type DetalheReserva = {
@@ -28,18 +29,10 @@ export default function ReservaDetalheModal({
   detalhe,
   onFechar,
 }: ReservaDetalheModalProps): React.ReactNode {
-  const { colors, sharedStyles } = useTheme();
+  const { colors, corCategoria, sharedStyles } = useTheme();
   const styles = useStyles();
   const reserva = detalhe?.reserva ?? null;
-
-  const progresso =
-    reserva?.meta_valor && reserva.meta_valor > 0
-      ? Math.min(reserva.saldo / reserva.meta_valor, 1)
-      : null;
-  const falta =
-    reserva?.meta_valor && reserva.meta_valor > 0
-      ? Math.max(reserva.meta_valor - reserva.saldo, 0)
-      : null;
+  const progresso = reserva ? progressoDaMeta(reserva) : null;
 
   return (
     <BottomSheet
@@ -56,18 +49,18 @@ export default function ReservaDetalheModal({
               {toCurrency(reserva.saldo)}
             </Text>
 
-            {reserva.meta_valor ? (
+            {progresso && reserva.meta_valor ? (
               <>
                 <Text style={styles.metaLinha}>
-                  {`Meta: ${toCurrency(reserva.meta_valor)} · ${Math.round((progresso ?? 0) * 100)}%`}
+                  {`Meta: ${toCurrency(reserva.meta_valor)} · ${progresso.percentual}%`}
                 </Text>
                 <BarraProgresso
                   total={1}
                   corTrilho={colors.border}
-                  segmentos={[{ valor: progresso ?? 0, cor: reserva.cor ?? colors.primary }]}
+                  segmentos={[{ valor: progresso.fracao, cor: corDaConta(reserva, corCategoria) }]}
                 />
                 <Text style={styles.metaLinha}>
-                  {falta && falta > 0 ? `Faltam ${toCurrency(falta)}` : 'Meta atingida'}
+                  {progresso.falta > 0 ? `Faltam ${toCurrency(progresso.falta)}` : 'Meta atingida'}
                 </Text>
               </>
             ) : (
@@ -83,7 +76,7 @@ export default function ReservaDetalheModal({
 
           {(detalhe?.movimentos ?? []).length === 0 ? (
             <Text style={styles.vazio}>
-              Nenhum aporte ou resgate ainda. Use as setas do card para movimentar.
+              Nenhum aporte ou resgate ainda. Use Aportar ou Resgatar no card da reserva.
             </Text>
           ) : (
             (detalhe?.movimentos ?? []).map((movimento) => {

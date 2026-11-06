@@ -13,6 +13,7 @@ import {
   spacing,
   useTheme,
 } from '../../../theme';
+import { corDaConta, progressoDaMeta } from '../../../utils/contas';
 import { toCurrency } from '../../../utils/format';
 import type { ResumoHome } from '../useHome';
 
@@ -25,7 +26,7 @@ type ResumoTotaisProps = {
  * e a barra do gasto realizado contra a projecao de fechamento.
  */
 export default function ResumoTotais({ resumo }: ResumoTotaisProps): React.ReactNode {
-  const { colors } = useTheme();
+  const { colors, corCategoria } = useTheme();
   const styles = useStyles();
   const {
     saldoAtual,
@@ -130,9 +131,8 @@ export default function ResumoTotais({ resumo }: ResumoTotaisProps): React.React
           <Text style={styles.reservasTotal}>{toCurrency(totalReservas)}</Text>
 
           {reservas.map((reserva) => {
-            const progresso = reserva.meta_valor
-              ? Math.min(Math.max(reserva.saldo / reserva.meta_valor, 0), 1)
-              : null;
+            // Mesmo calculo e mesma cor do card da reserva na tela de Contas.
+            const progresso = progressoDaMeta(reserva)?.fracao ?? null;
 
             return (
               <View key={reserva.id} style={styles.reservaLinha}>
@@ -148,7 +148,7 @@ export default function ResumoTotais({ resumo }: ResumoTotaisProps): React.React
                   <BarraProgresso
                     total={1}
                     corTrilho={colors.border}
-                    segmentos={[{ valor: progresso, cor: reserva.cor ?? colors.success }]}
+                    segmentos={[{ valor: progresso, cor: corDaConta(reserva, corCategoria) }]}
                   />
                 ) : null}
               </View>

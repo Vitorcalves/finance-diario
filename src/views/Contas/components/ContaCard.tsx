@@ -1,110 +1,175 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
-import type { ComponentProps } from 'react';
 import { View } from 'react-native';
-import { BarraProgresso, IconButton, Text } from '../../../components/ui';
-import type { ContaComSaldo, TipoConta } from '../../../models/contas';
+import ContaIcone from '../../../components/ContaIcone';
+import { BarraProgresso, Button, IconButton, Text } from '../../../components/ui';
+import type { ContaComSaldo } from '../../../models/contas';
+import { fontSize, fontWeight, iconSize, makeStyles, spacing, useTheme } from '../../../theme';
+import { corDaConta, descreverConta, progressoDaMeta, valorDaConta } from '../../../utils/contas';
 import { toCurrency } from '../../../utils/format';
-import { useTheme } from '../../../theme';
-
-type NomeIcone = ComponentProps<typeof Ionicons>['name'];
-
-export const ICONE_TIPO_CONTA: Record<TipoConta, NomeIcone> = {
-  caixa: 'wallet-outline',
-  reserva: 'archive-outline',
-  cartao: 'card-outline',
-};
 
 type ContaCardProps = {
   conta: ContaComSaldo;
-  onEditar: () => void;
-  /** Ausente no caixa padrao, que nao pode ser excluido nem inativado. */
-  onRemover?: () => void;
-  /** So cartao: abre a tela de faturas do ciclo. */
-  onVerFaturas?: () => void;
-  /** So reserva: abre o detalhe com meta, progresso e extrato. */
-  onVerDetalhe?: () => void;
-  /** So reserva: abre o aporte rapido (caixa -> reserva). */
+  /** Botao "..." com o resto das acoes da conta (editar, extrato, inativar...). */
+  onAbrirAcoes: () => void;
+  /** So reserva ativa: aporte rapido (caixa -> reserva). */
   onAportar?: () => void;
-  /** So reserva: abre o resgate rapido (reserva -> caixa). */
+  /** So reserva ativa: resgate rapido (reserva -> caixa). */
   onResgatar?: () => void;
+  /** So cartao ativo: abre a tela de faturas. */
+  onVerFaturas?: () => void;
 };
 
-/** Linha da lista de contas, com saldo e os detalhes do tipo. */
+/**
+ * Cartao de uma conta, no formato dos cartoes de planos e produtos: selo,
+ * nome e linha de apoio no topo, com o "..." das acoes; embaixo o numero
+ * principal (saldo, ou o que esta em aberto no cartao), o progresso da meta
+ * na reserva e as acoes do dia a dia com rotulo.
+ */
 export default function ContaCard({
   conta,
-  onEditar,
-  onRemover,
-  onVerFaturas,
-  onVerDetalhe,
+  onAbrirAcoes,
   onAportar,
   onResgatar,
+  onVerFaturas,
 }: ContaCardProps): React.ReactNode {
-  const { colors, sharedStyles } = useTheme();
-  const negativa = conta.saldo < 0;
-  const progressoMeta =
-    conta.tipo === 'reserva' && conta.meta_valor ? Math.min(conta.saldo / conta.meta_valor, 1) : 0;
+  const { colors, corCategoria, sharedStyles } = useTheme();
+  const styles = useStyles();
+  const ativa = Boolean(conta.ativo);
+  const descricao = descreverConta(conta);
+  const { rotulo, valor, negativo } = valorDaConta(conta);
+  const progresso = progressoDaMeta(conta);
+  const temAcoes = Boolean(onAportar || onResgatar || onVerFaturas);
 
   return (
-    <View style={sharedStyles.listCard}>
-      <Ionicons
-        name={ICONE_TIPO_CONTA[conta.tipo]}
-        size={22}
-        color={conta.cor ?? colors.textSubtle}
-      />
+    <View style={[sharedStyles.card, !ativa && styles.cardInativo]}>
+      <View style={styles.header}>
+        <ContaIcone conta={conta} />
 
-      <View style={sharedStyles.listCardInfo}>
-        <Text style={sharedStyles.listCardTitle}>
-          {conta.nome}
-          {conta.ativo ? '' : ' (inativa)'}
-        </Text>
-
-        {conta.tipo === 'cartao' ? (
-          <Text style={sharedStyles.listCardDetail}>
-            {`Fecha dia ${conta.dia_fechamento} · vence dia ${conta.dia_vencimento}`}
+        <View style={styles.info}>
+          <Text style={sharedStyles.listCardTitle} numberOfLines={1}>
+            {conta.nome}
           </Text>
-        ) : null}
+          {descricao ? (
+            <Text style={styles.meta} numberOfLines={1}>
+              {descricao}
+            </Text>
+          ) : null}
+        </View>
 
-        {conta.tipo === 'reserva' && conta.meta_valor ? (
-          <Text style={sharedStyles.listCardDetail}>
-            {`Meta: ${toCurrency(conta.meta_valor)} · ${Math.round(progressoMeta * 100)}%`}
+        <IconButton
+          icon="ellipsis-horizontal"
+          variant="neutral"
+          size={iconSize.sm}
+          onPress={onAbrirAcoes}
+          accessibilityLabel={`Mais ações de ${conta.nome}`}
+        />
+      </View>
+
+      <View style={styles.linhas}>
+        <View style={styles.linha}>
+          <Text style={styles.rotulo}>{rotulo}</Text>
+          <Text style={[styles.valor, negativo && { color: colors.danger }]}>
+            {toCurrency(valor)}
           </Text>
-        ) : null}
+        </View>
 
-        <Text style={[sharedStyles.listCardDetail, { color: colors.textStrong }]}>
-          Saldo: {toCurrency(conta.saldo)}
-        </Text>
-
-        {negativa ? (
-          <Text style={[sharedStyles.listCardDetail, { color: colors.danger }]}>
-            Saldo negativo
-          </Text>
-        ) : null}
-
-        {conta.tipo === 'reserva' && conta.meta_valor ? (
-          <BarraProgresso
-            total={1}
-            corTrilho={colors.border}
-            segmentos={[{ valor: progressoMeta, cor: conta.cor ?? colors.primary }]}
-          />
+        {progresso ? (
+          <View style={styles.progresso}>
+            <BarraProgresso
+              total={1}
+              segmentos={[{ valor: progresso.fracao, cor: corDaConta(conta, corCategoria) }]}
+            />
+            <Text style={styles.rotulo}>
+              {progresso.falta > 0
+                ? `${progresso.percentual}% da meta · faltam ${toCurrency(progresso.falta)}`
+                : 'Meta atingida'}
+            </Text>
+          </View>
         ) : null}
       </View>
 
-      <View style={sharedStyles.iconButtonRow}>
-        {onVerFaturas ? (
-          <IconButton icon="receipt-outline" variant="primary" onPress={onVerFaturas} />
-        ) : null}
-        {onVerDetalhe ? (
-          <IconButton icon="stats-chart-outline" variant="primary" onPress={onVerDetalhe} />
-        ) : null}
-        {onAportar ? (
-          <IconButton icon="arrow-down-circle" variant="info" onPress={onAportar} />
-        ) : null}
-        {onResgatar ? (
-          <IconButton icon="arrow-up-circle" variant="primary" onPress={onResgatar} />
-        ) : null}
-        <IconButton icon="pencil" variant="primary" onPress={onEditar} />
-        {onRemover ? <IconButton icon="trash" variant="danger" onPress={onRemover} /> : null}
-      </View>
+      {temAcoes ? (
+        <View style={styles.acoes}>
+          {onAportar ? (
+            <Button
+              label="Aportar"
+              icon="arrow-down-circle-outline"
+              variant="secondary"
+              size="sm"
+              flex
+              onPress={onAportar}
+            />
+          ) : null}
+          {onResgatar ? (
+            <Button
+              label="Resgatar"
+              icon="arrow-up-circle-outline"
+              variant="secondary"
+              size="sm"
+              flex
+              onPress={onResgatar}
+            />
+          ) : null}
+          {onVerFaturas ? (
+            <Button
+              label="Ver faturas"
+              icon="receipt-outline"
+              variant="secondary"
+              size="sm"
+              flex
+              onPress={onVerFaturas}
+            />
+          ) : null}
+        </View>
+      ) : null}
     </View>
   );
 }
+
+const useStyles = makeStyles((colors) => ({
+  cardInativo: {
+    backgroundColor: colors.surfaceMuted,
+    opacity: 0.85,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  info: {
+    flex: 1,
+    gap: 2,
+  },
+  meta: {
+    fontSize: fontSize.caption,
+    color: colors.textMuted,
+  },
+  linhas: {
+    borderTopWidth: 1,
+    borderTopColor: colors.divider,
+    paddingTop: spacing.sm,
+    gap: spacing.sm,
+  },
+  linha: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  rotulo: {
+    fontSize: fontSize.caption,
+    color: colors.textMuted,
+  },
+  valor: {
+    fontSize: fontSize.subtitle,
+    fontWeight: fontWeight.bold,
+    color: colors.textStrong,
+  },
+  progresso: {
+    gap: spacing.xs,
+  },
+  acoes: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+}));

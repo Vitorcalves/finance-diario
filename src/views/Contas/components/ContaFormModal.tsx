@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { View } from 'react-native';
 import BrazilianIntegerInput from '../../../components/BrazilianIntegerInput';
+import ContaIcone from '../../../components/ContaIcone';
+import SeletorCor from '../../../components/SeletorCor';
 import { BottomSheet, Button, SegmentedControl, Text, TextInput } from '../../../components/ui';
 import {
   type ContaComSaldo,
@@ -9,7 +11,8 @@ import {
   ROTULO_TIPO_CONTA,
   type TipoConta,
 } from '../../../models/contas';
-import { useTheme } from '../../../theme';
+import { makeStyles, spacing, useTheme } from '../../../theme';
+import { COR_PADRAO_TIPO_CONTA } from '../../../utils/contas';
 import type { DadosContaForm } from '../useContas';
 
 type ContaFormModalProps = {
@@ -21,14 +24,18 @@ type ContaFormModalProps = {
   onSalvar: (dados: DadosContaForm, conta: ContaComSaldo | null) => Promise<boolean>;
 };
 
-/** Painel de cadastro e edicao de conta (caixa, reserva ou cartao). */
+/**
+ * Painel de cadastro e edicao de conta (caixa, reserva ou cartao), no formato
+ * do cadastro de categoria: previa no topo, cor escolhida na paleta do app.
+ */
 export default function ContaFormModal({
   visivel,
   conta,
   onFechar,
   onSalvar,
 }: ContaFormModalProps): React.ReactNode {
-  const { colors, sharedStyles } = useTheme();
+  const { corCategoria, sharedStyles } = useTheme();
+  const styles = useStyles();
   const [nome, setNome] = useState(conta?.nome ?? '');
   const [tipo, setTipo] = useState<TipoConta>(conta?.tipo ?? 'caixa');
   const [cor, setCor] = useState(conta?.cor ?? '');
@@ -39,10 +46,13 @@ export default function ContaFormModal({
     conta?.dia_vencimento ? String(conta.dia_vencimento) : '',
   );
   const [metaValor, setMetaValor] = useState(conta?.meta_valor ? String(conta.meta_valor) : '');
+  // No cartao o campo some, mas o valor gravado continua no estado e volta intacto.
   const [saldoInicial, setSaldoInicial] = useState(conta ? String(conta.saldo_inicial) : '');
   const [salvando, setSalvando] = useState(false);
   /** Os lancamentos ja gravados dependem do tipo: so muda numa conta sem nenhum. */
   const tipoTravado = conta !== null && !podeMudarTipo(conta);
+
+  const corDoTipo = (valor: TipoConta): string => corCategoria(COR_PADRAO_TIPO_CONTA[valor]);
 
   const salvar = (): void => {
     void (async (): Promise<void> => {
@@ -71,6 +81,13 @@ export default function ContaFormModal({
         </View>
       }
     >
+      <View style={styles.previa}>
+        <ContaIcone conta={{ tipo, cor: cor || null, ativo: 1 }} tamanho={56} />
+        <Text style={sharedStyles.sectionTitle} numberOfLines={1}>
+          {nome.trim() || 'Nova conta'}
+        </Text>
+      </View>
+
       <View style={sharedStyles.formGroup}>
         <Text style={sharedStyles.label}>Nome da conta *</Text>
         <TextInput
@@ -84,7 +101,7 @@ export default function ContaFormModal({
       <View style={sharedStyles.formGroup}>
         <Text style={sharedStyles.label}>Tipo</Text>
         {tipoTravado ? (
-          <Text style={sharedStyles.listCardDetail}>
+          <Text style={sharedStyles.sectionHint}>
             {`${ROTULO_TIPO_CONTA[tipo]} · ${
               conta?.id === CONTA_CAIXA_PADRAO
                 ? 'o caixa padrão recebe os lançamentos sem conta e é sempre caixa'
@@ -94,9 +111,9 @@ export default function ContaFormModal({
         ) : (
           <SegmentedControl
             opcoes={[
-              { valor: 'caixa' as const, rotulo: 'Caixa', cor: colors.primary },
-              { valor: 'reserva' as const, rotulo: 'Reserva', cor: colors.success },
-              { valor: 'cartao' as const, rotulo: 'Cartão', cor: colors.danger },
+              { valor: 'caixa' as const, rotulo: 'Caixa', cor: corDoTipo('caixa') },
+              { valor: 'reserva' as const, rotulo: 'Reserva', cor: corDoTipo('reserva') },
+              { valor: 'cartao' as const, rotulo: 'Cartão', cor: corDoTipo('cartao') },
             ]}
             valor={tipo}
             onChange={setTipo}
@@ -146,28 +163,38 @@ export default function ContaFormModal({
         </View>
       ) : null}
 
-      <View style={sharedStyles.formGroup}>
-        <Text style={sharedStyles.label}>Saldo inicial</Text>
-        <BrazilianIntegerInput
-          style={sharedStyles.input}
-          placeholder="0,00"
-          value={saldoInicial}
-          onChangeValue={setSaldoInicial}
-          decimalScale={2}
-          keyboardType="number-pad"
-        />
-      </View>
+      {tipo !== 'cartao' ? (
+        <View style={sharedStyles.formGroup}>
+          <Text style={sharedStyles.label}>Saldo inicial</Text>
+          <BrazilianIntegerInput
+            style={sharedStyles.input}
+            placeholder="0,00"
+            value={saldoInicial}
+            onChangeValue={setSaldoInicial}
+            decimalScale={2}
+            keyboardType="number-pad"
+          />
+          <Text style={[sharedStyles.sectionHint, styles.dica]}>
+            Quanto já havia na conta antes do primeiro lançamento no app.
+          </Text>
+        </View>
+      ) : null}
 
       <View style={sharedStyles.formGroup}>
         <Text style={sharedStyles.label}>Cor</Text>
-        <TextInput
-          style={sharedStyles.input}
-          placeholder="Opcional, ex.: #22c55e"
-          value={cor}
-          onChangeText={setCor}
-          autoCapitalize="none"
-        />
+        <SeletorCor valor={cor || null} onChange={setCor} />
       </View>
     </BottomSheet>
   );
 }
+
+const useStyles = makeStyles(() => ({
+  previa: {
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+  },
+  dica: {
+    marginTop: spacing.xs,
+  },
+}));

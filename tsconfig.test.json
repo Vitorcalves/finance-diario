@@ -5,8 +5,11 @@
     "baseUrl": ".",
     // `database.ts` importa `expo-sqlite`, que nao existe fora do app. O alias
     // troca o modulo pelo banco em memoria sem que o codigo de producao saiba.
+    // `expo-file-system/legacy` (backups automaticos) vira, do mesmo jeito, um
+    // sistema de arquivos em memoria.
     "paths": {
-      "expo-sqlite": ["./tests/setup/expo-sqlite.ts"]
+      "expo-sqlite": ["./tests/setup/expo-sqlite.ts"],
+      "expo-file-system/legacy": ["./tests/setup/expo-file-system.ts"]
     }
   },
   // `exclude` do tsconfig base tira os testes; aqui eles sao justamente o alvo.

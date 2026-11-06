@@ -14,8 +14,10 @@ banco local SQLite (expo-sqlite) e navegação React Navigation 7 (bottom tabs +
 - **Menu** (pilha Menu): cadastros, financeiro (planos, contas, faturas) e integração.
 
 A app inicia na aba Início. Antes de mostrar as rotas, `App.tsx` inicializa o banco, carrega o tema preferido
-(claro/escuro/sistema) e a fonte Inter. Cada tela segue o padrão `src/views/<Tela>/index.tsx` + um hook `use<Tela>.ts` +
-uma pasta `components/`.
+(claro/escuro/sistema) e a fonte Inter. Quando há migration pendente, a inicialização grava antes uma cópia do banco em
+JSON; o "Recriar banco" do Menu também grava uma antes de apagar, e Integração › Exportar cria uma na hora. As 5 últimas
+cópias ficam em `backups/`, na pasta de documentos do app, e podem ser restauradas em Integração › Importar. Cada tela
+segue o padrão `src/views/<Tela>/index.tsx` + um hook `use<Tela>.ts` + uma pasta `components/`.
 
 ## Mapa de telas
 
@@ -101,7 +103,7 @@ abre o histórico de preços; Contas abre Faturas com o `contaId` do cartão.
 **Análise de preços** — gráfico de linhas do valor pago contra o histórico de preços do produto.
 
 - Filtros de produto e variante; opção de ver o preço por unidade base (R$/kg) quando as unidades batem.
-- Cartão de resumo dos preços. É a tela com alterações não commitadas hoje.
+- Cartão de resumo dos preços.
 
 **Histórico de Preços** — preços registrados agrupados por variante ou produto.
 
@@ -119,7 +121,8 @@ abre o histórico de preços; Contas abre Faturas com o `contaId` do cartão.
 - Cadastros: categorias de lançamento, categorias de produto, marcas, empresas.
 - Financeiro: assinaturas e parcelas, contas e cartões.
 - Preferências: tema e local padrão.
-- Sistema: Integração. Zona de perigo: recriar o banco (apaga tudo, com confirmação).
+- Sistema: Integração. Zona de perigo: recriar o banco (com confirmação, guarda um backup automático e apaga tudo; se o
+  backup falhar, nada é apagado).
 
 **Categorias de lançamento** — categorias como Mercado e Transporte, em grupos; toque para editar.
 
@@ -141,6 +144,10 @@ formulário.
 
 **Integração** — quatro modos num seletor: Exportar (JSON para arquivo), Importar (validar e sobrescrever o banco), API
 (`POST /sync`) e IA (`POST /ia/consultar`, com modo de raciocínio).
+
+- Exportar também tem "Criar backup no app", que grava uma cópia na pasta de backups do app, sem gerar arquivo.
+- Importar começa pelos backups salvos no app (data e motivo de cada um); "Restaurar" pede confirmação e sobrescreve o
+  banco com a cópia escolhida.
 
 ## Observações
 

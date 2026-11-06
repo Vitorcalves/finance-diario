@@ -4,11 +4,19 @@ import { useToast } from '../../components/ui';
 import {
   analisarBackup,
   BackupInvalidoError,
+  type BackupJson,
   exportarBanco,
   importarBanco,
   resumirBackup,
 } from '../../models/backup';
+import {
+  type BackupAutomatico,
+  criarBackupManual,
+  lerBackupAutomatico,
+  listarBackupsAutomaticos,
+} from '../../models/backupAutomatico';
 import { type ApiConfig, getApiConfig, saveApiConfig } from '../../models/settingsModel';
+import { formatarDataHora } from '../../utils/format';
 import { escolherArquivoJson, salvarArquivoJson } from './components/arquivoJson';
 import {
   consultarIa as consultarIaNaApi,
@@ -31,6 +39,9 @@ export type UseIntegracao = {
   /** Grava o JSON atual no cache e abre a folha de "salvar em arquivos". */
   salvandoArquivo: boolean;
   salvarArquivoExportacao: () => Promise<void>;
+  /** Grava agora uma copia na pasta de backups do app, a mesma que o Importar lista. */
+  criandoBackup: boolean;
+  criarBackup: () => Promise<void>;
 
   textoImportacao: string;
   setTextoImportacao: (texto: string) => void;
@@ -43,6 +54,15 @@ export type UseIntegracao = {
   limparImportacao: () => void;
   /** Abre o seletor de arquivos e joga o conteudo no campo de importacao. */
   escolherArquivoImportacao: () => Promise<void>;
+
+  /** Copias da pasta de backups do app (automaticas e manuais); `null` enquanto a pasta e lida. */
+  backupsAutomaticos: BackupAutomatico[] | null;
+  /** Mensagem para a tela quando a pasta das copias nao pode ser lida. */
+  erroBackupsAutomaticos: string | null;
+  /** Nome da copia sendo lida ou restaurada. */
+  backupEmUso: string | null;
+  /** Le a copia, pede confirmacao e sobrescreve o banco com ela. */
+  restaurarBackupAutomatico: (backup: BackupAutomatico) => Promise<void>;
 
   apiConfig: ApiConfig;
   /** Atualiza e persiste endereco/chave da API. */
@@ -80,10 +100,15 @@ export function useIntegracao(): UseIntegracao {
   const [exportacao, setExportacao] = useState<ResultadoExportacao | null>(null);
   const [exportando, setExportando] = useState(false);
   const [salvandoArquivo, setSalvandoArquivo] = useState(false);
+  const [criandoBackup, setCriandoBackup] = useState(false);
 
   const [textoImportacao, setTextoImportacaoState] = useState('');
   const [previa, setPrevia] = useState<PreviaImportacao | null>(null);
   const [importando, setImportando] = useState(false);
+
+  const [backupsAutomaticos, setBackupsAutomaticos] = useState<BackupAutomatico[] | null>(null);
+  const [erroBackupsAutomaticos, setErroBackupsAutomaticos] = useState<string | null>(null);
+  const [backupEmUso, setBackupEmUso] = useState<string | null>(null);
 
   const [apiConfig, setApiConfigState] = useState<ApiConfig>({ url: '', token: '' });
   const [envioApi, setEnvioApi] = useState<ResultadoEnvioApi | null>(null);
@@ -97,6 +122,25 @@ export function useIntegracao(): UseIntegracao {
   useEffect(() => {
     void getApiConfig().then(setApiConfigState);
   }, []);
+
+  /** Le a pasta de backups para a lista do modo Importar. Nunca rejeita. */
+  const carregarBackupsAutomaticos = useCallback(
+    (): Promise<void> =>
+      listarBackupsAutomaticos()
+        .then((backups) => {
+          setBackupsAutomaticos(backups);
+          setErroBackupsAutomaticos(null);
+        })
+        .catch((error: unknown) => {
+          console.error('Erro ao listar os backups salvos no app:', error);
+          setErroBackupsAutomaticos('Não foi possível ler os backups salvos no app.');
+        }),
+    [],
+  );
+
+  useEffect(() => {
+    void carregarBackupsAutomaticos();
+  }, [carregarBackupsAutomaticos]);
 
   // ---- exportar ----
 
@@ -132,6 +176,21 @@ export function useIntegracao(): UseIntegracao {
       setSalvandoArquivo(false);
     }
   }, [exportacao]);
+
+  const criarBackup = useCallback(async (): Promise<void> => {
+    setCriandoBackup(true);
+
+    try {
+      await criarBackupManual();
+      await carregarBackupsAutomaticos();
+      toast.mostrar('Backup salvo no app. Para restaurar, use o modo Importar.');
+    } catch (error: unknown) {
+      console.error('Erro ao criar backup:', error);
+      Alert.alert('Erro', mensagemDeErro(error, 'Não foi possível criar o backup'));
+    } finally {
+      setCriandoBackup(false);
+    }
+  }, [carregarBackupsAutomaticos, toast]);
 
   const compartilharExportacao = useCallback(async (): Promise<void> => {
     if (!exportacao) return;
@@ -199,29 +258,43 @@ export function useIntegracao(): UseIntegracao {
     }
   }, [textoImportacao]);
 
-  const executarImportacao = useCallback(
-    async (aoConcluir?: () => void): Promise<void> => {
+  /**
+   * Troca todo o banco pelo backup e avisa o resultado; devolve se gravou.
+   * `obterBackup` roda dentro do `try`: JSON que nao passa na validacao cai no
+   * mesmo alerta de erro.
+   */
+  const sobrescreverBanco = useCallback(
+    async (obterBackup: () => BackupJson): Promise<boolean> => {
       setImportando(true);
 
       try {
-        const backup = analisarBackup(textoImportacao);
-        const resumo = await importarBanco(backup);
+        const resumo = await importarBanco(obterBackup());
         const total = resumo.reduce((soma, item) => soma + item.registros, 0);
 
-        limparImportacao();
         toast.mostrar(`Banco restaurado com ${total} ${total === 1 ? 'registro' : 'registros'}`);
-        aoConcluir?.();
+        return true;
       } catch (error: unknown) {
         console.error('Erro ao importar banco:', error);
         Alert.alert(
           'Erro',
           mensagemDeErro(error, 'Não foi possível importar o JSON. O banco não foi alterado'),
         );
+        return false;
       } finally {
         setImportando(false);
       }
     },
-    [textoImportacao, limparImportacao, toast],
+    [toast],
+  );
+
+  const executarImportacao = useCallback(
+    async (aoConcluir?: () => void): Promise<void> => {
+      if (await sobrescreverBanco(() => analisarBackup(textoImportacao))) {
+        limparImportacao();
+        aoConcluir?.();
+      }
+    },
+    [textoImportacao, limparImportacao, sobrescreverBanco],
   );
 
   const confirmarImportacao = useCallback(
@@ -246,6 +319,44 @@ export function useIntegracao(): UseIntegracao {
       );
     },
     [previa, executarImportacao],
+  );
+
+  // ---- backups automaticos ----
+
+  const restaurarBackupAutomatico = useCallback(
+    async (copia: BackupAutomatico): Promise<void> => {
+      setBackupEmUso(copia.nome);
+      const liberar = (): void => setBackupEmUso(null);
+
+      let backup: BackupJson;
+
+      try {
+        backup = await lerBackupAutomatico(copia);
+      } catch (error: unknown) {
+        liberar();
+        console.error('Erro ao ler backup automático:', error);
+        Alert.alert('Erro', mensagemDeErro(error, 'Não foi possível ler o backup'));
+        return;
+      }
+
+      const total = resumirBackup(backup).reduce((soma, item) => soma + item.registros, 0);
+
+      Alert.alert(
+        'Restaurar backup',
+        `Todos os dados atuais serão apagados e substituídos pelos ${total} registro(s) do ` +
+          `backup de ${formatarDataHora(copia.criadoEm)}. Esta ação não pode ser desfeita. ` +
+          'Deseja continuar?',
+        [
+          { text: 'Cancelar', style: 'cancel', onPress: liberar },
+          {
+            text: 'Restaurar',
+            style: 'destructive',
+            onPress: (): void => void sobrescreverBanco(() => backup).finally(liberar),
+          },
+        ],
+      );
+    },
+    [sobrescreverBanco],
   );
 
   // ---- api ----
@@ -311,6 +422,8 @@ export function useIntegracao(): UseIntegracao {
     compartilharExportacao,
     salvandoArquivo,
     salvarArquivoExportacao,
+    criandoBackup,
+    criarBackup,
 
     textoImportacao,
     setTextoImportacao: alterarTextoImportacao,
@@ -320,6 +433,11 @@ export function useIntegracao(): UseIntegracao {
     confirmarImportacao,
     limparImportacao,
     escolherArquivoImportacao,
+
+    backupsAutomaticos,
+    erroBackupsAutomaticos,
+    backupEmUso,
+    restaurarBackupAutomatico,
 
     apiConfig,
     setApiConfig,

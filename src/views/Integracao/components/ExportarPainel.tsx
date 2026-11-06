@@ -21,6 +21,9 @@ type ExportarPainelProps = {
   onGerar: () => void;
   onCompartilhar: () => void;
   onSalvarArquivo: () => void;
+  /** Enquanto a copia e gravada na pasta de backups do app. */
+  criandoBackup: boolean;
+  onCriarBackup: () => void;
 };
 
 const formatarDataHora = (iso: string): string => {
@@ -28,7 +31,10 @@ const formatarDataHora = (iso: string): string => {
   return Number.isNaN(data.getTime()) ? iso : data.toLocaleString('pt-BR');
 };
 
-/** Aba de exportacao: gera o JSON do banco e o entrega para copiar, salvar ou compartilhar. */
+/**
+ * Aba de exportacao: gera o JSON do banco e o entrega para copiar, salvar ou
+ * compartilhar, ou grava um backup na pasta do proprio app.
+ */
 export default function ExportarPainel({
   exportacao,
   carregando,
@@ -36,6 +42,8 @@ export default function ExportarPainel({
   onGerar,
   onCompartilhar,
   onSalvarArquivo,
+  criandoBackup,
+  onCriarBackup,
 }: ExportarPainelProps): React.ReactNode {
   const { sharedStyles } = useTheme();
   const styles = useStyles();
@@ -50,12 +58,20 @@ export default function ExportarPainel({
       <Text style={sharedStyles.sectionHint}>
         Lê todas as tabelas do banco e monta um JSON único. Salve como arquivo para guardar um
         backup, compartilhe como texto para enviar pelo chat, ou selecione o texto para copiar.
+        “Criar backup no app” guarda uma cópia aqui mesmo, que pode ser restaurada em Importar.
       </Text>
 
       <Button
         label={carregando ? 'Gerando...' : 'Gerar JSON do banco'}
         onPress={onGerar}
         disabled={carregando}
+      />
+
+      <Button
+        label={criandoBackup ? 'Criando backup...' : 'Criar backup no app'}
+        variant="secondary"
+        onPress={onCriarBackup}
+        disabled={criandoBackup}
       />
 
       {exportacao === null ? null : (

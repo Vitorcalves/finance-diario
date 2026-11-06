@@ -1,7 +1,9 @@
 import { View } from 'react-native';
 import { Button, Text } from '../../../components/ui';
+import type { BackupAutomatico } from '../../../models/backupAutomatico';
 import { fontSize, fontWeight, makeStyles, radius, spacing, useTheme } from '../../../theme';
 import type { PreviaImportacao } from '../types';
+import BackupsAutomaticos from './BackupsAutomaticos';
 import CaixaJson from './CaixaJson';
 import ResumoTabelas from './ResumoTabelas';
 
@@ -15,6 +17,12 @@ type ImportarPainelProps = {
   onLimpar: () => void;
   /** Abre o seletor de arquivos do sistema e joga o conteúdo em `onChangeTexto`. */
   onEscolherArquivo: () => void;
+  /** Copias feitas antes das migrations; `null` enquanto a pasta e lida. */
+  backupsAutomaticos: BackupAutomatico[] | null;
+  erroBackupsAutomaticos: string | null;
+  /** Nome do backup automatico sendo lido ou restaurado. */
+  backupEmUso: string | null;
+  onRestaurarBackup: (backup: BackupAutomatico) => void;
 };
 
 const formatarDataHora = (iso: string): string => {
@@ -22,7 +30,10 @@ const formatarDataHora = (iso: string): string => {
   return Number.isNaN(data.getTime()) ? iso : data.toLocaleString('pt-BR');
 };
 
-/** Aba de importacao: cola ou escolhe um arquivo JSON, valida e sobrescreve o banco. */
+/**
+ * Aba de importacao: restaura um backup automatico, ou cola/escolhe um arquivo
+ * JSON, valida e sobrescreve o banco.
+ */
 export default function ImportarPainel({
   texto,
   onChangeTexto,
@@ -32,6 +43,10 @@ export default function ImportarPainel({
   onImportar,
   onLimpar,
   onEscolherArquivo,
+  backupsAutomaticos,
+  erroBackupsAutomaticos,
+  backupEmUso,
+  onRestaurarBackup,
 }: ImportarPainelProps): React.ReactNode {
   const { sharedStyles } = useTheme();
   const styles = useStyles();
@@ -44,6 +59,14 @@ export default function ImportarPainel({
           falhar durante a carga, nada é gravado.
         </Text>
       </View>
+
+      <BackupsAutomaticos
+        backups={backupsAutomaticos}
+        erro={erroBackupsAutomaticos}
+        emUso={backupEmUso}
+        bloqueado={carregando}
+        onRestaurar={onRestaurarBackup}
+      />
 
       {/* Atalho: escolhe um .json do dispositivo e preenche a caixa abaixo. */}
       <Button

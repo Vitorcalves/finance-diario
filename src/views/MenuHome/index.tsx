@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react';
 import { Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenHeader, useToast } from '../../components/ui';
-import { recriarDatabase } from '../../models/database';
+import { BackupAutomaticoError, recriarBancoComBackup } from '../../models/backupAutomatico';
 import { getLocalPadrao, saveLocalPadrao } from '../../models/settingsModel';
 import type { MenuStackParamList, RootTabParamList } from '../../routes/types';
 import { makeStyles, spacing, useTheme } from '../../theme';
@@ -42,13 +42,16 @@ export default function MenuNavigationView(): React.ReactNode {
   const recriarBanco = (): void => {
     void (async (): Promise<void> => {
       try {
-        await recriarDatabase();
-        toast.mostrar('Banco de dados recriado. Todos os dados foram apagados.');
+        await recriarBancoComBackup();
+        toast.mostrar('Banco de dados recriado. O backup de antes está em Integração › Importar.');
       } catch (error: unknown) {
         console.error('Erro ao recriar o banco de dados', error);
         Alert.alert(
           'Erro',
-          'Não foi possível recriar o banco de dados. Feche e abra o app antes de tentar de novo.',
+          // Sem backup nada foi apagado, e a mensagem do erro ja diz isso.
+          error instanceof BackupAutomaticoError
+            ? error.message
+            : 'Não foi possível recriar o banco de dados. Feche e abra o app antes de tentar de novo.',
         );
       }
     })();
@@ -57,7 +60,7 @@ export default function MenuNavigationView(): React.ReactNode {
   const confirmarRecriacaoDoBanco = (): void => {
     Alert.alert(
       'Recriar banco de dados',
-      'Todos os lançamentos, produtos e cadastros serão apagados permanentemente. Exporte um backup antes, na tela de Integração. Deseja continuar?',
+      'Todos os lançamentos, produtos e cadastros serão apagados. Antes, o app guarda um backup automático, que pode ser restaurado em Integração › Importar. Deseja continuar?',
       [
         { text: 'Cancelar', style: 'cancel' },
         { text: 'Apagar tudo', style: 'destructive', onPress: recriarBanco },
@@ -137,7 +140,7 @@ export default function MenuNavigationView(): React.ReactNode {
           itens={[
             {
               label: 'Recriar banco de dados',
-              descricao: 'Apaga todos os dados do app',
+              descricao: 'Guarda um backup e apaga todos os dados do app',
               icone: 'warning-outline',
               perigo: true,
               onPress: confirmarRecriacaoDoBanco,

@@ -33,6 +33,17 @@ beforeEach(async () => {
 O `node --test` roda cada arquivo em um processo separado, entao a conexao em
 cache de um arquivo nunca vaza para outro.
 
+Para testar uma migration pendente (o caso de quem atualiza o app), o
+`desfazerUltimaMigration()` de `setup/banco.ts` volta o banco para a versao
+anterior; a proxima `initializeDatabase()` aplica a ultima migration de novo.
+
+## Arquivos
+
+Do mesmo jeito, `expo-file-system/legacy` aponta para `setup/expo-file-system.ts`,
+um sistema de arquivos em memoria (usado pelos backups automaticos). Chame
+`__novoSistemaDeArquivos()` no `beforeEach`; `__falharEm('writeAsStringAsync', erro)`
+simula disco cheio e outras falhas.
+
 ## Escrevendo um teste novo
 
 ```ts

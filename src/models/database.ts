@@ -93,7 +93,25 @@ export const emTransacao = async <T>(operacao: () => Promise<T>): Promise<T> => 
   return resultado as T;
 };
 
-export const initializeDatabase = async (): Promise<void> => {
+/** Versoes do banco numa abertura que tem migrations para aplicar. */
+export type AtualizacaoDoBanco = {
+  /** Id da ultima migration ja aplicada: a versao dos dados de agora. */
+  versaoAtual: number;
+  /** Id da ultima migration pendente: a versao depois de migrar. */
+  versaoNova: number;
+};
+
+export type OpcoesInicializacao = {
+  /**
+   * Roda antes da primeira migration pendente (o app copia o banco aqui). So
+   * e chamado quando o banco ja tinha migrations: banco novo, ou recem-apagado
+   * pelo "Recriar banco", nao tem dados para guardar. Se falhar, nenhuma
+   * migration e aplicada e o erro sobe.
+   */
+  antesDeMigrar?: (atualizacao: AtualizacaoDoBanco) => Promise<void>;
+};
+
+export const initializeDatabase = async (opcoes: OpcoesInicializacao = {}): Promise<void> => {
   const db = await getConnection();
 
   await db.execAsync(`
@@ -113,6 +131,13 @@ export const initializeDatabase = async (): Promise<void> => {
 
   const lastId = lastApplied?.id ?? 0;
   const pending = migrations.filter((m) => m.id > lastId);
+
+  if (opcoes.antesDeMigrar && lastId > 0 && pending.length > 0) {
+    await opcoes.antesDeMigrar({
+      versaoAtual: lastId,
+      versaoNova: pending[pending.length - 1].id,
+    });
+  }
 
   for (const migration of pending) {
     await db.withTransactionAsync(async () => {

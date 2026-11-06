@@ -15,6 +15,7 @@ import AppRoutes from './src/routes/AppRoutes';
 import { ToastProvider } from './src/components/ui';
 import { type PreferenciaTema, ThemeProvider, useTheme } from './src/theme';
 import { initializeDatabase, getConnection } from './src/models/database';
+import { backupAntesDasMigrations } from './src/models/backupAutomatico';
 import { getTemaPreferido, saveTemaPreferido } from './src/models/settingsModel';
 
 /** Barra de status unica do app: texto claro no modo escuro e escuro no claro. */
@@ -46,7 +47,7 @@ export default function App(): React.ReactNode {
   useDrizzleStudio(db);
 
   useEffect(() => {
-    initializeDatabase()
+    initializeDatabase({ antesDeMigrar: backupAntesDasMigrations })
       .then(() => Promise.all([getConnection(), getTemaPreferido()]))
       .then(([connection, tema]) => {
         setPreferencia(tema);

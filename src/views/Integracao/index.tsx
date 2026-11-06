@@ -35,6 +35,8 @@ export default function IntegracaoView(): React.ReactNode {
     compartilharExportacao,
     salvandoArquivo, // ← novo
     salvarArquivoExportacao, // ← novo
+    criandoBackup,
+    criarBackup,
     textoImportacao,
     setTextoImportacao,
     previa,
@@ -43,6 +45,10 @@ export default function IntegracaoView(): React.ReactNode {
     confirmarImportacao,
     limparImportacao,
     escolherArquivoImportacao, // ← novo (para a prop onEscolherArquivo do ImportarPainel)
+    backupsAutomaticos,
+    erroBackupsAutomaticos,
+    backupEmUso,
+    restaurarBackupAutomatico,
     apiConfig,
     setApiConfig,
     envioApi,
@@ -82,6 +88,8 @@ export default function IntegracaoView(): React.ReactNode {
               onGerar={(): void => void gerarExportacao()}
               onCompartilhar={(): void => void compartilharExportacao()}
               onSalvarArquivo={(): void => void salvarArquivoExportacao()}
+              criandoBackup={criandoBackup}
+              onCriarBackup={(): void => void criarBackup()}
             />
           ) : modo === 'api' ? (
             <ApiPainel
@@ -113,6 +121,10 @@ export default function IntegracaoView(): React.ReactNode {
               onImportar={(): void => confirmarImportacao()}
               onLimpar={limparImportacao}
               onEscolherArquivo={(): void => void escolherArquivoImportacao()}
+              backupsAutomaticos={backupsAutomaticos}
+              erroBackupsAutomaticos={erroBackupsAutomaticos}
+              backupEmUso={backupEmUso}
+              onRestaurarBackup={(backup): void => void restaurarBackupAutomatico(backup)}
             />
           )}
         </ScrollComTeclado>

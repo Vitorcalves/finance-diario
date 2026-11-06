@@ -1,8 +1,27 @@
 import { beforeEach, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { prepararBanco } from '../../tests/setup/banco';
-import { clearDatabase, getConnection, initializeDatabase, recriarDatabase } from './database';
+import { desfazerUltimaMigration, prepararBanco } from '../../tests/setup/banco';
+import { __novoBanco } from '../../tests/setup/expo-sqlite';
+import {
+  type AtualizacaoDoBanco,
+  clearDatabase,
+  getConnection,
+  initializeDatabase,
+  recriarDatabase,
+} from './database';
 import { migrations } from './migrations';
+
+const ULTIMA = migrations[migrations.length - 1].id;
+const PENULTIMA = migrations[migrations.length - 2].id;
+
+const versaoDoBanco = async (): Promise<number | undefined> => {
+  const db = await getConnection();
+  const linha = await db.getFirstAsync<{ id: number }>(
+    'SELECT id FROM migrations ORDER BY id DESC LIMIT 1',
+  );
+
+  return linha?.id;
+};
 
 const tabelas = async (): Promise<string[]> => {
   const db = await getConnection();
@@ -93,6 +112,70 @@ describe('initializeDatabase', () => {
       [...ids].sort((a, b) => a - b),
     );
     assert.equal(new Set(ids).size, ids.length);
+  });
+});
+
+describe('antesDeMigrar', () => {
+  type Chamada = { atualizacao: AtualizacaoDoBanco; versaoNoMomento: number | undefined };
+
+  /** Registra cada chamada e a versao em que o banco estava naquele momento. */
+  const espiao = (): {
+    chamadas: Chamada[];
+    antesDeMigrar: (atualizacao: AtualizacaoDoBanco) => Promise<void>;
+  } => {
+    const chamadas: Chamada[] = [];
+
+    return {
+      chamadas,
+      antesDeMigrar: async (atualizacao): Promise<void> => {
+        chamadas.push({ atualizacao, versaoNoMomento: await versaoDoBanco() });
+      },
+    };
+  };
+
+  test('roda antes da migration pendente, com a versao de agora e a de depois', async () => {
+    await desfazerUltimaMigration();
+    const { chamadas, antesDeMigrar } = espiao();
+
+    await initializeDatabase({ antesDeMigrar });
+
+    assert.deepEqual(chamadas, [
+      { atualizacao: { versaoAtual: PENULTIMA, versaoNova: ULTIMA }, versaoNoMomento: PENULTIMA },
+    ]);
+    assert.equal(await versaoDoBanco(), ULTIMA);
+  });
+
+  test('banco em dia nao chama', async () => {
+    const { chamadas, antesDeMigrar } = espiao();
+
+    await initializeDatabase({ antesDeMigrar });
+
+    assert.deepEqual(chamadas, []);
+  });
+
+  test('banco novo nao chama: nao ha dados para guardar', async () => {
+    __novoBanco();
+    const { chamadas, antesDeMigrar } = espiao();
+
+    await initializeDatabase({ antesDeMigrar });
+
+    assert.deepEqual(chamadas, []);
+    assert.equal(await versaoDoBanco(), ULTIMA);
+  });
+
+  test('se falhar, nenhuma migration e aplicada', async () => {
+    await desfazerUltimaMigration();
+
+    await assert.rejects(
+      initializeDatabase({
+        antesDeMigrar: async () => {
+          throw new Error('sem espaco');
+        },
+      }),
+      /sem espaco/,
+    );
+
+    assert.equal(await versaoDoBanco(), PENULTIMA);
   });
 });
 

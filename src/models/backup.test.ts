@@ -343,6 +343,71 @@ describe('importarBanco sobrescreve', () => {
     assert.equal(await saldoDaConta(CONTA_CAIXA_PADRAO), 700);
     assert.equal(await saldoDaConta('visa'), -80);
   });
+
+  test('backup de antes das cotacoes ganha id e a marca herdada do item', async () => {
+    const CRIADO = '2026-01-01T00:00:00.000Z';
+    const itemDaLista = (id: string, varianteId: string | null): LinhaBackup => ({
+      id,
+      produto_id: 'arroz',
+      variante_id: varianteId,
+      descricao: 'Arroz',
+      quantidade: 1,
+      comprado: 0,
+      ordem: 1,
+      created_at: CRIADO,
+    });
+
+    await importarBanco(
+      analisarBackup(
+        backupBase({
+          schema_version: 15,
+          tabelas: {
+            empresas: [{ id: 'm1', nome: 'Mercado', created_at: CRIADO }],
+            produtos: [
+              { id: 'arroz', nome: 'Arroz', preco: 0, unidade_id: null, created_at: CRIADO },
+            ],
+            produto_variantes: [
+              {
+                id: 'tio',
+                produto_id: 'arroz',
+                marca_id: null,
+                unidade_id: null,
+                quantidade: null,
+                codigo_barras: null,
+                preco: 20,
+                created_at: CRIADO,
+              },
+            ],
+            lista_compras_itens: [itemDaLista('com-marca', 'tio'), itemDaLista('qualquer', null)],
+            // Formato da 015: sem `id`, um preco por item e mercado.
+            lista_compras_precos: [
+              { item_id: 'com-marca', empresa_id: 'm1', preco: 20, updated_at: CRIADO },
+              {
+                item_id: 'qualquer',
+                empresa_id: 'm1',
+                preco: 21,
+                updated_at: CRIADO,
+                variante_id: null,
+              },
+            ],
+          },
+        }),
+      ),
+    );
+
+    const db = await getConnection();
+    const cotacoes = await db.getAllAsync<{ id: string; item_id: string; variante_id: string }>(
+      'SELECT id, item_id, variante_id FROM lista_compras_precos ORDER BY item_id',
+    );
+    assert.deepEqual(
+      cotacoes.map((atual) => [atual.item_id, atual.variante_id]),
+      [
+        ['com-marca', 'tio'],
+        ['qualquer', null],
+      ],
+    );
+    assert.ok(cotacoes.every((atual) => /^[0-9a-f]{32}$/.test(atual.id)));
+  });
 });
 
 describe('analisarBackup recusa JSON invalido', () => {

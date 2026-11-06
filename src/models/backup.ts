@@ -6,6 +6,7 @@ import {
   garantirCaixaPadrao,
   migration015,
 } from './migrations/015_natureza_transacao';
+import { herdarVarianteDoItem, migration016 } from './migrations/016_lista_compras_cotacoes';
 
 /**
  * Export/import do banco inteiro em JSON.
@@ -337,6 +338,13 @@ export const importarBanco = async (backup: BackupJson): Promise<ResumoTabela[]>
       if (backup.schema_version < migration015.id) {
         await garantirCaixaPadrao(db);
         await derivarNaturezaTransacoes(db);
+      }
+
+      // Backup de antes da 016: a cotacao sem marca herdava a variante do
+      // item; daqui em diante ela fica gravada na propria cotacao. O `id` das
+      // cotacoes, que o backup antigo nao tem, sai do valor padrao da coluna.
+      if (backup.schema_version < migration016.id) {
+        await herdarVarianteDoItem(db);
       }
     });
   } finally {

@@ -3,6 +3,7 @@ import { Pressable, type TextInput as RNTextInput, View } from 'react-native';
 import BrazilianIntegerInput from '../../../components/BrazilianIntegerInput';
 import { PressableScale, SwipeableRow, Text } from '../../../components/ui';
 import { fontSize, fontWeight, makeStyles, radius, spacing, useTheme } from '../../../theme';
+import type { DiferencaParaOMenor } from '../../../utils/cotacoesLista';
 import { formatarMoeda, toCurrency, toCurrencyPorUnidade } from '../../../utils/format';
 import type { ItemNaLista } from '../useListaCompras';
 
@@ -30,9 +31,22 @@ type ItemListaRowProps = {
   onEscolherMarca?: () => void;
 };
 
+/** `menor preço`, `menor por L`, `+R$ 0,50` ou `+R$ 0,30/L`. */
+const legendaDaDiferenca = (diferenca: DiferencaParaOMenor): string => {
+  if (diferenca.valor <= CENTAVO) {
+    return diferenca.sigla ? `menor por ${diferenca.sigla}` : 'menor preço';
+  }
+
+  return diferenca.sigla
+    ? `+${toCurrencyPorUnidade(diferenca.valor, diferenca.sigla)}`
+    : `+${toCurrency(diferenca.valor)}`;
+};
+
 /**
  * Uma linha da lista: caixa do carrinho, o item com os precos dos outros
- * mercados embaixo e, a direita, o campo do preco no mercado atual.
+ * mercados embaixo e, a direita, o preco no mercado atual. Com uma cotacao so
+ * ali, o preco se digita na propria linha; com varias marcas cotadas, a linha
+ * mostra a que vale e o toque abre o item para comparar.
  */
 export default function ItemListaRow({
   entrada,
@@ -52,7 +66,8 @@ export default function ItemListaRow({
   const { item, variante, quantidade, granel, medida, precos, precoAtual, dicaAtual } = entrada;
   const comprado = item.comprado === 1;
   const diferenca = entrada.diferencaAtual;
-  const aquiEMenor = diferenca !== null && diferenca <= CENTAVO;
+  const aquiEMenor = diferenca !== null && diferenca.valor <= CENTAVO;
+  const comparando = entrada.cotacoesAtual > 1;
 
   const detalhe = [
     granel ? quantidade : `${quantidade} un.`,
@@ -65,6 +80,23 @@ export default function ItemListaRow({
     (preco) => preco.empresaId !== mercadoAtual && preco.preco !== null,
   );
 
+  const legendas = (
+    <>
+      {diferenca !== null && (
+        <Text style={[styles.legenda, aquiEMenor ? styles.legendaMenor : styles.legendaMaior]}>
+          {legendaDaDiferenca(diferenca)}
+        </Text>
+      )}
+      {entrada.unitarioAtual ? (
+        <Text style={styles.unitario}>
+          {toCurrencyPorUnidade(entrada.unitarioAtual.valor, entrada.unitarioAtual.sigla)}
+        </Text>
+      ) : (
+        granel && precoAtual !== null && <Text style={styles.legenda}>{`por ${medida}`}</Text>
+      )}
+    </>
+  );
+
   return (
     <SwipeableRow
       style={[styles.linha, primeiro && styles.primeira, ultimo && styles.ultima]}
@@ -74,7 +106,7 @@ export default function ItemListaRow({
         onPress={onEditar}
         style={styles.conteudo}
         accessibilityRole="button"
-        accessibilityHint="Abre o item para editar a quantidade e os preços"
+        accessibilityHint="Abre o item para comparar as marcas e editar os preços"
       >
         <PressableScale
           escala={0.85}
@@ -98,6 +130,10 @@ export default function ItemListaRow({
             </Text>
           ) : null}
 
+          {comparando && (
+            <Text style={styles.opcoes}>{`${entrada.cotacoesAtual} opções aqui`}</Text>
+          )}
+
           {outrosPrecos.length > 0 && (
             <Text style={styles.outros}>
               {outrosPrecos.map((preco, indice) => (
@@ -112,51 +148,57 @@ export default function ItemListaRow({
           )}
         </View>
 
-        {mercadoAtual && (
-          <View style={styles.colunaPreco}>
-            <BrazilianIntegerInput
-              ref={campoRef}
-              value={precoAtual !== null ? precoAtual.toFixed(2) : ''}
-              onChangeValue={(valor): void => onPreco(valor ? Number(valor) : null)}
-              decimalScale={2}
-              placeholder={dicaAtual !== null ? `últ. ${formatarMoeda(dicaAtual)}` : '0,00'}
-              returnKeyType={onProximo ? 'next' : 'done'}
-              submitBehavior={onProximo ? 'submit' : 'blurAndSubmit'}
-              onSubmitEditing={onProximo}
-              accessibilityLabel={`Preço de ${item.descricao}`}
-              style={[styles.campo, aquiEMenor && styles.campoMenor]}
-            />
-            {diferenca !== null && (
-              <Text
-                style={[styles.legenda, aquiEMenor ? styles.legendaMenor : styles.legendaMaior]}
-              >
-                {aquiEMenor ? 'menor preço' : `+${toCurrency(diferenca)}`}
-              </Text>
-            )}
-            {entrada.unitarioAtual ? (
-              <Text style={styles.unitario}>
-                {toCurrencyPorUnidade(entrada.unitarioAtual.valor, entrada.unitarioAtual.sigla)}
-              </Text>
-            ) : (
-              granel && precoAtual !== null && <Text style={styles.legenda}>{`por ${medida}`}</Text>
-            )}
-            {(entrada.marcaAtual || entrada.escolheMarca) && (
-              <Pressable
-                onPress={onEscolherMarca}
-                hitSlop={spacing.sm}
-                accessibilityRole="button"
-                accessibilityLabel={`Marca vista aqui: ${entrada.marcaAtual ?? 'não informada'}`}
-              >
-                <Text
-                  style={entrada.marcaAtual ? styles.marca : styles.marcaVazia}
-                  numberOfLines={1}
-                >
-                  {entrada.marcaAtual ?? 'qual marca?'}
+        {mercadoAtual &&
+          (comparando ? (
+            // Varias marcas cotadas aqui: o preco se edita no painel do item
+            // (o toque na linha inteira abre).
+            <View
+              style={styles.colunaPreco}
+              accessibilityLabel={`Levando ${entrada.marcaAtual ?? 'a cotação que vale'} por ${toCurrency(precoAtual ?? 0)}`}
+            >
+              <View style={[styles.atalho, aquiEMenor && styles.campoMenor]}>
+                <Text style={styles.valorAtalho}>{formatarMoeda(precoAtual ?? 0)}</Text>
+                <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+              </View>
+              {legendas}
+              {entrada.marcaAtual && (
+                <Text style={styles.marca} numberOfLines={1}>
+                  {entrada.marcaAtual}
                 </Text>
-              </Pressable>
-            )}
-          </View>
-        )}
+              )}
+            </View>
+          ) : (
+            <View style={styles.colunaPreco}>
+              <BrazilianIntegerInput
+                ref={campoRef}
+                value={precoAtual !== null ? precoAtual.toFixed(2) : ''}
+                onChangeValue={(valor): void => onPreco(valor ? Number(valor) : null)}
+                decimalScale={2}
+                placeholder={dicaAtual !== null ? `últ. ${formatarMoeda(dicaAtual)}` : '0,00'}
+                returnKeyType={onProximo ? 'next' : 'done'}
+                submitBehavior={onProximo ? 'submit' : 'blurAndSubmit'}
+                onSubmitEditing={onProximo}
+                accessibilityLabel={`Preço de ${item.descricao}`}
+                style={[styles.campo, aquiEMenor && styles.campoMenor]}
+              />
+              {legendas}
+              {(entrada.marcaAtual || entrada.escolheMarca) && (
+                <Pressable
+                  onPress={onEscolherMarca}
+                  hitSlop={spacing.sm}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Marca vista aqui: ${entrada.marcaAtual ?? 'não informada'}`}
+                >
+                  <Text
+                    style={entrada.marcaAtual ? styles.marca : styles.marcaVazia}
+                    numberOfLines={1}
+                  >
+                    {entrada.marcaAtual ?? 'qual marca?'}
+                  </Text>
+                </Pressable>
+              )}
+            </View>
+          ))}
       </Pressable>
     </SwipeableRow>
   );
@@ -211,6 +253,11 @@ const useStyles = makeStyles((colors) => ({
     fontSize: fontSize.caption,
     color: colors.textSubtle,
   },
+  opcoes: {
+    fontSize: fontSize.caption,
+    fontWeight: fontWeight.bold,
+    color: colors.primary,
+  },
   outros: {
     fontSize: fontSize.caption,
     color: colors.textMuted,
@@ -234,6 +281,26 @@ const useStyles = makeStyles((colors) => ({
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surfaceMuted,
+    fontSize: fontSize.input,
+    fontWeight: fontWeight.bold,
+    color: colors.textStrong,
+  },
+  /** O preco que abre o item: mesmo tamanho do campo, borda tracejada. */
+  atalho: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 2,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surfaceMuted,
+  },
+  valorAtalho: {
     fontSize: fontSize.input,
     fontWeight: fontWeight.bold,
     color: colors.textStrong,

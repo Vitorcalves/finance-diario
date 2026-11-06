@@ -15,20 +15,21 @@ import { registrarLancamento } from '../../models/lancamentos';
 import {
   adicionarMercadoNaLista,
   type CompraDeProduto,
+  type CotacaoNaLista,
+  deleteCotacao,
   deleteItemListaCompras,
   deleteItensComprados,
+  deleteTodasCotacoesDaLista,
   deleteTodosItensListaCompras,
-  deleteTodosPrecosDaLista,
   getMercadoAtualDaLista,
   insertItensListaCompras,
   type ItemListaCompras,
   listComprasDeProdutos,
+  listCotacoesDaLista,
   listItensListaCompras,
   listMercadosDaLista,
-  listPrecosDaLista,
-  type PrecoNaLista,
   removerMercadoDaLista,
-  salvarPrecoDaLista,
+  salvarCotacao,
   saveMercadoAtualDaLista,
   updateItemListaCompras,
 } from '../../models/listaCompras';
@@ -43,12 +44,16 @@ import { getLocalPadrao } from '../../models/settingsModel';
 import { normalizarTexto } from '../../utils/busca';
 import { compararLista, type ResumoMercadoLista } from '../../utils/comparativoLista';
 import { precoDoItem, type PrecoEncontrado } from '../../utils/comparativoMercados';
-import { agruparVariantesPorProduto } from '../../utils/comparativoVariantes';
+import {
+  compararCotacoes,
+  type DiferencaParaOMenor,
+  diferencaParaOMenor,
+} from '../../utils/cotacoesLista';
 import { vibrarSelecao, vibrarSucesso } from '../../utils/haptics';
 import { Locais } from '../../utils/local';
 import {
   selecionarPrecosParaHistorico,
-  varianteParaHistorico,
+  unicaVarianteDoProduto,
 } from '../../utils/precosParaHistorico';
 import { sugerirCompras, type SugestaoCompra } from '../../utils/sugestoesCompra';
 import {
@@ -60,7 +65,6 @@ import {
   rotuloVariante as rotuloDaVariante,
 } from '../../utils/variantes';
 import type { NovoLancamento, RascunhoLancamento } from '../Home/types';
-import type { ComparativoProduto, ItemOrcamento } from '../Orcamento/types';
 
 /** Categoria sugerida para a compra (criada pela migracao 008). */
 const CATEGORIA_MERCADO = 'mercado';
@@ -68,21 +72,32 @@ const CATEGORIA_MERCADO = 'mercado';
 /** Espera depois da ultima tecla antes de gravar os precos digitados. */
 const ESPERA_GRAVAR_PRECO = 600;
 
-/** Preco de um item num dos mercados comparados. */
+/** Uma cotacao com a variante que vale para ela e o preco por unidade. */
+export type CotacaoNoMercado = {
+  cotacao: CotacaoNaLista;
+  /** A variante anotada na cotacao ou, sem ela, a unica do produto. */
+  varianteId: string | null;
+  preco: number;
+  /** Preco por kg/L/un; `null` sem variante ou sem medida cadastrada. */
+  unitario: PrecoPorUnidade | null;
+};
+
+/** O item num dos mercados comparados: a cotacao que vale ali. */
 export type PrecoNoMercado = {
   empresaId: string;
   nome: string;
   preco: number | null;
-  /** Variante anotada com o preco naquele mercado (opcional). */
   varianteId: string | null;
+  /** Quantas marcas/embalagens foram cotadas ali. */
+  cotacoes: number;
   /** Menor preco do item entre os mercados (so com 2 cotacoes ou mais). */
   menor: boolean;
 };
 
-/** Um item da lista com os precos dele em cada mercado. */
+/** Um item da lista com a cotacao que vale em cada mercado. */
 export type ItemNaLista = {
   item: ItemListaCompras;
-  /** `Marca • 500 g` da variante escolhida; `null` quando serve qualquer uma. */
+  /** `Marca • 500 g` da variante que o item quer levar; `null` quando serve qualquer uma. */
   variante: string | null;
   /** Quantidade pronta para exibir (`2` ou `0,75 kg`). */
   quantidade: string;
@@ -92,24 +107,32 @@ export type ItemNaLista = {
   medida: string;
   /** Na ordem dos mercados comparados. */
   precos: PrecoNoMercado[];
-  /** Preco anotado no mercado em que o usuario esta. */
+  /** Cotacao que vale no mercado em que o usuario esta. */
+  cotacaoAtual: CotacaoNoMercado | null;
+  /** Quantas marcas/embalagens foram cotadas no mercado atual. */
+  cotacoesAtual: number;
+  /** Preco da cotacao que vale no mercado atual. */
   precoAtual: number | null;
   /** Ultimo preco do historico no mercado atual, sugerido no campo vazio. */
   dicaAtual: number | null;
-  /** Rotulo da variante anotada com o preco no mercado atual. */
+  /**
+   * Marca da cotacao que vale aqui, quando ela diz algo a mais: o produto tem
+   * mais de uma variante e nao e a que o item ja mostra.
+   */
   marcaAtual: string | null;
   /** Preco aqui reduzido a unidade primaria da variante (R$/kg, R$/L, R$/un). */
   unitarioAtual: PrecoPorUnidade | null;
   /**
-   * O preco aqui pode ganhar uma marca: o produto tem mais de uma variante e o
-   * item nao fixou nenhuma. Sem ela o preco fica fora do historico.
+   * A unica cotacao aqui pode ganhar uma marca: o produto tem mais de uma
+   * variante e ela nao tem. Sem a marca o preco fica fora do historico.
    */
   escolheMarca: boolean;
   /**
-   * Preco aqui menos o menor dos outros mercados: negativo ou zero = aqui e o
-   * mais barato. `null` sem preco aqui ou sem preco em outro lugar.
+   * Quanto a cotacao daqui passa da menor dos outros mercados (por unidade
+   * quando da): zero ou negativo = aqui e o mais barato. `null` sem preco aqui
+   * ou sem preco em outro lugar.
    */
-  diferencaAtual: number | null;
+  diferencaAtual: DiferencaParaOMenor | null;
 };
 
 export type MercadoNaLista = ResumoMercadoLista & {
@@ -138,14 +161,23 @@ export type TotaisLista = {
 
 export type SugestaoNaLista = SugestaoCompra & { nome: string };
 
+/** Uma cotacao como ficou no painel do item; preco `null` apaga. */
+export type CotacaoEditada = {
+  id: string;
+  empresaId: string;
+  varianteId: string | null;
+  preco: number | null;
+};
+
 /** Campos do formulario de item. */
 export type DadosItemLista = {
   produtoId: string | null;
+  /** Marca/embalagem que o item quer levar; `null` = a mais barata de cada mercado. */
   varianteId: string | null;
   descricao: string;
   quantidade: number;
-  /** Preco (e a variante vista) em cada mercado comparado; preco `null` apaga. */
-  precos: Record<string, { preco: number | null; varianteId: string | null }>;
+  /** Todas as cotacoes do item, em todos os mercados; as que nao vierem sao apagadas. */
+  cotacoes: CotacaoEditada[];
 };
 
 export type UseListaCompras = {
@@ -177,14 +209,16 @@ export type UseListaCompras = {
   marcas: Marca[];
   empresas: Empresa[];
 
-  /** Anota o preco do item no mercado; `null` apaga. Grava logo depois de parar de digitar. */
-  definirPreco: (itemId: string, empresaId: string, preco: number | null) => void;
-  /** Preco anotado de um item num mercado. */
-  precoAnotado: (itemId: string, empresaId: string) => number | null;
-  /** Variante anotada com o preco do item no mercado. */
-  varianteAnotada: (itemId: string, empresaId: string) => string | null;
-  /** Marca/variante vista junto com o preco; `null` = nao informada. */
-  definirVariantePreco: (itemId: string, empresaId: string, varianteId: string | null) => void;
+  /**
+   * Preco digitado no campo da linha: cai na cotacao que vale no mercado (ou
+   * cria a primeira); `null` apaga. Grava logo depois de parar de digitar.
+   */
+  definirPreco: (item: ItemListaCompras, empresaId: string, preco: number | null) => void;
+  /** Cotacoes do item em todos os mercados, na ordem em que foram anotadas. */
+  cotacoesDoItem: (itemId: string) => CotacaoNaLista[];
+  cotacaoPorId: (id: string) => CotacaoNaLista | null;
+  /** Marca/variante vista na cotacao; `null` = nao informada. */
+  definirVarianteCotacao: (cotacaoId: string, varianteId: string | null) => void;
   /** Ultimo preco do historico para o produto/variante no mercado, com a data. */
   referenciaNoMercado: (
     item: Pick<ItemListaCompras, 'produto_id' | 'variante_id'>,
@@ -196,13 +230,6 @@ export type UseListaCompras = {
   precoBase: (varianteId: string) => number | null;
   /** Preco reduzido a unidade primaria da variante; `null` sem medida cadastrada. */
   unitarioDe: (preco: number | null, varianteId: string | null) => PrecoPorUnidade | null;
-  /**
-   * Embalagens do mesmo produto no mercado atual, pelo preco por unidade - o
-   * mesmo comparativo do orcamento.
-   */
-  comparativoVariantes: ComparativoProduto[];
-  /** Poe na lista outra embalagem do produto do item, para comparar no mesmo mercado. */
-  adicionarEmbalagem: (item: ItemListaCompras) => ItemListaCompras | null;
 
   /** Grava o item; `false` quando os dados nao passaram na validacao. */
   salvarItem: (dados: DadosItemLista, editando: ItemListaCompras | null) => boolean;
@@ -211,14 +238,14 @@ export type UseListaCompras = {
   limparComprados: () => void;
   esvaziarLista: () => void;
   apagarPrecos: () => void;
-  /** Grava no historico todos os precos anotados que ainda nao estao la. */
+  /** Grava no historico todas as cotacoes que ainda nao estao la. */
   registrarPrecosNoHistorico: () => void;
   /** Acha (ou poe na lista) o produto do codigo lido, para anotar o preco dele. */
   lerCodigo: (codigo: string) => { item: ItemListaCompras; varianteId: string } | null;
   /**
    * Valida o carrinho e monta o lancamento a conferir (`null` se faltar algo).
-   * Ja leva ao historico os precos da pesquisa; os do carrinho no mercado da
-   * compra vao com o proprio lancamento.
+   * Ja leva ao historico as cotacoes da pesquisa; a que vale para cada item do
+   * carrinho, no mercado da compra, vai com o proprio lancamento.
    */
   iniciarFechamento: () => RascunhoLancamento | null;
   /** Quantos precos da pesquisa o ultimo fechamento levou ao historico. */
@@ -227,17 +254,21 @@ export type UseListaCompras = {
   registrarCompra: (lancamento: NovoLancamento) => Promise<void>;
 };
 
+/** Gravacao de cotacao esperando a pausa na digitacao. */
+type GravacaoPendente = { tipo: 'salvar' | 'apagar'; cotacao: CotacaoNaLista };
+
 const chavePreco = (itemId: string, empresaId: string): string => `${itemId}|${empresaId}`;
 
 /**
- * Lista de compras como pesquisa de precos: o mesmo item recebe o preco visto
- * em cada mercado, a tela compara lado a lado e, no mercado escolhido, os itens
- * vao para o carrinho e viram um lancamento com itens.
+ * Lista de compras como pesquisa de precos: cada item recebe as cotacoes
+ * (marca/embalagem e preco) vistas em cada mercado, a tela compara lado a lado
+ * e, no mercado escolhido, os itens vao para o carrinho e viram um lancamento
+ * com itens.
  */
 export function useListaCompras(): UseListaCompras {
   const toast = useToast();
   const [itens, setItens] = useState<ItemListaCompras[]>([]);
-  const [precos, setPrecos] = useState<PrecoNaLista[]>([]);
+  const [cotacoes, setCotacoes] = useState<CotacaoNaLista[]>([]);
   const [mercados, setMercados] = useState<string[]>([]);
   const [mercadoAtual, setMercadoAtual] = useState<string | null>(null);
   const [produtos, setProdutos] = useState<Produto[]>([]);
@@ -254,19 +285,19 @@ export function useListaCompras(): UseListaCompras {
 
   /** Gravacoes em sequencia: dois toques rapidos nao gravam fora de ordem. */
   const fila = useRef(Promise.resolve());
-  /** Precos digitados aguardando a pausa na digitacao para ir ao banco. */
-  const precosPendentes = useRef(
-    new Map<
-      string,
-      { itemId: string; empresaId: string; preco: number | null; varianteId: string | null }
-    >(),
-  );
+  /** Cotacoes digitadas aguardando a pausa na digitacao, pelo id da cotacao. */
+  const gravacoesPendentes = useRef(new Map<string, GravacaoPendente>());
   const timerPrecos = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /**
+   * Cotacao criada pelo campo da linha em cada item|mercado: a tecla seguinte
+   * cai nela mesmo que a tela ainda nao tenha atualizado.
+   */
+  const criadasPeloCampo = useRef(new Map<string, string>());
 
   const carregarDoBanco = useCallback(async (): Promise<void> => {
     const [
       itensDoBanco,
-      precosDoBanco,
+      cotacoesDoBanco,
       mercadosDoBanco,
       mercadoAtualDoBanco,
       produtosDoBanco,
@@ -279,7 +310,7 @@ export function useListaCompras(): UseListaCompras {
       localDoBanco,
     ] = await Promise.all([
       listItensListaCompras(),
-      listPrecosDaLista(),
+      listCotacoesDaLista(),
       listMercadosDaLista(),
       getMercadoAtualDaLista(),
       listProdutos(),
@@ -293,7 +324,7 @@ export function useListaCompras(): UseListaCompras {
     ]);
 
     setItens(itensDoBanco);
-    setPrecos(precosDoBanco);
+    setCotacoes(cotacoesDoBanco);
     setMercados(mercadosDoBanco);
     // O mercado pode ter saido da comparacao ou sido excluido.
     setMercadoAtual(
@@ -320,26 +351,21 @@ export function useListaCompras(): UseListaCompras {
     [carregarDoBanco],
   );
 
-  /** Manda ao banco os precos digitados ate agora; resolve quando a fila esvaziar. */
-  const gravarPrecosPendentes = useCallback((): Promise<void> => {
+  /** Manda ao banco as cotacoes digitadas ate agora; resolve quando a fila esvaziar. */
+  const gravarPendentes = useCallback((): Promise<void> => {
     if (timerPrecos.current) {
       clearTimeout(timerPrecos.current);
       timerPrecos.current = null;
     }
 
-    const lote = [...precosPendentes.current.values()];
-    precosPendentes.current.clear();
+    const lote = [...gravacoesPendentes.current.values()];
+    gravacoesPendentes.current.clear();
 
     if (lote.length > 0) {
       fila.current = fila.current
         .then(async () => {
-          for (const pendente of lote) {
-            await salvarPrecoDaLista(
-              pendente.itemId,
-              pendente.empresaId,
-              pendente.preco,
-              pendente.varianteId,
-            );
+          for (const { tipo, cotacao } of lote) {
+            await (tipo === 'salvar' ? salvarCotacao(cotacao) : deleteCotacao(cotacao.id));
           }
         })
         .catch(erroAoGravar);
@@ -348,18 +374,18 @@ export function useListaCompras(): UseListaCompras {
     return fila.current;
   }, [erroAoGravar]);
 
-  /** Esquece precos ainda nao gravados de itens que vao sair da lista. */
-  const descartarPendentes = (itemIds: Set<string>): void => {
-    for (const [chave, pendente] of precosPendentes.current) {
-      if (itemIds.has(pendente.itemId)) {
-        precosPendentes.current.delete(chave);
+  /** Esquece gravacoes ainda pendentes das cotacoes que vao sair da lista. */
+  const descartarPendentes = (sai: (cotacao: CotacaoNaLista) => boolean): void => {
+    for (const [id, { cotacao }] of gravacoesPendentes.current) {
+      if (sai(cotacao)) {
+        gravacoesPendentes.current.delete(id);
       }
     }
   };
 
   const carregar = useCallback(async (): Promise<void> => {
     try {
-      await gravarPrecosPendentes();
+      await gravarPendentes();
       await carregarDoBanco();
     } catch (error: unknown) {
       console.error('Erro ao carregar a lista de compras:', error);
@@ -367,7 +393,7 @@ export function useListaCompras(): UseListaCompras {
     } finally {
       setLoading(false);
     }
-  }, [gravarPrecosPendentes, carregarDoBanco]);
+  }, [gravarPendentes, carregarDoBanco]);
 
   useFocusEffect(
     useCallback(() => {
@@ -375,16 +401,16 @@ export function useListaCompras(): UseListaCompras {
 
       // Saindo da tela, o que foi digitado vai para o banco na hora.
       return (): void => {
-        void gravarPrecosPendentes();
+        void gravarPendentes();
       };
-    }, [carregar, gravarPrecosPendentes]),
+    }, [carregar, gravarPendentes]),
   );
 
   useEffect(
     () => (): void => {
-      void gravarPrecosPendentes();
+      void gravarPendentes();
     },
-    [gravarPrecosPendentes],
+    [gravarPendentes],
   );
 
   const atualizar = useCallback((): void => {
@@ -407,8 +433,37 @@ export function useListaCompras(): UseListaCompras {
     [erroAoGravar],
   );
 
+  /** Guarda a gravacao (a mais nova da cotacao vale) e espera a pausa na digitacao. */
+  const agendarGravacao = (gravacao: GravacaoPendente): void => {
+    gravacoesPendentes.current.set(gravacao.cotacao.id, gravacao);
+
+    if (timerPrecos.current) {
+      clearTimeout(timerPrecos.current);
+    }
+
+    timerPrecos.current = setTimeout(() => {
+      void gravarPendentes();
+    }, ESPERA_GRAVAR_PRECO);
+  };
+
+  /** Poe a cotacao na tela (no lugar da antiga, se ja existia) e agenda a gravacao. */
+  const anotarCotacao = (cotacao: CotacaoNaLista): void => {
+    setCotacoes((atuais) =>
+      atuais.some((atual) => atual.id === cotacao.id)
+        ? atuais.map((atual) => (atual.id === cotacao.id ? cotacao : atual))
+        : [...atuais, cotacao],
+    );
+    agendarGravacao({ tipo: 'salvar', cotacao });
+  };
+
+  const apagarCotacao = (cotacao: CotacaoNaLista): void => {
+    setCotacoes((atuais) => atuais.filter((atual) => atual.id !== cotacao.id));
+    agendarGravacao({ tipo: 'apagar', cotacao });
+  };
+
   // --- Consultas -----------------------------------------------------------------
 
+  const itemPorId = useMemo(() => new Map(itens.map((item) => [item.id, item])), [itens]);
   const produtoPorId = useMemo(() => new Map(produtos.map((p) => [p.id, p])), [produtos]);
   const variantePorId = useMemo(() => new Map(variantes.map((v) => [v.id, v])), [variantes]);
 
@@ -431,28 +486,27 @@ export function useListaCompras(): UseListaCompras {
     [empresas],
   );
 
-  const precoPorChave = useMemo(
+  /** A variante pode ter saido do cadastro: a cotacao dela fica sem marca. */
+  const cotacoesValidas = useMemo(
     () =>
-      new Map(precos.map((preco) => [chavePreco(preco.item_id, preco.empresa_id), preco.preco])),
-    [precos],
+      cotacoes.map((cotacao) =>
+        cotacao.variante_id && !variantePorId.has(cotacao.variante_id)
+          ? { ...cotacao, variante_id: null }
+          : cotacao,
+      ),
+    [cotacoes, variantePorId],
   );
 
-  const precoAnotado = useCallback(
-    (itemId: string, empresaId: string): number | null =>
-      precoPorChave.get(chavePreco(itemId, empresaId)) ?? null,
-    [precoPorChave],
+  const cotacoesDoItem = useCallback(
+    (itemId: string): CotacaoNaLista[] =>
+      cotacoesValidas.filter((cotacao) => cotacao.item_id === itemId),
+    [cotacoesValidas],
   );
 
-  /** Variante anotada com o preco; a que foi excluida do cadastro nao conta. */
-  const varianteAnotada = useCallback(
-    (itemId: string, empresaId: string): string | null => {
-      const id = precos.find(
-        (preco) => preco.item_id === itemId && preco.empresa_id === empresaId,
-      )?.variante_id;
-
-      return id && variantePorId.has(id) ? id : null;
-    },
-    [precos, variantePorId],
+  const cotacaoPorId = useCallback(
+    (id: string): CotacaoNaLista | null =>
+      cotacoesValidas.find((cotacao) => cotacao.id === id) ?? null,
+    [cotacoesValidas],
   );
 
   const historicoPorMercado = useMemo(() => {
@@ -513,11 +567,68 @@ export function useListaCompras(): UseListaCompras {
     [variantePorId],
   );
 
-  /** Variante que vale para o preco: a anotada com ele, a do item ou a unica do produto. */
-  const varianteQueVale = useCallback(
-    (item: ItemListaCompras, empresaId: string): string | null =>
-      varianteAnotada(item.id, empresaId) ?? varianteParaHistorico(item, variantesPorProduto),
-    [varianteAnotada, variantesPorProduto],
+  /** Variante de uma cotacao nova: a que o item quer levar ou a unica do produto. */
+  const variantePadrao = (item: ItemListaCompras): string | null =>
+    (item.variante_id && variantePorId.has(item.variante_id) ? item.variante_id : null) ??
+    unicaVarianteDoProduto(item.produto_id, variantesPorProduto);
+
+  // --- Cotacoes de cada item em cada mercado ---------------------------------------
+
+  /** Cotacoes pela chave item|mercado, cada uma com a variante e o preco por unidade. */
+  const cotacoesPorChave = useMemo(() => {
+    const porChave = new Map<string, CotacaoNoMercado[]>();
+
+    for (const cotacao of cotacoesValidas) {
+      const item = itemPorId.get(cotacao.item_id);
+
+      if (!item) {
+        continue;
+      }
+
+      const varianteId =
+        cotacao.variante_id ?? unicaVarianteDoProduto(item.produto_id, variantesPorProduto);
+      const chave = chavePreco(cotacao.item_id, cotacao.empresa_id);
+
+      porChave.set(chave, [
+        ...(porChave.get(chave) ?? []),
+        {
+          cotacao,
+          varianteId,
+          preco: cotacao.preco,
+          unitario: unitarioDe(cotacao.preco, varianteId),
+        },
+      ]);
+    }
+
+    return porChave;
+  }, [cotacoesValidas, itemPorId, variantesPorProduto, unitarioDe]);
+
+  /** A cotacao que vale em cada item|mercado: a da variante do item ou a mais barata. */
+  const valePorChave = useMemo(() => {
+    const porChave = new Map<string, CotacaoNoMercado>();
+
+    for (const [chave, doMercado] of cotacoesPorChave) {
+      const item = itemPorId.get(doMercado[0].cotacao.item_id);
+      const { vale } = compararCotacoes(doMercado, item?.variante_id ?? null);
+
+      if (vale) {
+        porChave.set(chave, vale);
+      }
+    }
+
+    return porChave;
+  }, [cotacoesPorChave, itemPorId]);
+
+  const cotacoesNoMercado = useCallback(
+    (itemId: string, empresaId: string): CotacaoNoMercado[] =>
+      cotacoesPorChave.get(chavePreco(itemId, empresaId)) ?? [],
+    [cotacoesPorChave],
+  );
+
+  const valeNoMercado = useCallback(
+    (itemId: string, empresaId: string): CotacaoNoMercado | null =>
+      valePorChave.get(chavePreco(itemId, empresaId)) ?? null,
+    [valePorChave],
   );
 
   // --- Comparacao ----------------------------------------------------------------
@@ -527,17 +638,14 @@ export function useListaCompras(): UseListaCompras {
       compararLista(
         itens.map((item) => ({ id: item.id, quantidade: item.quantidade })),
         mercados,
-        precos.map((preco) => {
-          const varianteId = varianteAnotada(preco.item_id, preco.empresa_id);
-          return {
-            itemId: preco.item_id,
-            empresaId: preco.empresa_id,
-            preco: preco.preco,
-            precoUnitario: unitarioDe(preco.preco, varianteId), // ← já calculado aqui
-          };
-        }),
+        [...valePorChave.values()].map((vale) => ({
+          itemId: vale.cotacao.item_id,
+          empresaId: vale.cotacao.empresa_id,
+          preco: vale.preco,
+          precoUnitario: vale.unitario,
+        })),
       ),
-    [itens, mercados, precos, varianteAnotada, unitarioDe],
+    [itens, mercados, valePorChave],
   );
 
   const mercadosNaLista = useMemo(
@@ -572,24 +680,31 @@ export function useListaCompras(): UseListaCompras {
       itens.map((item) => {
         const variante = item.variante_id ? variantePorId.get(item.variante_id) : undefined;
         const menor = comparativo.menorPorItem.get(item.id);
-        const precosDoItem = mercados.map((empresaId) => ({
-          empresaId,
-          nome: nomeEmpresa(empresaId),
-          preco: precoAnotado(item.id, empresaId),
-          varianteId: varianteAnotada(item.id, empresaId),
-          menor: Boolean(menor && menor.cotacoes > 1 && menor.mercados.includes(empresaId)),
-        }));
+        const precosDoItem = mercados.map((empresaId): PrecoNoMercado => {
+          const vale = valeNoMercado(item.id, empresaId);
 
-        const precoAtual = mercadoAtual ? precoAnotado(item.id, mercadoAtual) : null;
-        const varianteDoPreco = mercadoAtual ? varianteAnotada(item.id, mercadoAtual) : null;
-        const varianteAqui = mercadoAtual ? varianteQueVale(item, mercadoAtual) : null;
-        const marca = varianteDoPreco ? variantePorId.get(varianteDoPreco) : undefined;
+          return {
+            empresaId,
+            nome: nomeEmpresa(empresaId),
+            preco: vale?.preco ?? null,
+            varianteId: vale?.varianteId ?? null,
+            cotacoes: cotacoesNoMercado(item.id, empresaId).length,
+            menor: Boolean(menor && menor.cotacoes > 1 && menor.mercados.includes(empresaId)),
+          };
+        });
+
+        const cotacaoAtual = mercadoAtual ? valeNoMercado(item.id, mercadoAtual) : null;
+        const cotacoesAtual = mercadoAtual ? cotacoesNoMercado(item.id, mercadoAtual).length : 0;
         const variantesDoProduto = item.produto_id
           ? (variantesPorProduto.get(item.produto_id)?.length ?? 0)
           : 0;
-        const outros = precosDoItem
-          .filter((preco) => preco.empresaId !== mercadoAtual && preco.preco !== null)
-          .map((preco) => preco.preco as number);
+        const anotada = cotacaoAtual?.cotacao.variante_id
+          ? variantePorId.get(cotacaoAtual.cotacao.variante_id)
+          : undefined;
+        const outros = mercados
+          .filter((empresaId) => empresaId !== mercadoAtual)
+          .map((empresaId) => valeNoMercado(item.id, empresaId))
+          .filter((vale): vale is CotacaoNoMercado => vale !== null);
 
         return {
           item,
@@ -598,18 +713,29 @@ export function useListaCompras(): UseListaCompras {
           granel: ehGranel(variante),
           medida: variante && ehGranel(variante) ? medidaGranel(variante) : '',
           precos: precosDoItem,
-          precoAtual,
+          cotacaoAtual,
+          cotacoesAtual,
+          precoAtual: cotacaoAtual?.preco ?? null,
           dicaAtual: mercadoAtual
             ? (referenciaNoMercado(
-                { produto_id: item.produto_id, variante_id: varianteAqui ?? item.variante_id },
+                {
+                  produto_id: item.produto_id,
+                  variante_id: cotacaoAtual?.varianteId ?? item.variante_id,
+                },
                 mercadoAtual,
               )?.preco ?? null)
             : null,
-          marcaAtual: marca ? rotuloDaVariante(marca, marcas) : null,
-          unitarioAtual: unitarioDe(precoAtual, varianteAqui),
-          escolheMarca: precoAtual !== null && !item.variante_id && variantesDoProduto > 1,
-          diferencaAtual:
-            precoAtual !== null && outros.length > 0 ? precoAtual - Math.min(...outros) : null,
+          marcaAtual:
+            anotada && variantesDoProduto > 1 && anotada.id !== item.variante_id
+              ? rotuloDaVariante(anotada, marcas)
+              : null,
+          unitarioAtual: cotacaoAtual?.unitario ?? null,
+          escolheMarca:
+            cotacoesAtual === 1 &&
+            cotacaoAtual !== null &&
+            cotacaoAtual.cotacao.variante_id === null &&
+            variantesDoProduto > 1,
+          diferencaAtual: cotacaoAtual ? diferencaParaOMenor(cotacaoAtual, outros) : null,
         };
       }),
     [
@@ -618,52 +744,19 @@ export function useListaCompras(): UseListaCompras {
       comparativo,
       mercados,
       nomeEmpresa,
-      precoAnotado,
-      varianteAnotada,
+      valeNoMercado,
+      cotacoesNoMercado,
       variantesPorProduto,
       mercadoAtual,
       marcas,
       referenciaNoMercado,
-      varianteQueVale,
-      unitarioDe,
     ],
   );
 
-  /**
-   * O mesmo comparativo do orcamento, no mercado em que o usuario esta: cada
-   * item com preco aqui entra com a variante que vale para ele.
-   */
-  const comparativoVariantes = useMemo((): ComparativoProduto[] => {
-    if (!mercadoAtual) {
-      return [];
-    }
-
-    const entradas = naTela.flatMap(({ item, precoAtual }) => {
-      const varianteId = varianteQueVale(item, mercadoAtual);
-
-      if (!item.produto_id || precoAtual === null || !varianteId) {
-        return [];
-      }
-
-      const comoNoOrcamento: ItemOrcamento = {
-        localId: item.id,
-        produtoId: item.produto_id,
-        varianteId,
-        descricao: item.descricao,
-        quantidade: item.quantidade,
-        preco: precoAtual,
-      };
-
-      return [{ item: comoNoOrcamento, unitario: unitarioDe(precoAtual, varianteId) }];
-    });
-
-    return agruparVariantesPorProduto(entradas, (item) => item.produtoId).map((grupo) => ({
-      ...grupo,
-      nomeProduto: produtoPorId.get(grupo.produtoId)?.nome ?? 'Produto removido',
-    }));
-  }, [mercadoAtual, naTela, varianteQueVale, unitarioDe, produtoPorId]);
-
-  const pendentes = useMemo(() => naTela.filter((entrada) => !entrada.item.comprado), [naTela]);
+  const pendentesNaTela = useMemo(
+    () => naTela.filter((entrada) => !entrada.item.comprado),
+    [naTela],
+  );
   const comprados = useMemo(() => naTela.filter((entrada) => entrada.item.comprado), [naTela]);
 
   const totais = useMemo((): TotaisLista => {
@@ -671,7 +764,7 @@ export function useListaCompras(): UseListaCompras {
 
     return {
       itens: itens.length,
-      pendentes: pendentes.length,
+      pendentes: pendentesNaTela.length,
       comprados: comprados.length,
       noMercadoAtual: atual?.total ?? 0,
       itensComPrecoAtual: atual?.itensComPreco ?? 0,
@@ -681,7 +774,7 @@ export function useListaCompras(): UseListaCompras {
       ),
       carrinhoSemPreco: comprados.filter((entrada) => entrada.precoAtual === null).length,
     };
-  }, [comparativo, mercadoAtual, itens, pendentes, comprados]);
+  }, [comparativo, mercadoAtual, itens, pendentesNaTela, comprados]);
 
   // --- Sugestoes -------------------------------------------------------------------
 
@@ -728,17 +821,17 @@ export function useListaCompras(): UseListaCompras {
 
   const proximaOrdem = (): number => Math.max(0, ...itens.map((item) => item.ordem)) + 1;
 
-  const inserir = (novos: ItemListaCompras[], precosDosNovos: PrecoNaLista[] = []): void => {
+  const inserir = (novos: ItemListaCompras[], cotacoesDosNovos: CotacaoNaLista[] = []): void => {
     gravar(
       () => {
         setItens((atuais) => [...atuais, ...novos]);
-        setPrecos((atuais) => [...atuais, ...precosDosNovos]);
+        setCotacoes((atuais) => [...atuais, ...cotacoesDosNovos]);
       },
       async () => {
         await insertItensListaCompras(novos);
 
-        for (const preco of precosDosNovos) {
-          await salvarPrecoDaLista(preco.item_id, preco.empresa_id, preco.preco, preco.variante_id);
+        for (const cotacao of cotacoesDosNovos) {
+          await salvarCotacao(cotacao);
         }
       },
     );
@@ -805,102 +898,57 @@ export function useListaCompras(): UseListaCompras {
     vibrarSelecao();
   };
 
-  const adicionarEmbalagem = (item: ItemListaCompras): ItemListaCompras | null => {
-    const doProduto = item.produto_id ? (variantesPorProduto.get(item.produto_id) ?? []) : [];
-    const atual = mercadoAtual ? varianteQueVale(item, mercadoAtual) : item.variante_id;
-    // Comeca por uma variante que ainda nao esta na lista para este produto.
-    const naLista = new Set(
-      itens
-        .filter((outro) => outro.produto_id === item.produto_id)
-        .map((outro) => outro.variante_id),
-    );
-    const outra =
-      doProduto.find((id) => id !== atual && !naLista.has(id)) ??
-      doProduto.find((id) => id !== atual);
+  // --- Cotacoes ----------------------------------------------------------------------
 
-    if (!item.produto_id || !outra) {
-      return null;
-    }
-
-    const nova = novoItem(
-      {
-        produto_id: item.produto_id,
-        variante_id: outra,
-        descricao: item.descricao,
-        quantidade: 1,
-      },
-      proximaOrdem(),
-    );
-
-    inserir([nova]);
-    return nova;
-  };
-
-  // --- Precos ----------------------------------------------------------------------
-
-  /** Anota preco e variante do item no mercado; grava logo depois de parar de digitar. */
-  const anotar = (
-    itemId: string,
-    empresaId: string,
-    preco: number | null,
-    varianteId: string | null,
-  ): void => {
+  const definirPreco = (item: ItemListaCompras, empresaId: string, preco: number | null): void => {
     const valor = preco !== null && preco > 0 ? preco : null;
+    const doMercado = cotacoesNoMercado(item.id, empresaId);
+    // Com varias cotacoes o campo mostra a que vale; e nela que o preco cai.
+    const alvo =
+      doMercado.length === 1
+        ? doMercado[0].cotacao
+        : (valeNoMercado(item.id, empresaId)?.cotacao ?? null);
+    const agora = new Date().toISOString();
 
-    setPrecos((atuais) => {
-      const sem = atuais.filter(
-        (atual) => !(atual.item_id === itemId && atual.empresa_id === empresaId),
-      );
-
-      return valor === null
-        ? sem
-        : [
-            ...sem,
-            {
-              item_id: itemId,
-              empresa_id: empresaId,
-              preco: valor,
-              variante_id: varianteId,
-              updated_at: new Date().toISOString(),
-            },
-          ];
-    });
-
-    precosPendentes.current.set(chavePreco(itemId, empresaId), {
-      itemId,
-      empresaId,
-      preco: valor,
-      varianteId,
-    });
-
-    if (timerPrecos.current) {
-      clearTimeout(timerPrecos.current);
+    if (alvo) {
+      // Digitar o preco mantem a marca que ja estava anotada com ele.
+      if (valor === null) {
+        apagarCotacao(alvo);
+      } else {
+        anotarCotacao({ ...alvo, preco: valor, updated_at: agora });
+      }
+      return;
     }
 
-    timerPrecos.current = setTimeout(() => {
-      void gravarPrecosPendentes();
-    }, ESPERA_GRAVAR_PRECO);
+    if (valor === null) {
+      return;
+    }
+
+    const chave = chavePreco(item.id, empresaId);
+    const id = criadasPeloCampo.current.get(chave) ?? uuidv4();
+    criadasPeloCampo.current.set(chave, id);
+
+    anotarCotacao({
+      id,
+      item_id: item.id,
+      empresa_id: empresaId,
+      preco: valor,
+      variante_id: variantePadrao(item),
+      updated_at: agora,
+    });
   };
 
-  /** Digitar o preco mantem a marca que ja estava anotada com ele. */
-  const definirPreco = (itemId: string, empresaId: string, preco: number | null): void =>
-    anotar(itemId, empresaId, preco, varianteAnotada(itemId, empresaId));
+  const definirVarianteCotacao = (cotacaoId: string, varianteId: string | null): void => {
+    const cotacao = cotacaoPorId(cotacaoId);
 
-  const definirVariantePreco = (
-    itemId: string,
-    empresaId: string,
-    varianteId: string | null,
-  ): void => {
-    const preco = precoAnotado(itemId, empresaId);
-
-    if (preco !== null) {
+    if (cotacao && cotacao.variante_id !== varianteId) {
       vibrarSelecao();
-      anotar(itemId, empresaId, preco, varianteId);
+      anotarCotacao({ ...cotacao, variante_id: varianteId, updated_at: new Date().toISOString() });
     }
   };
 
   const apagarPrecos = (): void => {
-    if (precos.length === 0) {
+    if (cotacoes.length === 0) {
       return;
     }
 
@@ -913,10 +961,10 @@ export function useListaCompras(): UseListaCompras {
           text: 'Apagar',
           style: 'destructive',
           onPress: (): void => {
-            precosPendentes.current.clear();
+            gravacoesPendentes.current.clear();
             gravar(
-              () => setPrecos([]),
-              () => deleteTodosPrecosDaLista(),
+              () => setCotacoes([]),
+              () => deleteTodasCotacoesDaLista(),
             );
           },
         },
@@ -925,21 +973,18 @@ export function useListaCompras(): UseListaCompras {
   };
 
   /**
-   * Leva ao historico os precos anotados que ainda nao estao la (cada um com
-   * a data em que foi anotado). Devolve quantos gravou e quantos itens ficaram
-   * de fora por nao terem marca definida.
+   * Leva ao historico as cotacoes que ainda nao estao la (cada uma com a data
+   * em que foi anotada). Devolve quantas gravou e quantos itens ficaram de fora
+   * por nao terem marca definida.
    */
   const salvarPesquisaNoHistorico = async (
-    ignorar?: (itemId: string, empresaId: string) => boolean,
+    ignorar?: (cotacao: CotacaoNaLista) => boolean,
   ): Promise<{ salvos: number; semMarca: number }> => {
-    await gravarPrecosPendentes();
+    await gravarPendentes();
 
     const { registros, semMarca } = selecionarPrecosParaHistorico(
       itens,
-      precos.map((preco) => ({
-        ...preco,
-        variante_id: varianteAnotada(preco.item_id, preco.empresa_id),
-      })),
+      cotacoesValidas,
       historico,
       variantesPorProduto,
       ignorar,
@@ -1012,11 +1057,7 @@ export function useListaCompras(): UseListaCompras {
     }
 
     const tirar = (): void => {
-      for (const [chave, pendente] of precosPendentes.current) {
-        if (pendente.empresaId === empresaId) {
-          precosPendentes.current.delete(chave);
-        }
-      }
+      descartarPendentes((cotacao) => cotacao.empresa_id === empresaId);
 
       if (mercadoAtual === empresaId) {
         setMercadoAtual(null);
@@ -1026,22 +1067,22 @@ export function useListaCompras(): UseListaCompras {
       gravar(
         () => {
           setMercados((atuais) => atuais.filter((atual) => atual !== empresaId));
-          setPrecos((atuais) => atuais.filter((preco) => preco.empresa_id !== empresaId));
+          setCotacoes((atuais) => atuais.filter((cotacao) => cotacao.empresa_id !== empresaId));
         },
         () => removerMercadoDaLista(empresaId),
       );
     };
 
-    const anotados = precos.filter((preco) => preco.empresa_id === empresaId).length;
+    const anotadas = cotacoes.filter((cotacao) => cotacao.empresa_id === empresaId).length;
 
-    if (anotados === 0) {
+    if (anotadas === 0) {
       tirar();
       return;
     }
 
     Alert.alert(
       'Tirar da comparação',
-      `Tirar ${nomeEmpresa(empresaId)} da comparação? ${anotados} ${anotados === 1 ? 'preço anotado lá será apagado' : 'preços anotados lá serão apagados'}.`,
+      `Tirar ${nomeEmpresa(empresaId)} da comparação? ${anotadas} ${anotadas === 1 ? 'preço anotado lá será apagado' : 'preços anotados lá serão apagados'}.`,
       [
         { text: 'Cancelar', style: 'cancel' },
         { text: 'Tirar', style: 'destructive', onPress: tirar },
@@ -1070,27 +1111,23 @@ export function useListaCompras(): UseListaCompras {
       descricao,
       quantidade: dados.quantidade,
     };
+    const agora = new Date().toISOString();
+    const preenchidas = dados.cotacoes.flatMap((editada) =>
+      editada.preco !== null && editada.preco > 0 ? [{ ...editada, preco: editada.preco }] : [],
+    );
+    const paraGravar = (itemId: string): CotacaoNaLista[] =>
+      preenchidas.map((editada) => ({
+        id: editada.id,
+        item_id: itemId,
+        empresa_id: editada.empresaId,
+        preco: editada.preco,
+        variante_id: editada.varianteId,
+        updated_at: agora,
+      }));
 
     if (!editando) {
       const item = novoItem(campos, proximaOrdem());
-      const agora = new Date().toISOString();
-
-      inserir(
-        [item],
-        Object.entries(dados.precos).flatMap(([empresaId, { preco, varianteId }]) =>
-          preco !== null && preco > 0
-            ? [
-                {
-                  item_id: item.id,
-                  empresa_id: empresaId,
-                  preco,
-                  variante_id: varianteId,
-                  updated_at: agora,
-                },
-              ]
-            : [],
-        ),
-      );
+      inserir([item], paraGravar(item.id));
       return true;
     }
 
@@ -1102,13 +1139,24 @@ export function useListaCompras(): UseListaCompras {
       () => updateItemListaCompras(atualizado),
     );
 
-    for (const [empresaId, { preco, varianteId }] of Object.entries(dados.precos)) {
+    const ficam = new Set(preenchidas.map((editada) => editada.id));
+
+    for (const atual of cotacoesDoItem(editando.id)) {
+      if (!ficam.has(atual.id)) {
+        apagarCotacao(atual);
+      }
+    }
+
+    for (const nova of paraGravar(editando.id)) {
+      const atual = cotacaoPorId(nova.id);
       const mudou =
-        preco !== precoAnotado(editando.id, empresaId) ||
-        varianteId !== varianteAnotada(editando.id, empresaId);
+        !atual ||
+        atual.preco !== nova.preco ||
+        atual.variante_id !== nova.variante_id ||
+        atual.empresa_id !== nova.empresa_id;
 
       if (mudou) {
-        anotar(editando.id, empresaId, preco, varianteId);
+        anotarCotacao(nova);
       }
     }
 
@@ -1117,7 +1165,8 @@ export function useListaCompras(): UseListaCompras {
 
   /**
    * Por no carrinho sem preco anotado aqui usa o ultimo preco do historico
-   * neste mercado, se houver - o usuario so corrige se a gondola mostrar outro.
+   * neste mercado, com a marca dele - o usuario so corrige se a gondola
+   * mostrar outro.
    */
   const alternarComprado = (entrada: ItemNaLista): void => {
     const { item } = entrada;
@@ -1126,8 +1175,23 @@ export function useListaCompras(): UseListaCompras {
     if (atualizado.comprado) {
       vibrarSucesso();
 
-      if (mercadoAtual && entrada.precoAtual === null && entrada.dicaAtual !== null) {
-        definirPreco(item.id, mercadoAtual, entrada.dicaAtual);
+      const referencia =
+        mercadoAtual && entrada.cotacaoAtual === null
+          ? referenciaNoMercado(item, mercadoAtual)
+          : null;
+
+      if (mercadoAtual && referencia) {
+        anotarCotacao({
+          id: uuidv4(),
+          item_id: item.id,
+          empresa_id: mercadoAtual,
+          preco: referencia.preco,
+          variante_id:
+            referencia.varianteId && variantePorId.has(referencia.varianteId)
+              ? referencia.varianteId
+              : variantePadrao(item),
+          updated_at: new Date().toISOString(),
+        });
       }
     } else {
       vibrarSelecao();
@@ -1141,19 +1205,19 @@ export function useListaCompras(): UseListaCompras {
   };
 
   const remover = (item: ItemListaCompras): void => {
-    const precosDoItem = precos.filter((preco) => preco.item_id === item.id);
-    descartarPendentes(new Set([item.id]));
+    const cotacoesRemovidas = cotacoesDoItem(item.id);
+    descartarPendentes((cotacao) => cotacao.item_id === item.id);
 
     gravar(
       () => {
         setItens((atuais) => atuais.filter((atual) => atual.id !== item.id));
-        setPrecos((atuais) => atuais.filter((preco) => preco.item_id !== item.id));
+        setCotacoes((atuais) => atuais.filter((cotacao) => cotacao.item_id !== item.id));
       },
       () => deleteItemListaCompras(item.id),
     );
 
     toast.mostrar(`"${item.descricao}" removido`, {
-      acao: { rotulo: 'Desfazer', onPress: (): void => inserir([item], precosDoItem) },
+      acao: { rotulo: 'Desfazer', onPress: (): void => inserir([item], cotacoesRemovidas) },
     });
   };
 
@@ -1172,11 +1236,11 @@ export function useListaCompras(): UseListaCompras {
           style: 'destructive',
           onPress: (): void => {
             const ids = new Set(comprados.map((entrada) => entrada.item.id));
-            descartarPendentes(ids);
+            descartarPendentes((cotacao) => ids.has(cotacao.item_id));
             gravar(
               () => {
                 setItens((atuais) => atuais.filter((item) => !ids.has(item.id)));
-                setPrecos((atuais) => atuais.filter((preco) => !ids.has(preco.item_id)));
+                setCotacoes((atuais) => atuais.filter((cotacao) => !ids.has(cotacao.item_id)));
               },
               () => deleteItensComprados(),
             );
@@ -1197,11 +1261,11 @@ export function useListaCompras(): UseListaCompras {
         text: 'Esvaziar',
         style: 'destructive',
         onPress: (): void => {
-          precosPendentes.current.clear();
+          gravacoesPendentes.current.clear();
           gravar(
             () => {
               setItens([]);
-              setPrecos([]);
+              setCotacoes([]);
             },
             () => deleteTodosItensListaCompras(),
           );
@@ -1218,12 +1282,14 @@ export function useListaCompras(): UseListaCompras {
       return null;
     }
 
+    // As marcas do produto sao cotacoes do mesmo item: qualquer item dele serve.
     const doProduto = itens.filter((item) => item.produto_id === variante.produto_id);
     const naLista =
       doProduto.find((item) => item.variante_id === variante.id) ??
-      doProduto.find((item) => item.variante_id === null);
+      doProduto.find((item) => !item.comprado) ??
+      doProduto[0];
 
-    // O item volta com a variante lida, para o preco daqui ja sair com a marca certa.
+    // O item volta com a variante lida, para a cotacao daqui ja sair com a marca certa.
     if (naLista) {
       return { item: naLista, varianteId: variante.id };
     }
@@ -1259,7 +1325,7 @@ export function useListaCompras(): UseListaCompras {
       return null;
     }
 
-    const semPreco = comprados.filter((entrada) => entrada.precoAtual === null);
+    const semPreco = comprados.filter((entrada) => entrada.cotacaoAtual === null);
 
     if (semPreco.length > 0) {
       Alert.alert(
@@ -1271,14 +1337,16 @@ export function useListaCompras(): UseListaCompras {
       return null;
     }
 
-    // A pesquisa vai para o historico ja; o carrinho neste mercado vai com o
-    // lancamento, com o preco que for confirmado nele.
-    const noCarrinho = new Set(comprados.map((entrada) => entrada.item.id));
+    // A pesquisa vai para o historico ja - inclusive as outras marcas cotadas
+    // aqui. A cotacao comprada vai com o lancamento, com o preco confirmado nele.
+    const compradas = new Set(
+      comprados.flatMap((entrada) =>
+        entrada.cotacaoAtual ? [entrada.cotacaoAtual.cotacao.id] : [],
+      ),
+    );
     setPesquisaSalva(0);
 
-    void salvarPesquisaNoHistorico(
-      (itemId, empresaId) => empresaId === mercadoAtual && noCarrinho.has(itemId),
-    )
+    void salvarPesquisaNoHistorico((cotacao) => compradas.has(cotacao.id))
       .then(({ salvos }) => setPesquisaSalva(salvos))
       .catch((error: unknown) => {
         console.error('Erro ao levar a pesquisa de precos ao historico:', error);
@@ -1291,11 +1359,8 @@ export function useListaCompras(): UseListaCompras {
       categoriaId: categorias.some((categoria) => categoria.id === CATEGORIA_MERCADO)
         ? CATEGORIA_MERCADO
         : null,
-      itens: comprados.map(({ item, precoAtual }) => {
-        // A marca anotada aqui vale mais; sem ela, a do item ou a unica do produto.
-        const varianteId =
-          varianteAnotada(item.id, mercadoAtual) ??
-          varianteParaHistorico(item, variantesPorProduto);
+      itens: comprados.map(({ item, cotacaoAtual }) => {
+        const varianteId = cotacaoAtual?.varianteId ?? null;
         const variante = varianteId ? variantePorId.get(varianteId) : undefined;
 
         return {
@@ -1305,7 +1370,7 @@ export function useListaCompras(): UseListaCompras {
             ? `${item.descricao} - ${rotuloDaVariante(variante, marcas)}`
             : item.descricao,
           quantidade: item.quantidade,
-          precoUnitario: precoAtual ?? 0,
+          precoUnitario: cotacaoAtual?.preco ?? 0,
         };
       }),
     };
@@ -1313,7 +1378,7 @@ export function useListaCompras(): UseListaCompras {
 
   const registrarCompra = async (lancamento: NovoLancamento): Promise<void> => {
     // Espera os precos e as marcacoes pendentes antes de apagar os comprados.
-    await gravarPrecosPendentes();
+    await gravarPendentes();
 
     await emTransacao(async () => {
       await registrarLancamento(lancamento, localPadrao);
@@ -1327,7 +1392,7 @@ export function useListaCompras(): UseListaCompras {
     loading,
     atualizando,
     atualizar,
-    pendentes,
+    pendentes: pendentesNaTela,
     comprados,
     totais,
     mercados: mercadosNaLista,
@@ -1345,15 +1410,13 @@ export function useListaCompras(): UseListaCompras {
     marcas,
     empresas,
     definirPreco,
-    precoAnotado,
-    varianteAnotada,
-    definirVariantePreco,
+    cotacoesDoItem,
+    cotacaoPorId,
+    definirVarianteCotacao,
     referenciaNoMercado,
     menorPrecoVisto,
     precoBase,
     unitarioDe,
-    comparativoVariantes,
-    adicionarEmbalagem,
     salvarItem,
     alternarComprado,
     remover,

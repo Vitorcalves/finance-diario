@@ -5,16 +5,16 @@ import type { HistoricoPreco } from '../models/historicoPreco';
 export type ItemDaPesquisa = {
   id: string;
   produto_id: string | null;
-  variante_id: string | null;
 };
 
-/** Preco anotado na lista, com o momento em que foi anotado (ISO). */
+/** Cotacao anotada na lista, com o momento em que foi anotada (ISO). */
 export type PrecoDaPesquisa = {
+  id: string;
   item_id: string;
   empresa_id: string;
   preco: number;
-  /** Variante vista naquele mercado; vale mais que a do item. */
-  variante_id?: string | null;
+  /** Variante cotada; `null` = marca nao informada. */
+  variante_id: string | null;
   updated_at: string;
 };
 
@@ -36,34 +36,39 @@ export type SelecaoParaHistorico = {
 /** Diferencas abaixo de meio centavo sao arredondamento. */
 const CENTAVO = 0.005;
 
-/**
- * A variante cujo historico recebe o preco: a escolhida no item ou, quando o
- * item aceita qualquer marca e o produto so tem uma variante, essa unica.
- */
-export const varianteParaHistorico = (
-  item: Pick<ItemDaPesquisa, 'produto_id' | 'variante_id'>,
+/** A variante do produto quando ele so tem uma; com mais de uma, nao da para adivinhar. */
+export const unicaVarianteDoProduto = (
+  produtoId: string | null,
   variantesPorProduto: Map<string, string[]>,
 ): string | null => {
-  if (item.variante_id) {
-    return item.variante_id;
-  }
-
-  const doProduto = item.produto_id ? variantesPorProduto.get(item.produto_id) : undefined;
+  const doProduto = produtoId ? variantesPorProduto.get(produtoId) : undefined;
   return doProduto?.length === 1 ? doProduto[0] : null;
 };
 
 /**
- * Escolhe os precos da pesquisa que ainda nao estao no historico, cada um na
- * variante anotada com ele (ou na do item, quando nao foi anotada). Cada um vai
- * com a data em que foi anotado, e o mesmo preco no mesmo dia nao entra de
- * novo - finalizar a lista duas vezes nao duplica nada.
+ * A variante cujo historico recebe o preco da cotacao: a anotada nela ou,
+ * quando o produto so tem uma variante, essa unica. A variante do item nao
+ * entra: ela diz o que o usuario quer levar, nao a marca que estava na gondola.
+ */
+export const varianteDaCotacao = (
+  cotacao: Pick<PrecoDaPesquisa, 'variante_id'>,
+  item: Pick<ItemDaPesquisa, 'produto_id'>,
+  variantesPorProduto: Map<string, string[]>,
+): string | null =>
+  cotacao.variante_id ?? unicaVarianteDoProduto(item.produto_id, variantesPorProduto);
+
+/**
+ * Escolhe as cotacoes da pesquisa que ainda nao estao no historico, cada uma
+ * na sua variante (`varianteDaCotacao`). Cada uma vai com a data em que foi
+ * anotada, e o mesmo preco no mesmo dia nao entra de novo - finalizar a lista
+ * duas vezes nao duplica nada.
  */
 export const selecionarPrecosParaHistorico = (
   itens: ItemDaPesquisa[],
   precos: PrecoDaPesquisa[],
   historico: HistoricoPreco[],
   variantesPorProduto: Map<string, string[]>,
-  ignorar: (itemId: string, empresaId: string) => boolean = (): boolean => false,
+  ignorar: (cotacao: PrecoDaPesquisa) => boolean = (): boolean => false,
 ): SelecaoParaHistorico => {
   const itemPorId = new Map(itens.map((item) => [item.id, item]));
   const registros: RegistroParaHistorico[] = [];
@@ -72,11 +77,11 @@ export const selecionarPrecosParaHistorico = (
   for (const preco of precos) {
     const item = itemPorId.get(preco.item_id);
 
-    if (!item || ignorar(item.id, preco.empresa_id)) {
+    if (!item || ignorar(preco)) {
       continue;
     }
 
-    const varianteId = preco.variante_id ?? varianteParaHistorico(item, variantesPorProduto);
+    const varianteId = varianteDaCotacao(preco, item, variantesPorProduto);
 
     if (!item.produto_id || !varianteId) {
       semMarca.add(item.id);

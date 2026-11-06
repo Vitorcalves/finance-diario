@@ -14,6 +14,7 @@ import { migration012 } from './012_contas_cartoes_reservas';
 import { migration013 } from './013_plano_conta';
 import { migration014 } from './014_entrada_programada';
 import { migration015 } from './015_natureza_transacao';
+import { migration016 } from './016_lista_compras_cotacoes';
 
 export const migrations: Migration[] = [
   migration001,
@@ -31,4 +32,5 @@ export const migrations: Migration[] = [
   migration013,
   migration014,
   migration015,
+  migration016,
 ];

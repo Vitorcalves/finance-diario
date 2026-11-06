@@ -27,9 +27,8 @@ import {
   spacing,
   useTheme,
 } from '../../theme';
-import { rotuloQuantidade, rotuloVariante, rotuloVariantePorId } from '../../utils/variantes';
+import { rotuloVariante } from '../../utils/variantes';
 import NovoLancamentoForm from '../Home/components/NovoLancamentoForm';
-import ComparativoVariantes from '../Orcamento/components/ComparativoVariantes';
 import type { RascunhoLancamento } from '../Home/types';
 import AdicionarRapido from './components/AdicionarRapido';
 import ItemListaForm from './components/ItemListaForm';
@@ -44,8 +43,9 @@ const SEM_MARCA = '__sem_marca__';
 
 /**
  * Lista de compras como pesquisa de precos: monta a lista, anota o preco de
- * cada item em cada mercado visitado e compara lado a lado. No mercado
- * escolhido, os itens vao para o carrinho e a compra vira um lancamento.
+ * cada item (de cada marca/embalagem, se quiser comparar) em cada mercado
+ * visitado e compara lado a lado. No mercado escolhido, os itens vao para o
+ * carrinho e a compra vira um lancamento.
  */
 export default function ListaComprasView(): React.ReactNode {
   const { colors, sharedStyles } = useTheme();
@@ -63,14 +63,8 @@ export default function ListaComprasView(): React.ReactNode {
     empresaId: string;
     varianteId: string;
   } | null>(null);
-  /** Preco cuja marca esta sendo escolhida no painel. */
-  const [marcaDe, setMarcaDe] = useState<{
-    itemId: string;
-    empresaId: string;
-    produtoId: string;
-    /** O item ja fixa uma marca: sem a do preco, vale a dele. */
-    itemTemMarca: boolean;
-  } | null>(null);
+  /** Cotacao cuja marca esta sendo escolhida no painel. */
+  const [marcaDe, setMarcaDe] = useState<{ cotacaoId: string; produtoId: string } | null>(null);
   const [painelMarca, setPainelMarca] = useState(false);
   const [scannerAberto, setScannerAberto] = useState(false);
   const [menuAberto, setMenuAberto] = useState(false);
@@ -82,7 +76,10 @@ export default function ListaComprasView(): React.ReactNode {
   const [campos] = useState(() => new Map<string, RNTextInput>());
 
   const vazia = pendentes.length === 0 && comprados.length === 0;
-  const ordemDosCampos = [...pendentes, ...comprados].map((entrada) => entrada.item.id);
+  // Item com varias marcas cotadas aqui nao tem campo na linha: o "proximo" pula ele.
+  const ordemDosCampos = [...pendentes, ...comprados]
+    .filter((entrada) => entrada.cotacoesAtual <= 1)
+    .map((entrada) => entrada.item.id);
 
   const produtosNaLista = useMemo(
     () =>
@@ -103,10 +100,8 @@ export default function ListaComprasView(): React.ReactNode {
     ? [
         {
           valor: SEM_MARCA,
-          rotulo: marcaDe.itemTemMarca ? 'Mesma do item' : 'Não informada',
-          descricao: marcaDe.itemTemMarca
-            ? undefined
-            : 'Sem a marca, este preço não vai para o histórico',
+          rotulo: 'Não informada',
+          descricao: 'Sem a marca, este preço não vai para o histórico',
         },
         ...lista.variantes
           .filter((variante) => variante.produto_id === marcaDe.produtoId)
@@ -166,9 +161,11 @@ export default function ListaComprasView(): React.ReactNode {
             onAlternar={(): void => lista.alternarComprado(entrada)}
             onEditar={(): void => abrirItem(entrada.item)}
             onRemover={(): void => lista.remover(entrada.item)}
-            onPreco={(preco): void =>
-              mercadoAtual ? lista.definirPreco(entrada.item.id, mercadoAtual, preco) : undefined
-            }
+            onPreco={(preco): void => {
+              if (mercadoAtual) {
+                lista.definirPreco(entrada.item, mercadoAtual, preco);
+              }
+            }}
             campoRef={(campo): void => {
               if (campo) {
                 campos.set(entrada.item.id, campo);
@@ -178,12 +175,10 @@ export default function ListaComprasView(): React.ReactNode {
             }}
             onProximo={proximoCampo(entrada.item.id)}
             onEscolherMarca={(): void => {
-              if (mercadoAtual && entrada.item.produto_id) {
+              if (entrada.cotacaoAtual && entrada.item.produto_id) {
                 setMarcaDe({
-                  itemId: entrada.item.id,
-                  empresaId: mercadoAtual,
+                  cotacaoId: entrada.cotacaoAtual.cotacao.id,
                   produtoId: entrada.item.produto_id,
-                  itemTemMarca: entrada.item.variante_id !== null,
                 });
                 setPainelMarca(true);
               }
@@ -255,7 +250,7 @@ export default function ListaComprasView(): React.ReactNode {
               <EmptyState
                 icon="cart-outline"
                 message="Sua lista está vazia"
-                hint="Adicione o que precisa comprar. Em cada mercado, toque nele em Mercados e anote os preços: a lista mostra onde cada item e a compra toda saem mais baratos."
+                hint="Adicione o que precisa comprar. Em cada mercado, toque nele em Mercados e anote os preços (de várias marcas, se quiser comparar). A lista mostra onde cada item e a compra toda saem mais baratos."
               />
             ) : (
               <>
@@ -275,26 +270,9 @@ export default function ListaComprasView(): React.ReactNode {
                   </>
                 )}
 
-                {/* O mesmo comparativo do orcamento, no mercado em que o usuario esta. */}
-                {lista.nomeMercadoAtual && (
-                  <ComparativoVariantes
-                    grupos={lista.comparativoVariantes}
-                    rotuloVariante={(id): string =>
-                      rotuloVariantePorId(id, lista.variantes, lista.marcas)
-                    }
-                    rotuloQuantidade={(quantidade, id): string =>
-                      rotuloQuantidade(
-                        quantidade,
-                        lista.variantes.find((variante) => variante.id === id),
-                      )
-                    }
-                    dica={`Preço por kg/L/un de cada embalagem em ${lista.nomeMercadoAtual}.`}
-                  />
-                )}
-
                 <Text style={styles.dica}>
                   {mercadoAtual
-                    ? 'Digite o preço ao lado de cada item. Toque no item para ver e editar os preços de todos os mercados; deslize para excluir.'
+                    ? 'Digite o preço ao lado de cada item. Toque no item para comparar marcas e embalagens e ver os preços de todos os mercados; deslize para excluir.'
                     : 'Toque em um mercado acima para anotar os preços dele. Toque no item para editar; deslize para excluir.'}
                 </Text>
               </>
@@ -320,25 +298,13 @@ export default function ListaComprasView(): React.ReactNode {
         marcas={lista.marcas}
         mercados={mercadosDoForm}
         mercadoAtual={mercadoAtual}
-        precoAnotado={lista.precoAnotado}
-        varianteAnotada={lista.varianteAnotada}
+        cotacoes={editando ? lista.cotacoesDoItem(editando.id) : []}
         marcaInicial={marcaInicial}
         referenciaNoMercado={lista.referenciaNoMercado}
         menorPrecoVisto={lista.menorPrecoVisto}
         precoBase={lista.precoBase}
         unitarioDe={lista.unitarioDe}
         nomeEmpresa={lista.nomeEmpresa}
-        onCompararEmbalagem={
-          editando
-            ? (): void => {
-                const nova = lista.adicionarEmbalagem(editando);
-
-                if (nova) {
-                  abrirItem(nova);
-                }
-              }
-            : undefined
-        }
         onFechar={(): void => setFormAberto(false)}
         onSalvar={lista.salvarItem}
       />
@@ -391,17 +357,11 @@ export default function ListaComprasView(): React.ReactNode {
         titulo={`Marca vista em ${lista.nomeMercadoAtual ?? 'mercado'}`}
         opcoes={opcoesMarca}
         selecionado={
-          marcaDe
-            ? (lista.varianteAnotada(marcaDe.itemId, marcaDe.empresaId) ?? SEM_MARCA)
-            : SEM_MARCA
+          marcaDe ? (lista.cotacaoPorId(marcaDe.cotacaoId)?.variante_id ?? SEM_MARCA) : SEM_MARCA
         }
         onSelecionar={(valor): void => {
           if (marcaDe) {
-            lista.definirVariantePreco(
-              marcaDe.itemId,
-              marcaDe.empresaId,
-              valor === SEM_MARCA ? null : valor,
-            );
+            lista.definirVarianteCotacao(marcaDe.cotacaoId, valor === SEM_MARCA ? null : valor);
           }
         }}
         onFechar={(): void => setPainelMarca(false)}

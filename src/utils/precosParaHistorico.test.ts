@@ -6,22 +6,29 @@ import {
   type ItemDaPesquisa,
   type PrecoDaPesquisa,
   selecionarPrecosParaHistorico,
-  varianteParaHistorico,
+  varianteDaCotacao,
 } from './precosParaHistorico';
 
 /** Meio-dia local: o dia nao muda com o fuso de quem roda o teste. */
 const ANOTADO = dayjs('2026-10-03T12:00:00').toISOString();
 
-const item = (id: string, produto: string | null, variante: string | null): ItemDaPesquisa => ({
+const item = (id: string, produto: string | null): ItemDaPesquisa => ({
   id,
   produto_id: produto,
-  variante_id: variante,
 });
 
-const preco = (itemId: string, empresaId: string, valor: number): PrecoDaPesquisa => ({
+const cotacao = (
+  id: string,
+  itemId: string,
+  empresaId: string,
+  valor: number,
+  variante: string | null = null,
+): PrecoDaPesquisa => ({
+  id,
   item_id: itemId,
   empresa_id: empresaId,
   preco: valor,
+  variante_id: variante,
   updated_at: ANOTADO,
 });
 
@@ -46,25 +53,35 @@ const variantes = new Map([
   ['feijao', ['kicaldo']],
 ]);
 
-describe('varianteParaHistorico', () => {
-  test('usa a variante escolhida no item', () => {
-    assert.equal(varianteParaHistorico(item('1', 'arroz', 'camil'), variantes), 'camil');
+describe('varianteDaCotacao', () => {
+  test('usa a variante anotada na cotacao', () => {
+    assert.equal(
+      varianteDaCotacao({ variante_id: 'camil' }, item('1', 'arroz'), variantes),
+      'camil',
+    );
   });
 
-  test('sem marca escolhida, usa a unica variante do produto', () => {
-    assert.equal(varianteParaHistorico(item('1', 'feijao', null), variantes), 'kicaldo');
+  test('sem marca anotada, usa a unica variante do produto', () => {
+    assert.equal(
+      varianteDaCotacao({ variante_id: null }, item('1', 'feijao'), variantes),
+      'kicaldo',
+    );
   });
 
   test('com mais de uma variante possivel, nao adivinha', () => {
-    assert.equal(varianteParaHistorico(item('1', 'arroz', null), variantes), null);
+    assert.equal(varianteDaCotacao({ variante_id: null }, item('1', 'arroz'), variantes), null);
   });
 });
 
 describe('selecionarPrecosParaHistorico', () => {
-  test('leva o preco de cada mercado, com a data em que foi anotado', () => {
+  test('leva cada cotacao, de cada mercado, com a data em que foi anotada', () => {
     const { registros, semMarca } = selecionarPrecosParaHistorico(
-      [item('a', 'arroz', 'tio')],
-      [preco('a', 'm1', 20), preco('a', 'm2', 22)],
+      [item('a', 'arroz')],
+      [
+        cotacao('c1', 'a', 'm1', 20, 'tio'),
+        cotacao('c2', 'a', 'm1', 23, 'camil'),
+        cotacao('c3', 'a', 'm2', 22, 'tio'),
+      ],
       [],
       variantes,
     );
@@ -80,6 +97,13 @@ describe('selecionarPrecosParaHistorico', () => {
       },
       {
         produtoId: 'arroz',
+        varianteId: 'camil',
+        empresaId: 'm1',
+        preco: 23,
+        data: '2026-10-03T12:00:00',
+      },
+      {
+        produtoId: 'arroz',
         varianteId: 'tio',
         empresaId: 'm2',
         preco: 22,
@@ -90,8 +114,8 @@ describe('selecionarPrecosParaHistorico', () => {
 
   test('o mesmo preco no mesmo dia ja registrado nao entra de novo', () => {
     const { registros } = selecionarPrecosParaHistorico(
-      [item('a', 'arroz', 'tio')],
-      [preco('a', 'm1', 20), preco('a', 'm2', 22)],
+      [item('a', 'arroz')],
+      [cotacao('c1', 'a', 'm1', 20, 'tio'), cotacao('c2', 'a', 'm2', 22, 'tio')],
       [
         registro('tio', 'm1', 20, '2026-10-03T09:30:00'),
         registro('tio', 'm2', 21, '2026-10-03T09:30:00'),
@@ -108,8 +132,13 @@ describe('selecionarPrecosParaHistorico', () => {
 
   test('conta os itens sem marca definida e ignora os textos livres', () => {
     const { registros, semMarca } = selecionarPrecosParaHistorico(
-      [item('a', 'arroz', null), item('f', 'feijao', null), item('papel', null, null)],
-      [preco('a', 'm1', 20), preco('a', 'm2', 21), preco('f', 'm1', 8), preco('papel', 'm1', 6)],
+      [item('a', 'arroz'), item('f', 'feijao'), item('papel', null)],
+      [
+        cotacao('c1', 'a', 'm1', 20),
+        cotacao('c2', 'a', 'm2', 21),
+        cotacao('c3', 'f', 'm1', 8),
+        cotacao('c4', 'papel', 'm1', 6),
+      ],
       [],
       variantes,
     );
@@ -121,41 +150,26 @@ describe('selecionarPrecosParaHistorico', () => {
     assert.equal(semMarca, 2);
   });
 
-  test('a variante anotada no preco vale mais que a do item', () => {
-    const { registros, semMarca } = selecionarPrecosParaHistorico(
-      [item('a', 'arroz', null), item('b', 'arroz', 'tio')],
-      [
-        { ...preco('a', 'm1', 20), variante_id: 'camil' },
-        { ...preco('a', 'm2', 21), variante_id: null },
-        { ...preco('b', 'm1', 25), variante_id: 'camil' },
-      ],
-      [],
-      variantes,
-    );
-
-    // 'a' em m2 nao tem marca no preco nem no item (arroz tem duas variantes).
-    assert.deepEqual(
-      registros.map((atual) => [atual.empresaId, atual.varianteId, atual.preco]),
-      [
-        ['m1', 'camil', 20],
-        ['m1', 'camil', 25],
-      ],
-    );
-    assert.equal(semMarca, 1);
-  });
-
-  test('pula o que foi pedido para ignorar (o carrinho, gravado pelo lancamento)', () => {
+  test('pula so a cotacao pedida (a comprada, que vai com o lancamento)', () => {
     const { registros } = selecionarPrecosParaHistorico(
-      [item('a', 'arroz', 'tio')],
-      [preco('a', 'm1', 20), preco('a', 'm2', 22)],
+      [item('a', 'arroz')],
+      [
+        cotacao('c1', 'a', 'm1', 20, 'tio'),
+        cotacao('c2', 'a', 'm1', 23, 'camil'),
+        cotacao('c3', 'a', 'm2', 22, 'tio'),
+      ],
       [],
       variantes,
-      (_itemId, empresaId) => empresaId === 'm1',
+      (atual) => atual.id === 'c1',
     );
 
+    // A outra marca cotada no mercado da compra continua indo para o historico.
     assert.deepEqual(
-      registros.map((atual) => atual.empresaId),
-      ['m2'],
+      registros.map((atual) => [atual.empresaId, atual.varianteId]),
+      [
+        ['m1', 'camil'],
+        ['m2', 'tio'],
+      ],
     );
   });
 });

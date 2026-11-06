@@ -1,11 +1,14 @@
 import { emTransacao, getConnection } from './database';
 
-/** Um item da lista de compras; ver as migracoes 009 e 010. */
+/** Um item da lista de compras; ver as migracoes 009, 010 e 016. */
 export type ItemListaCompras = {
   id: string;
   /** `null` quando o item e so um texto livre ("papel toalha"). */
   produto_id: string | null;
-  /** `null` = qualquer marca/embalagem do produto. */
+  /**
+   * Marca/embalagem que o usuario quer levar; `null` = qualquer uma (em cada
+   * mercado vale a cotacao mais barata).
+   */
   variante_id: string | null;
   descricao: string;
   quantidade: number;
@@ -18,14 +21,18 @@ export type ItemListaCompras = {
 export type NovoItemListaCompras = Omit<ItemListaCompras, 'ordem' | 'comprado'> &
   Partial<Pick<ItemListaCompras, 'comprado'>>;
 
-/** Preco unitario de um item da lista anotado num mercado. */
-export type PrecoNaLista = {
+/**
+ * Cotacao: o preco unitario de uma marca/embalagem de um item num mercado. O
+ * mesmo item pode ter varias no mesmo mercado (migracao 016), uma por variante.
+ */
+export type CotacaoNaLista = {
+  id: string;
   item_id: string;
   empresa_id: string;
   preco: number;
   /**
-   * Marca/variante vista naquele mercado (opcional; migracao 011). Sem ela vale
-   * a variante do item, se houver.
+   * Variante cotada; `null` = marca nao informada (nao herda a do item). Num
+   * produto com uma variante so, vale essa unica.
    */
   variante_id: string | null;
   updated_at: string;
@@ -108,7 +115,7 @@ export const updateItemListaCompras = async (item: ItemListaCompras): Promise<vo
   );
 };
 
-/** Apaga o item; os precos anotados dele vao junto (FK em cascata). */
+/** Apaga o item; as cotacoes dele vao junto (FK em cascata). */
 export const deleteItemListaCompras = async (id: string): Promise<void> => {
   const db = await getConnection();
   await db.runAsync('DELETE FROM lista_compras_itens WHERE id = ?', [id]);
@@ -125,47 +132,51 @@ export const deleteTodosItensListaCompras = async (): Promise<void> => {
   await db.runAsync('DELETE FROM lista_compras_itens');
 };
 
-// --- Precos por mercado ------------------------------------------------------
+// --- Cotacoes por mercado ----------------------------------------------------
 
-export const listPrecosDaLista = async (): Promise<PrecoNaLista[]> => {
+/** Todas as cotacoes, na ordem em que foram anotadas (o `rowid` da tabela). */
+export const listCotacoesDaLista = async (): Promise<CotacaoNaLista[]> => {
   const db = await getConnection();
 
-  return await db.getAllAsync<PrecoNaLista>(
-    'SELECT item_id, empresa_id, preco, variante_id, updated_at FROM lista_compras_precos',
+  return await db.getAllAsync<CotacaoNaLista>(
+    `
+        SELECT id, item_id, empresa_id, preco, variante_id, updated_at
+        FROM lista_compras_precos
+        ORDER BY rowid
+    `,
   );
 };
 
-/** Anota (ou troca) o preco do item no mercado; preco `null` apaga a anotacao. */
-export const salvarPrecoDaLista = async (
-  itemId: string,
-  empresaId: string,
-  preco: number | null,
-  varianteId: string | null = null,
-): Promise<void> => {
+/** Grava a cotacao nova ou troca preco e variante da que ja existe (pelo `id`). */
+export const salvarCotacao = async (cotacao: CotacaoNaLista): Promise<void> => {
   const db = await getConnection();
-
-  if (preco === null) {
-    await db.runAsync('DELETE FROM lista_compras_precos WHERE item_id = ? AND empresa_id = ?', [
-      itemId,
-      empresaId,
-    ]);
-    return;
-  }
 
   await db.runAsync(
     `
-        INSERT INTO lista_compras_precos (item_id, empresa_id, preco, variante_id, updated_at)
-        VALUES (?, ?, ?, ?, ?)
-        ON CONFLICT(item_id, empresa_id) DO UPDATE SET preco       = excluded.preco,
-                                                       variante_id = excluded.variante_id,
-                                                       updated_at  = excluded.updated_at
+        INSERT INTO lista_compras_precos (id, item_id, empresa_id, preco, variante_id, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET preco       = excluded.preco,
+                                      variante_id = excluded.variante_id,
+                                      updated_at  = excluded.updated_at
     `,
-    [itemId, empresaId, preco, varianteId, new Date().toISOString()],
+    [
+      cotacao.id,
+      cotacao.item_id,
+      cotacao.empresa_id,
+      cotacao.preco,
+      cotacao.variante_id,
+      cotacao.updated_at,
+    ],
   );
 };
 
-/** Comeca uma nova rodada de pesquisa: apaga os precos, mantem itens e mercados. */
-export const deleteTodosPrecosDaLista = async (): Promise<void> => {
+export const deleteCotacao = async (id: string): Promise<void> => {
+  const db = await getConnection();
+  await db.runAsync('DELETE FROM lista_compras_precos WHERE id = ?', [id]);
+};
+
+/** Comeca uma nova rodada de pesquisa: apaga as cotacoes, mantem itens e mercados. */
+export const deleteTodasCotacoesDaLista = async (): Promise<void> => {
   const db = await getConnection();
   await db.runAsync('DELETE FROM lista_compras_precos');
 };
@@ -195,7 +206,7 @@ export const adicionarMercadoNaLista = async (empresaId: string): Promise<void> 
   );
 };
 
-/** Tira o mercado da comparacao junto com os precos anotados nele. */
+/** Tira o mercado da comparacao junto com as cotacoes anotadas nele. */
 export const removerMercadoDaLista = async (empresaId: string): Promise<void> =>
   emTransacao(async () => {
     const db = await getConnection();

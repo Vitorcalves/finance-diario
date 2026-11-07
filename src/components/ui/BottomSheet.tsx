@@ -232,7 +232,8 @@ const useStyles = makeStyles((colors) => ({
     justifyContent: 'flex-end',
   },
   fundo: {
-    ...StyleSheet.absoluteFillObject,
+    // `absoluteFillObject` saiu do RN 0.88; `absoluteFill` e o mesmo objeto.
+    ...StyleSheet.absoluteFill,
     backgroundColor: colors.overlay,
   },
   painel: {

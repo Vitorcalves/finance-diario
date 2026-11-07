@@ -69,24 +69,28 @@ export default function NovoLancamentoForm({
   const catalogo = useCatalogoLancamento();
   const { carregar } = catalogo;
 
-  const [tipo, setTipo] = useState<TipoLancamento>('saida');
+  const [tipo, setTipo] = useState<TipoLancamento>(rascunho?.tipo ?? 'saida');
   const [empresaId, setEmpresaId] = useState<string | null>(rascunho?.empresaId ?? null);
   const [categoriaId, setCategoriaId] = useState<string | null>(rascunho?.categoriaId ?? null);
   /** Depois que o usuario escolhe a categoria, a empresa nao a troca mais. */
   const [categoriaManual, setCategoriaManual] = useState(Boolean(rascunho?.categoriaId));
   const [descricao, setDescricao] = useState(rascunho?.descricao ?? '');
-  const [data, setData] = useState(todayIso());
+  const [data, setData] = useState(rascunho?.data ?? todayIso());
   const [dataInputKey, setDataInputKey] = useState(0);
-  const [valorManual, setValorManual] = useState('');
+  const [valorManual, setValorManual] = useState(
+    rascunho?.valor && rascunho.valor > 0 ? rascunho.valor.toFixed(2) : '',
+  );
   const [salvando, setSalvando] = useState(false);
 
-  const [parcelado, setParcelado] = useState(false);
-  const [parcelas, setParcelas] = useState(2);
-  const [primeiraParcela, setPrimeiraParcela] = useState(todayIso());
+  const parcelasRascunho =
+    rascunho?.parcelas !== undefined && rascunho.parcelas >= 2 ? rascunho.parcelas : null;
+  const [parcelado, setParcelado] = useState(parcelasRascunho !== null);
+  const [parcelas, setParcelas] = useState(parcelasRascunho ?? 2);
+  const [primeiraParcela, setPrimeiraParcela] = useState(rascunho?.data ?? todayIso());
   const [parcelaDataKey, setParcelaDataKey] = useState(0);
 
   /** Conta do lancamento (origem na transferencia); `null` ate o catalogo carregar. */
-  const [contaId, setContaId] = useState<string | null>(null);
+  const [contaId, setContaId] = useState<string | null>(rascunho?.contaId ?? null);
   /** So transferencia: conta que recebe o valor. */
   const [contaDestinoId, setContaDestinoId] = useState<string | null>(null);
 

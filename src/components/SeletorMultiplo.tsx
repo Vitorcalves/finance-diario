@@ -1,5 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Keyboard, Pressable, ScrollView, TextInput as RNTextInput, View } from 'react-native';
+import {
+  type HostInstance,
+  Keyboard,
+  Pressable,
+  ScrollView,
+  type TextInputInstance,
+  View,
+} from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { fontSize, fontWeight, makeStyles, radius, shadows, spacing, useTheme } from '../theme';
 import { correspondeBusca } from '../utils/busca';
@@ -54,8 +61,8 @@ export default function SeletorMultiplo({
   const [aberto, setAberto] = useState(false);
   const [busca, setBusca] = useState('');
   const [mostrarFormAdicionar, setMostrarFormAdicionar] = useState(false);
-  const lista = useRef<View>(null);
-  const campoBusca = useRef<RNTextInput>(null);
+  const lista = useRef<HostInstance>(null);
+  const campoBusca = useRef<TextInputInstance>(null);
 
   // Ao abrir, a lista aparece abaixo do campo: a rolagem desce ate ela ficar a
   // vista, e o foco na busca mostra a lista inteira acima do teclado.

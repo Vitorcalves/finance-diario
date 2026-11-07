@@ -14,9 +14,13 @@ Em ordem: a primeira tarefa não concluída é a próxima a fazer.
   a cópia (no mesmo rodízio das 5) e só então recria; se a cópia falhar, nada é apagado.
   - [x] **Extra, backup manual:** botão "Criar backup no app" em Integração › Exportar, que grava uma cópia na hora (no
     mesmo rodízio das 5).
-- [ ] **3. Bloco de notas de lançamentos:** um bloco de notas para anotar rápido, por texto ou voz, o que ainda falta
+- [x] **3. Bloco de notas de lançamentos:** um bloco de notas para anotar rápido, por texto ou voz, o que ainda falta
   lançar ("almoço 35 ontem no cartão") e lançar depois, quando tiver tempo. Na hora de lançar, a IA pode transformar a
-  nota num `RascunhoLancamento`, que o `NovoLancamentoForm` já sabe abrir (a Lista de compras usa isso).
+  nota num `RascunhoLancamento`, que o `NovoLancamentoForm` já sabe abrir (a Lista de compras usa isso). Feito: tela
+  Notas para lançar (atalho "Notas" na Home), tabela `notas_lancamento` (migration 017). A voz usa o reconhecedor do
+  celular via `expo-speech-recognition` (precisa de novo build nativo). No lugar da IA, um interpretador local por regras
+  (`src/utils/interpretarNota.ts`) lê valor, dia, parcelas, entrada, conta, empresa e categoria; o rascunho ganhou
+  `tipo`, `valor`, `data`, `contaId` e `parcelas`.
 - [ ] **4. Tags para eventos:** marcar lançamentos com tags como "Viagem julho" ou "Reforma". As tabelas `tags` e
   `transacoes_tags` existem desde a migration 001, mas nenhuma tela usa. Elas respondem "quanto custou a viagem?", coisa
   que a categoria não responde.
@@ -33,3 +37,6 @@ Vindos do [Relatório de telas](<Relatório de telas — Finance Diário.md>), s
 - [ ] **Erro de digitação:** o estado vazio de Faturas diz "lançe uma compra"; o correto é "lance".
 - [ ] **Títulos repetidos:** Categorias de lançamento e Categorias de produto exibem o mesmo título "Categorias"; só o
   subtítulo diferencia.
+- [ ] **Tela de abertura (splash):** desde o Expo 58 o `splash` do `app.json` é ignorado e saiu do schema (o expo-doctor
+  acusa). Para manter a `splash-icon.png` em fundo branco, instalar o `expo-splash-screen` e passar a configuração para
+  o plugin dele; senão, só apagar o bloco.

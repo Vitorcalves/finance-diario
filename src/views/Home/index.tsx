@@ -71,20 +71,26 @@ export default function HomeView(): React.ReactNode {
               onPress: (): void => navigation.navigate('ListaCompras'),
             },
             {
+              rotulo: 'Notas',
+              icone: 'mic-outline',
+              onPress: (): void => navigation.navigate('NotasLancamento'),
+            },
+            {
               rotulo: 'Orçamento',
               icone: 'clipboard-outline',
-              onPress: (): void => navigation.navigate('Dashboard', { screen: 'Orcamento' }),
+              onPress: (): void =>
+                navigation.navigate('Dashboard', { screen: 'Orcamento', initial: false }),
             },
-            {
-              rotulo: 'Assinaturas',
-              icone: 'repeat-outline',
-              onPress: (): void => navigation.navigate('Menu', { screen: 'Planos' }),
-            },
-            {
-              rotulo: 'Preços',
-              icone: 'pricetags-outline',
-              onPress: (): void => navigation.navigate('Dashboard', { screen: 'HistoricoPrecos' }),
-            },
+            // {
+            //   rotulo: 'Assinaturas',
+            //   icone: 'repeat-outline',
+            //   onPress: (): void => navigation.navigate('Menu', { screen: 'Planos', initial: false }),
+            // },
+            // {
+            //   rotulo: 'Preços',
+            //   icone: 'pricetags-outline',
+            //   onPress: (): void => navigation.navigate('Dashboard', { screen: 'HistoricoPrecos', initial: false }),
+            // },
           ]}
         />
       </Aparecer>

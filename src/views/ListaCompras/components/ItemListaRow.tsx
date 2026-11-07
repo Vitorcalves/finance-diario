@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Pressable, type TextInput as RNTextInput, View } from 'react-native';
+import { Pressable, type TextInputInstance, View } from 'react-native';
 import BrazilianIntegerInput from '../../../components/BrazilianIntegerInput';
 import { PressableScale, SwipeableRow, Text } from '../../../components/ui';
 import { fontSize, fontWeight, makeStyles, radius, spacing, useTheme } from '../../../theme';
@@ -24,7 +24,7 @@ type ItemListaRowProps = {
   onRemover: () => void;
   onPreco: (preco: number | null) => void;
   /** Registra o campo de preco para o "proximo" do teclado chegar nele. */
-  campoRef?: (campo: RNTextInput | null) => void;
+  campoRef?: (campo: TextInputInstance | null) => void;
   /** Tecla "proximo" do teclado: vai para o preco do item seguinte. */
   onProximo?: () => void;
   /** Abre a escolha da marca vista junto com o preco neste mercado. */

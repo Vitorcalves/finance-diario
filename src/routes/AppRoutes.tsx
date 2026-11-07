@@ -19,6 +19,7 @@ import ListaComprasView from '../views/ListaCompras';
 import MarcasView from '../views/Marcas';
 import MensalView from '../views/Mensal';
 import MenuNavigationView from '../views/MenuHome';
+import NotasLancamentoView from '../views/NotasLancamento';
 import OrcamentoView from '../views/Orcamento';
 import PlanosView from '../views/Planos';
 import ProdutoFormView from '../views/ProdutoForm';
@@ -45,6 +46,7 @@ function HomeStack(): React.ReactNode {
       <HomeStackNav.Screen name="HomeMain" component={HomeView} />
       <HomeStackNav.Screen name="BuscaLancamentos" component={BuscaLancamentosView} />
       <HomeStackNav.Screen name="ListaCompras" component={ListaComprasView} />
+      <HomeStackNav.Screen name="NotasLancamento" component={NotasLancamentoView} />
     </HomeStackNav.Navigator>
   );
 }

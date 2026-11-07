@@ -1,5 +1,12 @@
 import { createContext, type ReactNode, useContext, useEffect, useMemo } from 'react';
-import { Appearance, StyleSheet, useColorScheme } from 'react-native';
+import {
+  Appearance,
+  type ImageStyle,
+  StyleSheet,
+  type TextStyle,
+  useColorScheme,
+  type ViewStyle,
+} from 'react-native';
 import { type CorCategoria, coresCategoria, type EsquemaCor, type Paleta, paletas } from './colors';
 import { criarSharedStyles, type SharedStyles } from './styles';
 import { criarTipografia, type Tipografia } from './typography';
@@ -86,10 +93,12 @@ export function ThemeProvider({
   const sistema = useColorScheme();
 
   // Alertas, teclado e seletores nativos seguem o `Appearance`: forcar o modo
-  // aqui mantem esses componentes da mesma cor do app.
+  // aqui mantem esses componentes da mesma cor do app. `unspecified` volta a
+  // seguir o aparelho; desde o RN 0.88 o `null` vai cru para o nativo, que
+  // espera texto.
   useEffect(() => {
     Appearance.setColorScheme(
-      preferencia === 'sistema' ? null : preferencia === 'escuro' ? 'dark' : 'light',
+      preferencia === 'sistema' ? 'unspecified' : preferencia === 'escuro' ? 'dark' : 'light',
     );
   }, [preferencia]);
 
@@ -118,9 +127,13 @@ export const useTheme = (): ContextoTema => useContext(Contexto);
  * O resultado fica em cache por paleta, entao o `StyleSheet` de cada modo e
  * criado uma unica vez.
  */
-export function makeStyles<T extends StyleSheet.NamedStyles<T>>(
-  fabrica: (colors: Paleta) => T,
-): () => T {
+/**
+ * Mesmo formato do antigo `StyleSheet.NamedStyles`, que saiu dos tipos do RN
+ * 0.88: e ele que faz `flexDirection: 'row'` continuar literal, e nao `string`.
+ */
+type EstilosNomeados<T> = { [P in keyof T]: ViewStyle | TextStyle | ImageStyle };
+
+export function makeStyles<T extends EstilosNomeados<T>>(fabrica: (colors: Paleta) => T): () => T {
   const cache = new Map<Paleta, T>();
 
   return function useStyles(): T {

@@ -2,11 +2,11 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "types": ["node"],
-    "baseUrl": ".",
     // `database.ts` importa `expo-sqlite`, que nao existe fora do app. O alias
     // troca o modulo pelo banco em memoria sem que o codigo de producao saiba.
     // `expo-file-system/legacy` (backups automaticos) vira, do mesmo jeito, um
-    // sistema de arquivos em memoria.
+    // sistema de arquivos em memoria. Sem `baseUrl` (o TS 6 o descontinuou),
+    // os caminhos valem a partir desta pasta.
     "paths": {
       "expo-sqlite": ["./tests/setup/expo-sqlite.ts"],
       "expo-file-system/legacy": ["./tests/setup/expo-file-system.ts"]

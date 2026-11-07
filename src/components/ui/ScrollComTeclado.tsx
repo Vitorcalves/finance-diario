@@ -6,6 +6,7 @@ import {
   type NativeSyntheticEvent,
   Platform,
   ScrollView,
+  type ScrollViewInstance,
   type ScrollViewProps,
   TextInput as RNTextInput,
 } from 'react-native';
@@ -60,7 +61,7 @@ export default function ScrollComTeclado({
   children,
   ...rest
 }: ScrollViewProps): React.ReactNode {
-  const ref = useRef<ScrollView>(null);
+  const ref = useRef<ScrollViewInstance>(null);
   const deslocamento = useRef(0);
 
   const garantirVisivel = useCallback((elemento: Elemento): void => {
@@ -104,7 +105,7 @@ export default function ScrollComTeclado({
     const evento = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     let timer: ReturnType<typeof setTimeout> | undefined;
 
-    const agendar = (elemento: Elemento | null): void => {
+    const agendar = (elemento: Elemento | null | undefined): void => {
       if (!elemento) {
         return;
       }

@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   type StyleProp,
-  type TextInput as RNTextInput,
+  type TextInputInstance,
   type TextInputProps,
   type TextStyle,
 } from 'react-native';
@@ -13,7 +13,7 @@ type BrazilianIntegerInputProps = Omit<TextInputProps, 'value' | 'onChangeText'>
   decimalScale?: number;
   style?: StyleProp<TextStyle>;
   /** Para focar o campo por codigo (ex.: pular para o proximo preco). */
-  ref?: React.Ref<RNTextInput>;
+  ref?: React.Ref<TextInputInstance>;
 };
 
 const normalizeDigits = (raw: string): string => {

@@ -14,6 +14,7 @@ export type HomeStackParamList = {
   HomeMain: undefined;
   BuscaLancamentos: FiltrosIniciaisBusca | undefined;
   ListaCompras: undefined;
+  NotasLancamento: undefined;
 };
 
 /** Cadastros, financeiro e sistema, acessados pela aba Menu. */

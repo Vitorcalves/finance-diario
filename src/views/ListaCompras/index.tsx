@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useMemo, useState } from 'react';
-import { RefreshControl, type TextInput as RNTextInput, View } from 'react-native';
+import { RefreshControl, type TextInputInstance, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import ScannerCodigoBarras from '../../components/ScannerCodigoBarras';
@@ -73,7 +73,7 @@ export default function ListaComprasView(): React.ReactNode {
   const [fechamentoKey, setFechamentoKey] = useState(0);
   const [fechamentoAberto, setFechamentoAberto] = useState(false);
   /** Campos de preco pelo id do item, para o "proximo" do teclado (nao afeta a renderizacao). */
-  const [campos] = useState(() => new Map<string, RNTextInput>());
+  const [campos] = useState(() => new Map<string, TextInputInstance>());
 
   const vazia = pendentes.length === 0 && comprados.length === 0;
   // Item com varias marcas cotadas aqui nao tem campo na linha: o "proximo" pula ele.

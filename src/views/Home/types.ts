@@ -45,7 +45,17 @@ export type NovoLancamento = {
  * finalizar): o formulario abre com estes dados para o usuario so conferir.
  */
 export type RascunhoLancamento = {
+  /** Ausente = saida. */
+  tipo?: Exclude<TipoLancamento, 'transferencia'>;
   descricao?: string;
+  /** Valor sem sinal; ignorado quando ha itens (o total vem deles). */
+  valor?: number;
+  /** YYYY-MM-DD; ausente = hoje. */
+  data?: string;
+  /** Ausente/`null` = a caixa padrao do formulario. */
+  contaId?: string | null;
+  /** Quantidade de parcelas (2 ou mais) de uma saida parcelada. */
+  parcelas?: number;
   empresaId?: string | null;
   categoriaId?: string | null;
   itens?: Omit<ItemLancamento, 'localId'>[];

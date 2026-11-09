@@ -118,6 +118,12 @@ export default function MenuNavigationView(): React.ReactNode {
               icone: 'card-outline',
               onPress: (): void => irPara('Contas'),
             },
+            {
+              label: 'Tags de eventos',
+              descricao: 'Viagem, Reforma... quanto custou cada evento',
+              icone: 'bookmarks-outline',
+              onPress: (): void => irPara('Tags'),
+            },
           ]}
         />
 

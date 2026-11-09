@@ -21,9 +21,13 @@ Em ordem: a primeira tarefa não concluída é a próxima a fazer.
   celular via `expo-speech-recognition` (precisa de novo build nativo). No lugar da IA, um interpretador local por regras
   (`src/utils/interpretarNota.ts`) lê valor, dia, parcelas, entrada, conta, empresa e categoria; o rascunho ganhou
   `tipo`, `valor`, `data`, `contaId` e `parcelas`.
-- [ ] **4. Tags para eventos:** marcar lançamentos com tags como "Viagem julho" ou "Reforma". As tabelas `tags` e
+- [x] **4. Tags para eventos:** marcar lançamentos com tags como "Viagem julho" ou "Reforma". As tabelas `tags` e
   `transacoes_tags` existem desde a migration 001, mas nenhuma tela usa. Elas respondem "quanto custou a viagem?", coisa
-  que a categoria não responde.
+  que a categoria não responde. Feito: tela Tags (Menu › Financeiro › Tags de eventos) com o gasto de cada evento,
+  entradas, parcelas a vencer e período; tocar na tag abre a busca filtrada por ela, que ganhou o filtro Tag. O
+  lançamento recebe tags no `NovoLancamentoForm` (criando a tag na hora) e arrastando o item na lista (ação "Tags", só
+  em gasto e entrada). Parcela e assinatura levam as tags para o plano inteiro, e as cobranças novas herdam. Model em
+  `src/models/tags.ts`; a migration 018 impede a mesma tag duas vezes no mesmo lançamento.
 - [ ] **5. Inflação pessoal:** mostrar quanto a sua cesta de compras de verdade subiu mês a mês, calculado a partir do
   histórico de preços.
 - [ ] **6. Limite mensal por categoria:** definir um limite por categoria de lançamento e, usando a projeção que a tela
@@ -31,7 +35,8 @@ Em ordem: a primeira tarefa não concluída é a próxima a fazer.
 
 ## Ajustes menores
 
-Vindos do [Relatório de telas](<Relatório de telas — Finance Diário.md>), sem ordem definida.
+Vindos do [Relatório de telas](<Relatório de telas — Finance Diário.md>) e dos documentos de cada tela
+([docs/telas](telas/README.md)), sem ordem definida.
 
 - [ ] **Tela órfã:** `src/views/More` não está em nenhuma rota. Remover ou ligar a uma rota.
 - [ ] **Erro de digitação:** o estado vazio de Faturas diz "lançe uma compra"; o correto é "lance".
@@ -40,3 +45,20 @@ Vindos do [Relatório de telas](<Relatório de telas — Finance Diário.md>), s
 - [ ] **Tela de abertura (splash):** desde o Expo 58 o `splash` do `app.json` é ignorado e saiu do schema (o expo-doctor
   acusa). Para manter a `splash-icon.png` em fundo branco, instalar o `expo-splash-screen` e passar a configuração para
   o plugin dele; senão, só apagar o bloco.
+- [ ] **Telas sem voltar:** Categorias de produto, Marcas, Empresas, Assinaturas e parcelas, Contas e Faturas não
+  passam `onBack` ao `ScreenHeader`, então não mostram a seta de voltar; só o voltar do Android funciona. As outras
+  telas de pilha têm a seta.
+- [ ] **Salário sem caixa:** em Assinaturas e parcelas, no modo "Salário (entrada)", tocar em "Salvar assinatura" sem
+  escolher o caixa não faz nada. O `AssinaturaFormModal` retorna antes da validação, e o aviso "Escolha o caixa que
+  recebe o salário" do `usePlanos` nunca aparece.
+- [ ] **Data do pagamento da fatura:** o `PagarFaturaModal` não valida a data. Com uma data inválida, o campo devolve
+  texto vazio e o `pagarFatura` grava o pagamento sem data.
+- [ ] **Excluir produto apaga o histórico:** excluir um produto, ou remover uma variante e salvar o produto, apaga em
+  cascata o histórico de preços dele, mas o alerta só pergunta "Deseja excluir?". Avisar no alerta o que vai junto.
+- [ ] **Faturas vazias ao excluir plano:** excluir um parcelamento ou uma assinatura no cartão (`deletePlanoById`) não
+  chama o `apagarFaturasVazias`, como o encerrar faz; a fatura fica na lista com total zero.
+- [ ] **Código sem uso:** nenhuma tela usa `BlankView`, `getMonthlyIncome`/`saveMonthlyIncome`,
+  `contarNotasLancamento` (só o teste dele) nem o parâmetro `produtoId` da rota `AnalisePrecos`. Remover ou ligar a uma
+  tela.
+- [ ] **Nomes repetidos nos cadastros:** Marcas, Empresas e Categorias de produto aceitam nomes repetidos (as tags já
+  recusam, sem diferenciar maiúsculas nem acentos). Duas marcas "Camil" dividem as variantes entre rótulos iguais.

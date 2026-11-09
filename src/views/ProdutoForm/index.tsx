@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { type RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import BrazilianIntegerInput from '../../components/BrazilianIntegerInput';
+import NomeSimplesForm from '../../components/NomeSimplesForm';
 import SeletorMultiplo from '../../components/SeletorMultiplo';
 import {
   Button,
@@ -16,7 +17,6 @@ import {
 } from '../../components/ui';
 import type { ProdutosStackParamList } from '../../routes/types';
 import { fontSize, makeStyles, spacing, useTheme } from '../../theme';
-import NomeSimplesForm from './components/NomeSimplesForm';
 import SeletorUnidade from './components/SeletorUnidade';
 import VarianteCard from './components/VarianteCard';
 import VarianteForm from './components/VarianteForm';

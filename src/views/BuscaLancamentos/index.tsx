@@ -13,7 +13,11 @@ import { useBuscaLancamentos } from './useBuscaLancamentos';
 type BuscaNavigation = NativeStackNavigationProp<HomeStackParamList, 'BuscaLancamentos'>;
 type BuscaRoute = RouteProp<HomeStackParamList, 'BuscaLancamentos'>;
 
-/** Todos os lancamentos, com busca por texto e filtros de periodo, tipo, categoria e empresa. */
+/**
+ * Todos os lancamentos, com busca por texto e filtros de periodo, tipo,
+ * categoria, empresa, conta e tag. Fica nas pilhas Inicio e Menu (aberta pela
+ * tela de Tags), entao so usa o `goBack` da navegacao.
+ */
 export default function BuscaLancamentosView(): React.ReactNode {
   const route = useRoute<BuscaRoute>();
 
@@ -67,9 +71,12 @@ function ConteudoBusca({ iniciais }: { iniciais?: FiltrosIniciaisBusca }): React
         onEmpresa={busca.setEmpresaId}
         contaId={busca.contaId}
         onConta={busca.setContaId}
+        tagId={busca.tagId}
+        onTag={busca.setTagId}
         categorias={busca.categorias}
         empresas={busca.empresas}
         contas={busca.contas}
+        tags={busca.tags}
         filtrosAtivos={busca.filtrosAtivos}
         onLimpar={busca.limparFiltros}
       />
@@ -86,6 +93,10 @@ function ConteudoBusca({ iniciais }: { iniciais?: FiltrosIniciaisBusca }): React
           excluir={busca.excluir}
           restaurar={busca.restaurar}
           definirCategoria={busca.definirCategoria}
+          tags={busca.tags}
+          tagsPorTransacao={busca.tagsPorTransacao}
+          definirTags={busca.definirTags}
+          criarTag={busca.criarTag}
           ListHeaderComponent={totais.quantidade > 0 ? resumo : undefined}
           ListEmptyComponent={
             <EmptyState

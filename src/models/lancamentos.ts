@@ -7,6 +7,7 @@ import { garantirFatura } from './faturas';
 import { insertItemTransacao } from './itensTransacao';
 import { criarCompraParcelada } from './materializacaoPlanos';
 import { registrarPrecoVariante } from './produtoVariantes';
+import { definirTagsTransacao } from './tags';
 import { insertTransacao } from './transacoesModel';
 
 export { CONTA_CAIXA_PADRAO };
@@ -44,6 +45,12 @@ export type DadosLancamento = {
    * da origem e entrando no destino.
    */
   contaDestinoId?: string | null;
+  /**
+   * Tags de evento ("Viagem julho"). Na compra parcelada vao para a compra e
+   * para todas as parcelas; a transferencia nao recebe tags, porque nao e
+   * gasto do evento.
+   */
+  tagIds?: string[];
 };
 
 /** Data com hora local, para o historico de precos ser exibido no dia correto. */
@@ -150,6 +157,12 @@ export const registrarLancamento = async (dados: DadosLancamento, local: number)
         natureza: fatura ? 'compra_cartao' : 'movimento',
         created_at: agora,
       });
+    }
+
+    // Na compra parcelada, a transacao dos itens e a do plano: as tags se
+    // espalham para todas as parcelas.
+    if (dados.tagIds && dados.tagIds.length > 0) {
+      await definirTagsTransacao(transacaoDosItens, dados.tagIds, agora);
     }
 
     for (const item of dados.itens) {

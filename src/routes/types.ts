@@ -4,6 +4,8 @@ import type { NavigatorScreenParams } from '@react-navigation/native';
 export type FiltrosIniciaisBusca = {
   categoriaId?: string;
   empresaId?: string;
+  /** Tag de evento (vinda da tela de Tags). */
+  tagId?: string;
   /** Periodo personalizado, YYYY-MM-DD. */
   inicio?: string;
   fim?: string;
@@ -28,6 +30,9 @@ export type MenuStackParamList = {
   Contas: undefined;
   Faturas: { contaId: string } | undefined;
   Integracao: undefined;
+  Tags: undefined;
+  /** A mesma busca da aba Inicio, aberta pela tela de Tags sem trocar de aba. */
+  BuscaLancamentos: FiltrosIniciaisBusca | undefined;
 };
 
 /** Aba Analises: hub e as telas de consulta de precos. */

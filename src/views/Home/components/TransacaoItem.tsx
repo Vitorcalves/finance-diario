@@ -4,6 +4,7 @@ import { LayoutAnimation, Pressable, View } from 'react-native';
 import CategoriaIcone from '../../../components/CategoriaIcone';
 import type { CategoriaLancamento } from '../../../models/categoriasLancamento';
 import { type ItemTransacao, totalItemTransacao } from '../../../models/itensTransacao';
+import type { Tag } from '../../../models/tags';
 import type { Transacoes } from '../../../models/transacoesModel';
 import { Text } from '../../../components/ui';
 import {
@@ -25,10 +26,12 @@ type TransacaoItemProps = {
   empresa: string;
   /** Categoria do lancamento; sem ela o avatar mostra empresa ou direcao. */
   categoria?: CategoriaLancamento;
+  /** Tags de evento do lancamento ("Viagem julho"). */
+  tags?: Tag[];
 };
 
 /**
- * Uma linha da lista de lancamentos: avatar, descricao, empresa e valor.
+ * Uma linha da lista de lancamentos: avatar, descricao, empresa, tags e valor.
  * Quando a compra tem itens, tocar na linha mostra a lista deles.
  */
 export default function TransacaoItem({
@@ -36,6 +39,7 @@ export default function TransacaoItem({
   itens,
   empresa,
   categoria,
+  tags = [],
 }: TransacaoItemProps): React.ReactNode {
   const { colors } = useTheme();
   const styles = useStyles();
@@ -105,6 +109,18 @@ export default function TransacaoItem({
                 .join(' · ')}
             </Text>
           </View>
+          {tags.length > 0 && (
+            <View style={styles.tags}>
+              {tags.map((tag) => (
+                <View key={tag.id} style={styles.tag}>
+                  <Ionicons name="bookmark" size={10} color={colors.primary} />
+                  <Text style={styles.tagTexto} numberOfLines={1}>
+                    {tag.nome}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
 
         <View style={styles.valorColuna}>
@@ -194,6 +210,28 @@ const useStyles = makeStyles((colors) => ({
     fontSize: fontSize.micro,
     fontWeight: fontWeight.bold,
     color: colors.info,
+  },
+  tags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginTop: 2,
+  },
+  tag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    maxWidth: '100%',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 1,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primarySoft,
+  },
+  tagTexto: {
+    flexShrink: 1,
+    fontSize: fontSize.micro,
+    fontWeight: fontWeight.bold,
+    color: colors.primary,
   },
   valorColuna: {
     alignItems: 'flex-end',

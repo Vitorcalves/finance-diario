@@ -21,6 +21,13 @@ import {
 import { materializarPlanos } from '../../models/materializacaoPlanos';
 import { type Empresa, listEmpresas } from '../../models/empresas';
 import { getLocalPadrao } from '../../models/settingsModel';
+import {
+  definirTagsTransacao,
+  listTags,
+  listTagsPorTransacao,
+  salvarTag,
+  type Tag,
+} from '../../models/tags';
 import { Locais } from '../../utils/local';
 import { agruparPorDia, type GrupoDia } from '../../utils/agruparPorDia';
 import { agruparItensPorTransacao } from '../../utils/itensPorTransacao';
@@ -74,6 +81,12 @@ export type UseHome = {
   categoriaPorId: (id?: string | null) => CategoriaLancamento | undefined;
   /** Muda a categoria (no plano inteiro, se for parcela ou assinatura). */
   definirCategoria: (transacaoId: string, categoriaId: string | null) => Promise<void>;
+  tags: Tag[];
+  tagsPorTransacao: Map<string, string[]>;
+  /** Troca as tags (no plano inteiro, se for parcela ou assinatura). */
+  definirTags: (transacaoId: string, tagIds: string[]) => Promise<void>;
+  /** Cria uma tag pelo painel de tags do lancamento. */
+  criarTag: (nome: string) => Promise<Tag>;
   adicionarLancamento: (lancamento: NovoLancamento) => Promise<void>;
   /** Apaga e devolve o que foi apagado, para o "Desfazer". */
   excluir: (id: string) => Promise<TransacaoExcluida | null>;
@@ -100,6 +113,8 @@ export function useHome(): UseHome {
   const [compras, setCompras] = useState<Transacoes[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [categorias, setCategorias] = useState<CategoriaLancamento[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [tagsPorTransacao, setTagsPorTransacao] = useState<Map<string, string[]>>(new Map());
   const [resumo, setResumo] = useState<ResumoHome>(RESUMO_VAZIO);
   /** Configurado na tela de menu; usado sem perguntar em cada lancamento. */
   const [localPadrao, setLocalPadrao] = useState(Locais.padrao);
@@ -128,6 +143,8 @@ export function useHome(): UseHome {
       localPadraoDoBanco,
       categoriasDoBanco,
       contasDoBanco,
+      tagsDoBanco,
+      tagsPorTransacaoDoBanco,
     ] = await Promise.all([
       // O feed mostra tambem as compras no cartao: fora do caixa, mas o
       // usuario precisa ve-las para excluir ou categorizar.
@@ -144,6 +161,8 @@ export function useHome(): UseHome {
       listCategoriasLancamento(),
       // Saldo de hoje por conta: o "Saldo atual" e as reservas saem daqui.
       listContasComSaldo(hoje),
+      listTags(),
+      listTagsPorTransacao(),
     ]);
 
     const projecao = projetarMes(transacoesMes, {
@@ -166,6 +185,8 @@ export function useHome(): UseHome {
     setEmpresas(empresasDoBanco);
     setLocalPadrao(localPadraoDoBanco);
     setCategorias(categoriasDoBanco);
+    setTags(tagsDoBanco);
+    setTagsPorTransacao(tagsPorTransacaoDoBanco);
     setResumo({
       saldoAtual: totais.caixaDisponivel,
       gastoMes: projecao.gastoRealizado,
@@ -242,6 +263,20 @@ export function useHome(): UseHome {
     [carregarDados],
   );
 
+  const definirTags = useCallback(
+    async (transacaoId: string, tagIds: string[]): Promise<void> => {
+      await definirTagsTransacao(transacaoId, tagIds);
+      await carregarDados();
+    },
+    [carregarDados],
+  );
+
+  const criarTag = useCallback(async (nome: string): Promise<Tag> => {
+    const tag = await salvarTag({ nome });
+    setTags(await listTags());
+    return tag;
+  }, []);
+
   const adicionarLancamento = useCallback(
     async (lancamento: NovoLancamento): Promise<void> => {
       await registrarLancamento(lancamento, localPadrao);
@@ -278,6 +313,10 @@ export function useHome(): UseHome {
     categorias,
     categoriaPorId,
     definirCategoria,
+    tags,
+    tagsPorTransacao,
+    definirTags,
+    criarTag,
     adicionarLancamento,
     excluir,
     restaurar,

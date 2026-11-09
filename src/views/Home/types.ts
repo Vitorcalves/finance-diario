@@ -38,6 +38,8 @@ export type NovoLancamento = {
   contaId?: string | null;
   /** So transferencia: conta de destino do valor. */
   contaDestinoId?: string | null;
+  /** Tags de evento ("Viagem julho"); a transferencia nao leva tags. */
+  tagIds?: string[];
 };
 
 /**

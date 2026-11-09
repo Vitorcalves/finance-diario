@@ -19,6 +19,7 @@ import {
   type PlanoPagamento,
   updatePlano,
 } from './planosPagamento';
+import { herdarTagsDoPlano } from './tags';
 import { deleteTransacoesFuturasDoPlano } from './transacoesModel';
 
 /**
@@ -56,15 +57,18 @@ type OcorrenciaGravada = {
  * Cobranca em cartao segue a regra da compra no cartao (`compra_cartao`):
  * fica presa a fatura do ciclo e o caixa so e afetado quando a fatura e paga.
  * Cobranca com `contaDestinoId` e uma entrada programada (salario): valor
- * positivo entrando direto na conta, sem transferencia de origem.
+ * positivo entrando direto na conta, sem transferencia de origem. A cobranca
+ * nova herda as tags das que o plano ja tem.
  */
 const gravarOcorrencia = async (ocorrencia: OcorrenciaGravada): Promise<void> => {
   const db = await getConnection();
   const conta = await getContaById(ocorrencia.contaId ?? CONTA_CAIXA_PADRAO);
   const contaId = conta?.id ?? CONTA_CAIXA_PADRAO;
+  const id = uuidv4();
+  const agora = new Date().toISOString();
 
   if (ocorrencia.contaDestinoId) {
-    await db.runAsync(
+    const { changes } = await db.runAsync(
       `
           INSERT OR IGNORE INTO transacoes (id, descricao, valor, data, empresa_id, natureza,
                                             contabilizado_saldo, plano_id, parcela_numero,
@@ -72,7 +76,7 @@ const gravarOcorrencia = async (ocorrencia: OcorrenciaGravada): Promise<void> =>
           VALUES (?, ?, ?, ?, NULL, 'movimento', ?, ?, ?, ?, ?, ?)
       `,
       [
-        uuidv4(),
+        id,
         ocorrencia.descricao,
         Math.abs(ocorrencia.valor),
         ocorrencia.data,
@@ -81,9 +85,13 @@ const gravarOcorrencia = async (ocorrencia: OcorrenciaGravada): Promise<void> =>
         ocorrencia.numero,
         ocorrencia.categoriaId ?? null,
         ocorrencia.contaDestinoId,
-        new Date().toISOString(),
+        agora,
       ],
     );
+
+    if (changes > 0) {
+      await herdarTagsDoPlano(id, ocorrencia.planoId, agora);
+    }
 
     return;
   }
@@ -97,7 +105,7 @@ const gravarOcorrencia = async (ocorrencia: OcorrenciaGravada): Promise<void> =>
       : null;
   const natureza: NaturezaTransacao = fatura ? 'compra_cartao' : 'movimento';
 
-  await db.runAsync(
+  const { changes } = await db.runAsync(
     `
         INSERT OR IGNORE INTO transacoes (id, descricao, valor, data, empresa_id, natureza,
                                           contabilizado_saldo, plano_id, parcela_numero,
@@ -105,7 +113,7 @@ const gravarOcorrencia = async (ocorrencia: OcorrenciaGravada): Promise<void> =>
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
-      uuidv4(),
+      id,
       ocorrencia.descricao,
       ocorrencia.valor,
       ocorrencia.data,
@@ -117,9 +125,14 @@ const gravarOcorrencia = async (ocorrencia: OcorrenciaGravada): Promise<void> =>
       ocorrencia.categoriaId ?? null,
       contaId,
       fatura?.id ?? null,
-      new Date().toISOString(),
+      agora,
     ],
   );
+
+  // Ignorada (cobranca ja gerada), a linha nao existe para receber tags.
+  if (changes > 0) {
+    await herdarTagsDoPlano(id, ocorrencia.planoId, agora);
+  }
 };
 
 /** Conta que paga as cobrancas de um plano; `null` no plano = caixa padrao. */

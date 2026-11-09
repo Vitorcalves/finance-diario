@@ -4,6 +4,7 @@ import dayjs from 'dayjs';
 import { v4 as uuidv4 } from 'uuid';
 import BrazilianDateInput from '../../../components/BrazilianDateInput';
 import BrazilianIntegerInput from '../../../components/BrazilianIntegerInput';
+import NomeSimplesForm from '../../../components/NomeSimplesForm';
 import SeletorCategoria from '../../../components/SeletorCategoria';
 import SeletorMultiplo from '../../../components/SeletorMultiplo';
 import {
@@ -15,6 +16,7 @@ import {
   TextInput,
   useToast,
 } from '../../../components/ui';
+import { salvarTag, ValidacaoTagError } from '../../../models/tags';
 import { fontSize, fontWeight, makeStyles, radius, spacing, useTheme } from '../../../theme';
 import { faturaDaCompra } from '../../../utils/cartao';
 import { formatarData, toCurrency } from '../../../utils/format';
@@ -51,7 +53,7 @@ type NovoLancamentoFormProps = {
 
 /**
  * Painel de novo lancamento: valor em destaque no topo, tipo, descricao,
- * data, empresa, itens e parcelamento.
+ * data, empresa, tags de evento, itens e parcelamento.
  *
  * Guarda apenas o cabecalho do lancamento e a lista de itens; a edicao de um
  * item fica em `LancamentoItemForm`.
@@ -93,6 +95,8 @@ export default function NovoLancamentoForm({
   const [contaId, setContaId] = useState<string | null>(rascunho?.contaId ?? null);
   /** So transferencia: conta que recebe o valor. */
   const [contaDestinoId, setContaDestinoId] = useState<string | null>(null);
+  /** Tags de evento ("Viagem julho"); nao valem para transferencia. */
+  const [tagIds, setTagIds] = useState<string[]>([]);
 
   const [itens, setItens] = useState<ItemLancamento[]>(() =>
     (rascunho?.itens ?? []).map((item) => ({ ...item, localId: uuidv4() })),
@@ -149,6 +153,30 @@ export default function NovoLancamentoForm({
 
     if (!categoriaManual && categoriaSugerida && categoriaSugerida.tipo === tipo) {
       setCategoriaId(categoriaSugerida.id);
+    }
+  };
+
+  const alternarTag = (id: string): void =>
+    setTagIds((atuais) =>
+      atuais.includes(id) ? atuais.filter((atual) => atual !== id) : [...atuais, id],
+    );
+
+  /** Cria a tag sem sair do formulario e ja a marca no lancamento. */
+  const criarTag = async (nome: string): Promise<boolean> => {
+    try {
+      const tag = await salvarTag({ nome });
+      catalogo.incluirTag(tag);
+      setTagIds((atuais) => [...atuais, tag.id]);
+      return true;
+    } catch (error: unknown) {
+      if (error instanceof ValidacaoTagError) {
+        avisar(error.message);
+      } else {
+        console.error('Erro ao criar tag', error);
+        Alert.alert('Erro', 'Não foi possível criar a tag');
+      }
+
+      return false;
     }
   };
 
@@ -237,6 +265,7 @@ export default function NovoLancamentoForm({
     setParcelaDataKey((atual) => atual + 1);
     setContaId(catalogo.contas.find((conta) => conta.tipo === 'caixa')?.id ?? null);
     setContaDestinoId(null);
+    setTagIds([]);
     setItens([]);
     fecharFormItem();
   };
@@ -328,6 +357,7 @@ export default function NovoLancamentoForm({
         parcelamento: parcelandoAgora ? { parcelas, primeiraParcela } : null,
         contaId,
         contaDestinoId: ehTransferencia ? contaDestinoId : null,
+        tagIds: ehTransferencia ? [] : tagIds,
       });
 
       const mensagem =
@@ -519,6 +549,27 @@ export default function NovoLancamentoForm({
             textoTrigger="Selecionar empresa"
             textoVazio="Nenhuma empresa cadastrada"
             textoNenhumEncontrado="Nenhuma empresa encontrada"
+          />
+
+          <SeletorMultiplo
+            label="Tags"
+            multiplo
+            opcoes={catalogo.tags.map((tag) => ({ id: tag.id, nome: tag.nome }))}
+            selecionados={tagIds}
+            onToggle={alternarTag}
+            placeholderBusca="Buscar tag"
+            textoTrigger="Marcar evento (Viagem, Reforma...)"
+            textoVazio="Nenhuma tag criada ainda"
+            textoNenhumEncontrado="Nenhuma tag encontrada"
+            add
+            textoAdicionar="Nova tag"
+            formAdicionar={(fechar): React.ReactNode => (
+              <NomeSimplesForm
+                placeholder="Ex.: Viagem julho"
+                onSalvar={criarTag}
+                onCancelar={fechar}
+              />
+            )}
           />
 
           <View style={styles.itensCabecalho}>

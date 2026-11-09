@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View } from 'react-native';
-import { Button, TextInput } from '../../../components/ui';
-import { useTheme } from '../../../theme';
+import { Button, TextInput } from './ui';
+import { useTheme } from '../theme';
 
 type NomeSimplesFormProps = {
   placeholder: string;
@@ -12,7 +12,7 @@ type NomeSimplesFormProps = {
 
 /**
  * Formulario de uma linha usado dentro do `SeletorMultiplo` para criar
- * categorias e marcas sem sair da tela de produto.
+ * categorias, marcas e tags sem sair do formulario em que se esta.
  */
 export default function NomeSimplesForm({
   placeholder,

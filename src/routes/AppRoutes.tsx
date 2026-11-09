@@ -22,6 +22,7 @@ import MenuNavigationView from '../views/MenuHome';
 import NotasLancamentoView from '../views/NotasLancamento';
 import OrcamentoView from '../views/Orcamento';
 import PlanosView from '../views/Planos';
+import TagsView from '../views/Tags';
 import ProdutoFormView from '../views/ProdutoForm';
 import ProdutosListView from '../views/ProdutosList';
 import TabIcon from './TabIcon';
@@ -64,6 +65,9 @@ function MenuStack(): React.ReactNode {
       <MenuStackNav.Screen name="Contas" component={ContasView} />
       <MenuStackNav.Screen name="Faturas" component={FaturasView} />
       <MenuStackNav.Screen name="Integracao" component={IntegracaoView} />
+      <MenuStackNav.Screen name="Tags" component={TagsView} />
+      {/* A tela de Tags abre a busca aqui mesmo, sem trocar de aba. */}
+      <MenuStackNav.Screen name="BuscaLancamentos" component={BuscaLancamentosView} />
     </MenuStackNav.Navigator>
   );
 }

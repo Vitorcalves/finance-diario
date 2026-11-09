@@ -4,14 +4,14 @@ Nov 6, 2026 · @carlos
 
 ## Visão geral
 
-O Finance Diário tem **22 telas** ativas, distribuídas em 5 abas inferiores. É um app React Native 0.88 com Expo 58,
+O Finance Diário tem **21 telas** ativas, distribuídas em 5 abas inferiores. É um app React Native 0.88 com Expo 58,
 banco local SQLite (expo-sqlite) e navegação React Navigation 7 (bottom tabs + native stacks, todos sem header nativo).
 
 - **Início** (pilha Home): lançamentos do dia, busca de lançamentos, lista de compras e notas para lançar.
 - **Mês**: tela única, sem pilha, com os gastos do mês.
 - **Produtos** (pilha Produtos): lista e formulário de produtos.
 - **Análises** (pilha Dashboard): hub de análises, análise de preços, histórico de preços e orçamento.
-- **Menu** (pilha Menu): cadastros, financeiro (planos, contas, faturas) e integração.
+- **Menu** (pilha Menu): cadastros, financeiro (planos, contas, faturas, tags de eventos) e integração.
 
 A app inicia na aba Início. Antes de mostrar as rotas, `App.tsx` inicializa o banco, carrega o tema preferido
 (claro/escuro/sistema) e a fonte Inter. Quando há migration pendente, a inicialização grava antes uma cópia do banco em
@@ -19,36 +19,44 @@ JSON; o "Recriar banco" do Menu também grava uma antes de apagar, e Integraçã
 cópias ficam em `backups/`, na pasta de documentos do app, e podem ser restauradas em Integração › Importar. Cada tela
 segue o padrão `src/views/<Tela>/index.tsx` + um hook `use<Tela>.ts` + uma pasta `components/`.
 
+Este relatório é a visão geral. O detalhe de cada tela (funcionalidades, componentes, models e a lógica por trás) fica
+em [`docs/telas/`](telas/README.md), um arquivo por tela; o [README](telas/README.md) de lá reúne o que vale para todas:
+navegação, banco e migrations, natureza das transações, componentes e utilitários compartilhados.
+
 ## Mapa de telas
 
-Todas as rotas estão em `src/routes/AppRoutes.tsx`; a pasta de cada tela fica em `src/views/`.
+Todas as rotas estão em `src/routes/AppRoutes.tsx`; a pasta de cada tela fica em `src/views/`. O link na coluna Pasta
+abre o documento detalhado da tela, em `docs/telas/`.
 
-| Aba      | Rota                 | Pasta                | Título na tela           | Propósito                                                       |
-|----------|----------------------|----------------------|--------------------------|-----------------------------------------------------------------|
-| Início   | HomeMain             | Home                 | Finance Diário           | Saldo, atalhos, novo lançamento e lançamentos do dia            |
-| Início   | BuscaLancamentos     | BuscaLancamentos     | Lançamentos              | Todos os lançamentos com busca e filtros                        |
-| Início   | ListaCompras         | ListaCompras         | Lista de compras         | Lista com pesquisa de preços por mercado e fechamento da compra |
-| Início   | NotasLancamento      | NotasLancamento      | Notas para lançar        | Bloco de notas (texto ou voz) do que falta lançar               |
-| Mês      | GastosMensais        | Mensal               | Gastos do mês            | Evolução do gasto no mês, gráficos por dia, categoria e local   |
-| Produtos | ProdutosList         | ProdutosList         | Produtos                 | Lista de produtos cadastrados                                   |
-| Produtos | ProdutoForm          | ProdutoForm          | Novo / Editar Produto    | Cadastro de produto, categorias e variantes                     |
-| Análises | DashboardHome        | Dashboard            | Análises                 | Hub com três cartões de análise                                 |
-| Análises | AnalisePrecos        | AnalisePrecos        | Análise de preços        | Valor pago x histórico de preços ao longo do tempo              |
-| Análises | HistoricoPrecos      | HistoricoPrecos      | Histórico de Preços      | Preços registrados agrupados por variante ou produto            |
-| Análises | Orcamento            | Orcamento            | Orçamento                | Pesquisa de preços por mercado, sem gerar lançamento            |
-| Menu     | MenuHome             | MenuHome             | Menu                     | Cadastros, financeiro, preferências, sistema e zona de perigo   |
-| Menu     | CategoriasLancamento | CategoriasLancamento | Categorias               | Categorias dos lançamentos (Mercado, Transporte...)             |
-| Menu     | Categorias           | Categorias           | Categorias               | Categorias de produto                                           |
-| Menu     | Marcas               | Marcas               | Marcas                   | Marcas usadas nas variantes                                     |
-| Menu     | Empresas             | Empresas             | Empresas                 | Mercados e lojas                                                |
-| Menu     | Planos               | Planos               | Assinaturas e parcelas   | Assinaturas e acompanhamento de parcelamentos                   |
-| Menu     | Contas               | Contas               | Contas                   | Caixas, reservas de investimento e cartões                      |
-| Menu     | Faturas              | Faturas              | Faturas — nome do cartão | Faturas de um cartão e pagamento                                |
-| Menu     | Integracao           | Integracao           | Integração               | Exportar/importar JSON, API e perguntas à IA                    |
-| —        | (sem rota)           | More                 | Mais funcionalidades     | Placeholder "Em construção", não está em nenhuma rota           |
+| Aba      | Rota                 | Pasta                                                 | Título na tela           | Propósito                                                       |
+|----------|----------------------|-------------------------------------------------------|--------------------------|-----------------------------------------------------------------|
+| Início   | HomeMain             | [Home](telas/Home.md)                                 | Finance Diário           | Saldo, atalhos, novo lançamento e lançamentos do dia            |
+| Início   | BuscaLancamentos     | [BuscaLancamentos](telas/BuscaLancamentos.md)         | Lançamentos              | Todos os lançamentos com busca e filtros                        |
+| Início   | ListaCompras         | [ListaCompras](telas/ListaCompras.md)                 | Lista de compras         | Lista com pesquisa de preços por mercado e fechamento da compra |
+| Início   | NotasLancamento      | [NotasLancamento](telas/NotasLancamento.md)           | Notas para lançar        | Bloco de notas (texto ou voz) do que falta lançar               |
+| Mês      | GastosMensais        | [Mensal](telas/Mensal.md)                             | Gastos do mês            | Evolução do gasto no mês, gráficos por dia, categoria e local   |
+| Produtos | ProdutosList         | [ProdutosList](telas/ProdutosList.md)                 | Produtos                 | Lista de produtos cadastrados                                   |
+| Produtos | ProdutoForm          | [ProdutoForm](telas/ProdutoForm.md)                   | Novo / Editar Produto    | Cadastro de produto, categorias e variantes                     |
+| Análises | DashboardHome        | [Dashboard](telas/Dashboard.md)                       | Análises                 | Hub com três cartões de análise                                 |
+| Análises | AnalisePrecos        | [AnalisePrecos](telas/AnalisePrecos.md)               | Análise de preços        | Valor pago x histórico de preços ao longo do tempo              |
+| Análises | HistoricoPrecos      | [HistoricoPrecos](telas/HistoricoPrecos.md)           | Histórico de Preços      | Preços registrados agrupados por variante ou produto            |
+| Análises | Orcamento            | [Orcamento](telas/Orcamento.md)                       | Orçamento                | Pesquisa de preços por mercado, sem gerar lançamento            |
+| Menu     | MenuHome             | [MenuHome](telas/MenuHome.md)                         | Menu                     | Cadastros, financeiro, preferências, sistema e zona de perigo   |
+| Menu     | CategoriasLancamento | [CategoriasLancamento](telas/CategoriasLancamento.md) | Categorias               | Categorias dos lançamentos (Mercado, Transporte...)             |
+| Menu     | Categorias           | [Categorias](telas/Categorias.md)                     | Categorias               | Categorias de produto                                           |
+| Menu     | Marcas               | [Marcas](telas/Marcas.md)                             | Marcas                   | Marcas usadas nas variantes                                     |
+| Menu     | Empresas             | [Empresas](telas/Empresas.md)                         | Empresas                 | Mercados e lojas                                                |
+| Menu     | Planos               | [Planos](telas/Planos.md)                             | Assinaturas e parcelas   | Assinaturas e acompanhamento de parcelamentos                   |
+| Menu     | Contas               | [Contas](telas/Contas.md)                             | Contas                   | Caixas, reservas de investimento e cartões                      |
+| Menu     | Faturas              | [Faturas](telas/Faturas.md)                           | Faturas — nome do cartão | Faturas de um cartão e pagamento                                |
+| Menu     | Integracao           | [Integracao](telas/Integracao.md)                     | Integração               | Exportar/importar JSON, API e perguntas à IA                    |
+| Menu     | Tags                 | [Tags](telas/Tags.md)                                 | Tags                     | Tags de eventos e quanto custou cada um                         |
+| —        | (sem rota)           | [More](telas/More.md)                                 | Mais funcionalidades     | Placeholder "Em construção", não está em nenhuma rota           |
 
-As telas também se cruzam entre abas: a Home abre Orçamento, Histórico de preços e Assinaturas pelos atalhos; Produtos
-abre o histórico de preços; Contas abre Faturas com o `contaId` do cartão. Os atalhos entre abas usam `initial: false`,
+As telas também se cruzam entre abas: a Home abre o Orçamento pelo atalho; o gráfico de categorias da aba Mês abre a
+busca de lançamentos na aba Início; Produtos mostra o histórico de preços do produto num painel; Contas abre Faturas com
+o `contaId` do cartão. A busca de lançamentos também está registrada na pilha Menu: a tela de Tags a abre já filtrada
+pela tag, sem trocar de aba. Os atalhos entre abas usam `initial: false`,
 então o hub da aba fica embaixo da tela aberta (o voltar leva ao hub). Trocar de aba mantém a tela aberta em cada
 pilha (dá para deixar uma análise aberta e consultar outra aba); tocar de novo na aba já selecionada volta ao hub.
 
@@ -59,16 +67,21 @@ pilha (dá para deixar uma análise aberta e consultar outra aba); tocar de novo
 **Home (Finance Diário)** — tela inicial, com a data por extenso no subtítulo.
 
 - Resumo de totais no topo (`ResumoTotais`).
-- Atalhos rápidos: Lista, Notas, Orçamento, Assinaturas, Preços (os três últimos abrem telas de outras abas).
-- Lançamentos agrupados por dia; deslizar o item define a categoria ou exclui (com desfazer).
-- Botão flutuante (+) abre `NovoLancamentoForm`, com itens de produto e compra parcelada.
+- Atalhos rápidos: Lista, Notas e Orçamento (este abre a tela na aba Análises). Os atalhos Assinaturas e Preços estão
+  comentados no código.
+- Lançamentos agrupados por dia; deslizar o item define a categoria, marca tags de evento (só em gasto e entrada) ou
+  exclui (com desfazer). As tags aparecem como etiquetas abaixo da descrição.
+- Botão flutuante (+) abre `NovoLancamentoForm`, com tags de evento (criadas na hora, se preciso), itens de produto e
+  compra parcelada.
 - Busca no header e "Ver todos" levam à Busca; puxar para baixo atualiza.
 
 **Busca de lançamentos** — todos os lançamentos com filtros.
 
-- Busca por texto, período (inclusive personalizado), tipo, categoria, empresa e conta.
+- Busca por texto, período (inclusive personalizado), tipo, categoria, empresa, conta e tag (o filtro de tag aparece
+  quando há alguma tag).
 - Resumo com quantidade, total de saídas e de entradas.
-- Pode abrir com filtros já aplicados (ex.: vinda do gráfico de categorias); reutiliza `ListaLancamentos` da Home.
+- Pode abrir com filtros já aplicados (ex.: vinda do gráfico de categorias ou da tela de Tags); reutiliza
+  `ListaLancamentos` da Home.
 
 **Lista de compras** — a tela mais completa (442 linhas no `index.tsx`).
 
@@ -132,7 +145,7 @@ pilha (dá para deixar uma análise aberta e consultar outra aba); tocar de novo
 **Menu** — quatro grupos e um cartão de preferências.
 
 - Cadastros: categorias de lançamento, categorias de produto, marcas, empresas.
-- Financeiro: assinaturas e parcelas, contas e cartões.
+- Financeiro: assinaturas e parcelas, contas e cartões, tags de eventos.
 - Preferências: tema e local padrão.
 - Sistema: Integração. Zona de perigo: recriar o banco (com confirmação, guarda um backup automático e apaga tudo; se o
   backup falhar, nada é apagado).
@@ -155,6 +168,17 @@ formulário.
 
 **Faturas** — ciclos do cartão com status, vencimento e total; pagar escolhe a conta pagante.
 
+**Tags** — tags de eventos ("Viagem julho", "Reforma") com quanto cada evento custou, somando todas as categorias.
+
+- Cada cartão mostra o gasto, as entradas (reembolso, venda), quanto ainda vai vencer em parcelas, a quantidade de
+  lançamentos e o período do evento (a compra parcelada conta pela data da compra). Eventos mais recentes primeiro.
+- Tocar no cartão abre a busca filtrada pela tag; o + do header e o lápis criam e editam (nome e anotação opcional); a
+  lixeira exclui a tag, e os lançamentos continuam sem ela.
+- A tag vai para o lançamento no formulário ou arrastando o item na lista. Em parcela e assinatura ela vale para o plano
+  inteiro, e as cobranças novas da assinatura herdam as tags.
+- Os dados ficam nas tabelas `tags` e `transacoes_tags` (desde a migration 001; a 018 impede a mesma tag duas vezes no
+  mesmo lançamento) e entram no backup em JSON.
+
 **Integração** — quatro modos num seletor: Exportar (JSON para arquivo), Importar (validar e sobrescrever o banco), API
 (`POST /sync`) e IA (`POST /ia/consultar`, com modo de raciocínio).
 
@@ -164,7 +188,8 @@ formulário.
 
 ## Observações
 
-As pendências encontradas neste relatório estão em [Tarefas](<Tarefas — Finance Diário.md>).
+As pendências encontradas neste relatório estão em [Tarefas](<Tarefas — Finance Diário.md>). Cada documento de
+`docs/telas/` termina com uma seção Observações, com os pontos de atenção achados no código daquela tela.
 
 Desde o RN 0.88 os tipos do React Native são a "Strict TypeScript API": refs de componente usam `TextInputInstance`,
 `ScrollViewInstance` ou `HostInstance` (não mais `useRef<TextInput>`), e o `makeStyles` tem o próprio `EstilosNomeados`

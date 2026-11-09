@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Alert, View } from 'react-native';
 import BrazilianIntegerInput from '../../../components/BrazilianIntegerInput';
+import NomeSimplesForm from '../../../components/NomeSimplesForm';
 import ScannerCodigoBarras from '../../../components/ScannerCodigoBarras';
 import SeletorMultiplo from '../../../components/SeletorMultiplo';
 import { Button, IconButton, Text, TextInput } from '../../../components/ui';
@@ -8,7 +9,6 @@ import type { Marca } from '../../../models/marcas';
 import { makeStyles, spacing, useTheme } from '../../../theme';
 import { Unidades } from '../../../utils/unidades';
 import type { DadosVariante, VarianteFormItem } from '../types';
-import NomeSimplesForm from './NomeSimplesForm';
 import SeletorUnidade from './SeletorUnidade';
 
 type VarianteFormProps = {

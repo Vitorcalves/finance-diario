@@ -51,6 +51,10 @@ export default function HomeView(): React.ReactNode {
     categorias,
     categoriaPorId,
     definirCategoria,
+    tags,
+    tagsPorTransacao,
+    definirTags,
+    criarTag,
     adicionarLancamento,
     excluir,
     restaurar,
@@ -99,7 +103,9 @@ export default function HomeView(): React.ReactNode {
         <View style={styles.tituloLista}>
           <View style={styles.tituloTextos}>
             <Text style={sharedStyles.sectionTitle}>Lançamentos</Text>
-            <Text style={sharedStyles.sectionHint}>Arraste para o lado: categoria ou excluir</Text>
+            <Text style={sharedStyles.sectionHint}>
+              Arraste para o lado: categoria, tags ou excluir
+            </Text>
           </View>
           <Pressable
             onPress={abrirBusca}
@@ -144,6 +150,10 @@ export default function HomeView(): React.ReactNode {
           excluir={excluir}
           restaurar={restaurar}
           definirCategoria={definirCategoria}
+          tags={tags}
+          tagsPorTransacao={tagsPorTransacao}
+          definirTags={definirTags}
+          criarTag={criarTag}
           ListHeaderComponent={cabecalhoLista}
           ListEmptyComponent={
             <EmptyState

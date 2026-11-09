@@ -14,6 +14,7 @@ import {
   type NaturezaTransacao,
   naturezasSql,
 } from './naturezaTransacao';
+import { restaurarTagsTransacao, tagsDaTransacao } from './tags';
 
 export type Transacoes = {
   id: string;
@@ -237,9 +238,11 @@ export const deleteTransacoesFuturasDoPlano = async (
 export type TransacaoExcluida = {
   transacao: Transacoes;
   itens: ItemTransacao[];
+  /** Tags que o lancamento tinha; a exclusao apaga as ligacoes (`ON DELETE CASCADE`). */
+  tagIds: string[];
 };
 
-/** Apaga a transacao e os itens dela, devolvendo o conteudo apagado. */
+/** Apaga a transacao, os itens e as tags dela, devolvendo o conteudo apagado. */
 export const excluirTransacao = async (id: string): Promise<TransacaoExcluida | null> =>
   emTransacao(async () => {
     const db = await getConnection();
@@ -257,21 +260,29 @@ export const excluirTransacao = async (id: string): Promise<TransacaoExcluida | 
     }
 
     const itens = await listItensTransacaoByTransacao(id);
+    const tagIds = await tagsDaTransacao(id);
 
     await deleteItensTransacaoByTransacao(id);
     await deleteTransacaoById(id);
 
-    return { transacao, itens };
+    return { transacao, itens, tagIds };
   });
 
 /** Grava de volta, com os mesmos ids, uma transacao apagada por `excluirTransacao`. */
-export const restaurarTransacao = async ({ transacao, itens }: TransacaoExcluida): Promise<void> =>
+export const restaurarTransacao = async ({
+  transacao,
+  itens,
+  tagIds,
+}: TransacaoExcluida): Promise<void> =>
   emTransacao(async () => {
     await insertTransacao(transacao);
 
     for (const item of itens) {
       await insertItemTransacao(item);
     }
+
+    // Tag apagada enquanto o "Desfazer" estava na tela fica de fora.
+    await restaurarTagsTransacao(transacao.id, tagIds);
   });
 
 /** `SEM_CATEGORIA` no filtro busca os lancamentos que ainda nao tem categoria. */
@@ -287,6 +298,8 @@ export type FiltrosBusca = {
   tipo?: 'saida' | 'entrada' | null;
   /** Conta em qualquer uma das pontas (origem ou destino da transferencia). */
   contaId?: string | null;
+  /** Tag de evento ("Viagem julho"). */
+  tagId?: string | null;
 };
 
 /** Lancamento da busca, com a descricao dos itens para o filtro por texto. */
@@ -342,6 +355,13 @@ export const buscarTransacoes = async (filtros: FiltrosBusca = {}): Promise<Tran
   if (filtros.contaId) {
     condicoes.push('(t.conta_id = ? OR t.conta_destino_id = ?)');
     params.push(filtros.contaId, filtros.contaId);
+  }
+
+  if (filtros.tagId) {
+    condicoes.push(
+      'EXISTS (SELECT 1 FROM transacoes_tags tt WHERE tt.transacao_id = t.id AND tt.tag_id = ?)',
+    );
+    params.push(filtros.tagId);
   }
 
   return await db.getAllAsync<TransacaoBuscada>(

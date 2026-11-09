@@ -10,6 +10,13 @@ import { type Conta, listContas } from '../../models/contas';
 import { type Empresa, listEmpresas } from '../../models/empresas';
 import { type ItemTransacao, listItensTransacao } from '../../models/itensTransacao';
 import {
+  definirTagsTransacao,
+  listTags,
+  listTagsPorTransacao,
+  salvarTag,
+  type Tag,
+} from '../../models/tags';
+import {
   buscarTransacoes,
   excluirTransacao,
   listTransacoesCompra,
@@ -47,6 +54,8 @@ export type UseBuscaLancamentos = {
   setEmpresaId: (id: string | null) => void;
   contaId: string | null;
   setContaId: (id: string | null) => void;
+  tagId: string | null;
+  setTagId: (id: string | null) => void;
   /** Algum filtro alem do periodo padrao esta ativo. */
   filtrosAtivos: boolean;
   limparFiltros: () => void;
@@ -55,12 +64,16 @@ export type UseBuscaLancamentos = {
   empresas: Empresa[];
   categorias: CategoriaLancamento[];
   contas: Conta[];
+  tags: Tag[];
+  tagsPorTransacao: Map<string, string[]>;
   itensPorTransacao: Map<string, ItemTransacao[]>;
   nomeEmpresa: (id?: string | null) => string;
   categoriaPorId: (id?: string | null) => CategoriaLancamento | undefined;
   excluir: (id: string) => Promise<TransacaoExcluida | null>;
   restaurar: (excluida: TransacaoExcluida) => Promise<void>;
   definirCategoria: (transacaoId: string, categoriaId: string | null) => Promise<void>;
+  definirTags: (transacaoId: string, tagIds: string[]) => Promise<void>;
+  criarTag: (nome: string) => Promise<Tag>;
 };
 
 /** Busca por texto e filtros em todo o historico de lancamentos. */
@@ -80,6 +93,7 @@ export function useBuscaLancamentos(iniciais?: FiltrosIniciaisBusca): UseBuscaLa
   const [categoriaId, setCategoriaId] = useState<string | null>(iniciais?.categoriaId ?? null);
   const [empresaId, setEmpresaId] = useState<string | null>(iniciais?.empresaId ?? null);
   const [contaId, setContaId] = useState<string | null>(null);
+  const [tagId, setTagId] = useState<string | null>(iniciais?.tagId ?? null);
 
   const [resultados, setResultados] = useState<TransacaoBuscada[]>([]);
   const [itens, setItens] = useState<ItemTransacao[]>([]);
@@ -87,6 +101,8 @@ export function useBuscaLancamentos(iniciais?: FiltrosIniciaisBusca): UseBuscaLa
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [categorias, setCategorias] = useState<CategoriaLancamento[]>([]);
   const [contas, setContas] = useState<Conta[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [tagsPorTransacao, setTagsPorTransacao] = useState<Map<string, string[]>>(new Map());
   const [loading, setLoading] = useState(true);
   /** So o resultado da busca mais recente entra na tela. */
   const ultimaBusca = useRef(0);
@@ -112,6 +128,8 @@ export function useBuscaLancamentos(iniciais?: FiltrosIniciaisBusca): UseBuscaLa
       empresasDoBanco,
       categoriasDoBanco,
       contasDoBanco,
+      tagsDoBanco,
+      tagsPorTransacaoDoBanco,
     ] = await Promise.all([
       buscarTransacoes({
         inicio: intervalo.inicio,
@@ -120,12 +138,15 @@ export function useBuscaLancamentos(iniciais?: FiltrosIniciaisBusca): UseBuscaLa
         categoriaId,
         tipo: tipo === 'todos' ? null : tipo,
         contaId,
+        tagId,
       }),
       listItensTransacao(),
       listTransacoesCompra(),
       listEmpresas(),
       listCategoriasLancamento(),
       listContas(),
+      listTags(),
+      listTagsPorTransacao(),
     ]);
 
     if (ultimaBusca.current !== busca) {
@@ -138,7 +159,9 @@ export function useBuscaLancamentos(iniciais?: FiltrosIniciaisBusca): UseBuscaLa
     setEmpresas(empresasDoBanco);
     setCategorias(categoriasDoBanco);
     setContas(contasDoBanco);
-  }, [intervalo, empresaId, categoriaId, tipo, contaId]);
+    setTags(tagsDoBanco);
+    setTagsPorTransacao(tagsPorTransacaoDoBanco);
+  }, [intervalo, empresaId, categoriaId, tipo, contaId, tagId]);
 
   // Recarrega ao voltar para a tela e sempre que um filtro do banco muda.
   useFocusEffect(
@@ -192,6 +215,7 @@ export function useBuscaLancamentos(iniciais?: FiltrosIniciaisBusca): UseBuscaLa
     setCategoriaId(null);
     setEmpresaId(null);
     setContaId(null);
+    setTagId(null);
   }, []);
 
   const excluir = useCallback(
@@ -219,6 +243,20 @@ export function useBuscaLancamentos(iniciais?: FiltrosIniciaisBusca): UseBuscaLa
     [carregar],
   );
 
+  const definirTags = useCallback(
+    async (transacaoId: string, tagIds: string[]): Promise<void> => {
+      await definirTagsTransacao(transacaoId, tagIds);
+      await carregar();
+    },
+    [carregar],
+  );
+
+  const criarTag = useCallback(async (nome: string): Promise<Tag> => {
+    const tag = await salvarTag({ nome });
+    setTags(await listTags());
+    return tag;
+  }, []);
+
   return {
     loading,
     termo,
@@ -235,24 +273,31 @@ export function useBuscaLancamentos(iniciais?: FiltrosIniciaisBusca): UseBuscaLa
     setEmpresaId,
     contaId,
     setContaId,
+    tagId,
+    setTagId,
     filtrosAtivos:
       termo.trim() !== '' ||
       periodo !== 'tudo' ||
       tipo !== 'todos' ||
       categoriaId !== null ||
       empresaId !== null ||
-      contaId !== null,
+      contaId !== null ||
+      tagId !== null,
     limparFiltros,
     secoes,
     totais,
     empresas,
     categorias,
     contas,
+    tags,
+    tagsPorTransacao,
     itensPorTransacao,
     nomeEmpresa,
     categoriaPorId,
     excluir,
     restaurar,
     definirCategoria,
+    definirTags,
+    criarTag,
   };
 }

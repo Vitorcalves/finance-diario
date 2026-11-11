@@ -54,9 +54,12 @@ banco: fechar o app no meio da compra não perde nada.
 ### Costuma comprar (`SugestoesLista`)
 
 - Faixa horizontal com até 12 produtos frequentes que ainda não estão na lista, "Pelo histórico dos seus lançamentos".
-  Cada chip mostra o ritmo: "a cada 15 dias · há 18 dias" (ou "todo dia", "hoje", "ontem").
-- Os que já estão "na hora" (passaram de 80% do intervalo de costume) vêm primeiro e destacados; com 2 ou mais, aparece
-  o botão "Adicionar N".
+  Cada chip mostra quanto a última compra deve durar e há quanto tempo foi: "dura ~15 dias · há 18 dias" (ou "dura 1
+  dia", "hoje", "ontem").
+- A duração leva em conta a quantidade comprada: quem costuma levar 3 e levou 15 só volta a ser lembrado 5 vezes mais
+  tarde. Embalagens de tamanhos diferentes contam pelo tamanho (1 pacote de 5 kg = 5 de 1 kg).
+- Os que já estão "na hora" (passaram de 80% da duração esperada da última compra) vêm primeiro e destacados; com 2 ou
+  mais, aparece o botão "Adicionar N".
 - Tocar num chip adiciona o produto com a variante da última compra e a quantidade mais comum.
 - Produto de compra eventual nunca é sugerido.
 
@@ -223,7 +226,7 @@ A carga roda ao ganhar foco; antes, grava o que estiver pendente.
   preço por unidade, se pede "qual marca?" e a diferença para o menor (`diferencaParaOMenor`).
 - `totais`: itens, pendentes, comprados, total e itens com preço no mercado atual, valor do carrinho e itens do
   carrinho sem preço.
-- `sugestoes = sugerirCompras(compras, hoje, { ignorar })`, ignorando o que já está na lista e os produtos eventuais.
+- `sugestoes = sugerirCompras(compras, hoje, { ignorar, tamanho })`, com o tamanho de cada variante e ignorando o que já está na lista e os produtos eventuais.
 
 ### Ações principais
 
@@ -272,7 +275,7 @@ apagar a variante só desvincula (item e cotações ficam sem marca); apagar a e
 Utilitários: `compararLista` (`utils/comparativoLista.ts`), `compararCotacoes`, `empataComAMelhor`,
 `percentualAcimaDaMelhor` e `diferencaParaOMenor` (`utils/cotacoesLista.ts`), `precoDoItem` (`utils/comparativoMercados.ts`),
 `sugerirCompras` (`utils/sugestoesCompra.ts`), `selecionarPrecosParaHistorico` e `unicaVarianteDoProduto`
-(`utils/precosParaHistorico.ts`), `precoPorUnidadePrimaria`, `ehGranel`, `medidaGranel`, `rotuloVariante` e
+(`utils/precosParaHistorico.ts`), `precoPorUnidadePrimaria`, `medidaPorUnidadePrimaria`, `ehGranel`, `medidaGranel`, `rotuloVariante` e
 `rotuloQuantidade` (`utils/variantes.ts`), `correspondeBusca` e `normalizarTexto` (`utils/busca.ts`).
 
 ## Regras de cálculo
@@ -288,9 +291,14 @@ Utilitários: `compararLista` (`utils/comparativoLista.ts`), `compararCotacoes`,
 - **Menor preço do item entre mercados:** por unidade quando todos os mercados do item têm preço por unidade na mesma
   sigla; senão pelo preço cheio.
 - **Sugestões (`sugerirCompras`):** precisa de compras em 2 dias diferentes ou mais (compras no mesmo dia somam). O
-  intervalo é a média de dias entre a primeira e a última compra. Sai da rotina quem não é comprado há mais de 3
-  intervalos ou 90 dias (o que for maior). "Na hora" a partir de 80% do intervalo. Ordem: os da hora, do mais atrasado
-  ao menos; depois os mais frequentes. Limite de 12.
+  ritmo é uma taxa de consumo: o que foi comprado antes da última compra ÷ dias entre a primeira e a última compra. A
+  duração esperada da última compra é a quantidade dela ÷ essa taxa (3 a cada 15 dias = 0,2/dia; 15 unidades duram 75
+  dias). As quantidades são convertidas pelo tamanho da variante (`medidaPorUnidadePrimaria`: 500 g = 0,5 kg, caixa
+  com 12 = 12 un, granel = o peso lançado); se alguma compra do produto não tem medida cadastrada, ou as medidas são de
+  grupos diferentes (kg e un), o produto inteiro é contado em unidades compradas. Sai da rotina quem não é comprado há
+  mais de 3 durações ou 90 dias (o que for maior). "Na hora" a partir de 80% da duração. Ordem: os da hora, do mais
+  atrasado ao menos; depois os mais frequentes. Limite de 12. A quantidade sugerida continua sendo a mais comum por
+  compra, em unidades.
 - Diferenças abaixo de meio centavo são tratadas como arredondamento em toda comparação.
 
 ## Validações e mensagens

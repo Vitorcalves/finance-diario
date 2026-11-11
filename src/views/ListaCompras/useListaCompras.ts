@@ -59,6 +59,7 @@ import { sugerirCompras, type SugestaoCompra } from '../../utils/sugestoesCompra
 import {
   ehGranel,
   medidaGranel,
+  medidaPorUnidadePrimaria,
   type PrecoPorUnidade,
   precoPorUnidadePrimaria,
   rotuloQuantidade as rotuloQuantidadeDaVariante,
@@ -778,6 +779,13 @@ export function useListaCompras(): UseListaCompras {
 
   // --- Sugestoes -------------------------------------------------------------------
 
+  /** Quanto vem em cada unidade comprada, para o consumo somar embalagens de tamanhos diferentes. */
+  const tamanhoDaVariante = useCallback(
+    (varianteId: string | null) =>
+      medidaPorUnidadePrimaria(varianteId ? variantePorId.get(varianteId) : undefined),
+    [variantePorId],
+  );
+
   const sugestoes = useMemo((): SugestaoNaLista[] => {
     const ignorar = new Set<string>();
 
@@ -793,7 +801,10 @@ export function useListaCompras(): UseListaCompras {
       }
     }
 
-    return sugerirCompras(compras, dayjs().format('YYYY-MM-DD'), { ignorar })
+    return sugerirCompras(compras, dayjs().format('YYYY-MM-DD'), {
+      ignorar,
+      tamanho: tamanhoDaVariante,
+    })
       .filter((sugestao) => produtoPorId.has(sugestao.produtoId))
       .map((sugestao) => ({
         ...sugestao,
@@ -804,7 +815,7 @@ export function useListaCompras(): UseListaCompras {
             ? sugestao.varianteId
             : null,
       }));
-  }, [itens, produtos, compras, produtoPorId, variantePorId]);
+  }, [itens, produtos, compras, produtoPorId, variantePorId, tamanhoDaVariante]);
 
   // --- Inclusao ----------------------------------------------------------------------
 
@@ -880,6 +891,7 @@ export function useListaCompras(): UseListaCompras {
       ? sugerirCompras(
           compras.filter((compra) => compra.produto_id === produto.id),
           dayjs().format('YYYY-MM-DD'),
+          { tamanho: tamanhoDaVariante },
         )[0]
       : undefined;
 

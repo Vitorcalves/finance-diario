@@ -78,6 +78,31 @@ export const precoPorUnidadePrimaria = (
   preco: number,
   variante: ProdutoVariantes | undefined,
 ): PrecoPorUnidade | null => {
+  const medida = medidaPorUnidadePrimaria(variante);
+
+  return medida
+    ? { valor: preco / medida.quantidade, unidadeId: medida.unidadeId, sigla: medida.sigla }
+    : null;
+};
+
+/** Quanto vem em 1 unidade vendida de uma variante, na unidade primaria do grupo. */
+export type MedidaVariante = {
+  quantidade: number;
+  /** Id da unidade primaria em que `quantidade` esta expressa. */
+  unidadeId: number;
+  sigla: string;
+};
+
+/**
+ * Tamanho de uma variante na unidade primaria do seu grupo: `500 g` vira 0,5 kg,
+ * a granel vira a medida do preco (1 kg). E o que deixa somar ou comparar
+ * embalagens de tamanhos diferentes.
+ *
+ * Devolve `null` quando a variante nao tem quantidade e unidade cadastradas.
+ */
+export const medidaPorUnidadePrimaria = (
+  variante: ProdutoVariantes | undefined,
+): MedidaVariante | null => {
   if (!variante || variante.unidade_id === null) {
     return null;
   }
@@ -102,7 +127,7 @@ export const precoPorUnidadePrimaria = (
     return null;
   }
 
-  return { valor: preco / quantidade, unidadeId: primaria.id, sigla: primaria.sigla };
+  return { quantidade, unidadeId: primaria.id, sigla: primaria.sigla };
 };
 
 /** Mesma coisa, mas partindo do id - devolve um texto neutro se a variante sumiu. */

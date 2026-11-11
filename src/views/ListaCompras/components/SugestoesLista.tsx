@@ -9,9 +9,9 @@ type SugestoesListaProps = {
   onAdicionar: (sugestoes: SugestaoNaLista[]) => void;
 };
 
-/** Texto curto do ritmo de compra: "a cada 15 dias · há 18". */
+/** Texto curto do ritmo: quanto a ultima compra deve durar e ha quanto tempo foi ("dura ~15 dias · há 18 dias"). */
 const ritmo = (sugestao: SugestaoNaLista): string => {
-  const cada = sugestao.intervaloDias <= 1 ? 'todo dia' : `a cada ${sugestao.intervaloDias} dias`;
+  const cada = sugestao.duracaoDias <= 1 ? 'dura 1 dia' : `dura ~${sugestao.duracaoDias} dias`;
   const ultima =
     sugestao.diasDesdeUltima === 0
       ? 'hoje'
@@ -23,8 +23,8 @@ const ritmo = (sugestao: SugestaoNaLista): string => {
 };
 
 /**
- * Produtos frequentes que ainda nao estao na lista. Os que ja passaram do
- * ritmo de compra de costume vem primeiro e destacados.
+ * Produtos frequentes que ainda nao estao na lista. Aqueles em que a ultima
+ * compra ja deve ter acabado vem primeiro e destacados.
  */
 export default function SugestoesLista({
   sugestoes,
@@ -70,7 +70,7 @@ export default function SugestoesLista({
             style={[styles.chip, sugestao.naHora && styles.chipNaHora]}
             onPress={(): void => onAdicionar([sugestao])}
             accessibilityRole="button"
-            accessibilityLabel={`Adicionar ${sugestao.nome}, compra ${ritmo(sugestao)}`}
+            accessibilityLabel={`Adicionar ${sugestao.nome}, ${ritmo(sugestao)}`}
           >
             <View style={styles.chipTextos}>
               <Text style={styles.chipNome} numberOfLines={1}>

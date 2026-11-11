@@ -85,7 +85,8 @@ pilha (dá para deixar uma análise aberta e consultar outra aba); tocar de novo
 
 **Lista de compras** — a tela mais completa (442 linhas no `index.tsx`).
 
-- Adicionar rápido por produto, sugestões e leitura de código de barras pela câmera.
+- Adicionar rápido por produto, sugestões (pelo consumo: quantidade e tamanho da embalagem comprada) e leitura de
+  código de barras pela câmera.
 - Mercados: escolhe o mercado atual e anota o preço de cada item, inclusive várias marcas/embalagens.
 - Comparação entre mercados; seções "A comprar" e "No carrinho".
 - Finalizar gera um lançamento pré-preenchido com o carrinho e grava os preços no histórico.

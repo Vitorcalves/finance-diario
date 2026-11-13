@@ -28,8 +28,14 @@ Em ordem: a primeira tarefa não concluída é a próxima a fazer.
   lançamento recebe tags no `NovoLancamentoForm` (criando a tag na hora) e arrastando o item na lista (ação "Tags", só
   em gasto e entrada). Parcela e assinatura levam as tags para o plano inteiro, e as cobranças novas herdam. Model em
   `src/models/tags.ts`; a migration 018 impede a mesma tag duas vezes no mesmo lançamento.
-- [ ] **5. Inflação pessoal:** mostrar quanto a sua cesta de compras de verdade subiu mês a mês, calculado a partir do
-  histórico de preços.
+- [x] **5. Inflação pessoal:** mostrar quanto a sua cesta de compras de verdade subiu mês a mês, calculado a partir do
+  histórico de preços. Feito: tela Inflação pessoal (Análises › Inflação pessoal), com o acumulado de 6 meses, 12
+  meses ou tudo, o gráfico mês a mês ou acumulado e a lista do que mais pesou (tocar abre a Análise de preços do
+  produto). A conta (`src/utils/inflacaoPessoal.ts`) é um índice encadeado: o item é a variante, o preço do mês é a
+  média do histórico (mês sem registro repete o último preço) e o peso é o gasto no item nos últimos 12 meses. Não
+  teve migration: só a consulta `listComprasDeVariantes`, em `src/models/dashboard.ts`.
+  - [x] **Extra, mês anterior no gráfico do mês:** o "Acumulado" da aba Mês desenha ao fundo a curva do mês anterior
+    (`src/views/Mensal/comparativo.ts`), no lugar da linha reta com o total dele.
 - [ ] **6. Limite mensal por categoria:** definir um limite por categoria de lançamento e, usando a projeção que a tela
   Mês já calcula, avisar algo como "no ritmo atual, Mercado estoura dia 22".
 
@@ -38,6 +44,10 @@ Em ordem: a primeira tarefa não concluída é a próxima a fazer.
 Vindos do [Relatório de telas](<Relatório de telas — Finance Diário.md>) e dos documentos de cada tela
 ([docs/telas](telas/README.md)), sem ordem definida.
 
+- [x] **Empresas padronizadas:** a lista vinha na ordem de criação e não tinha busca. Feito: ordem alfabética no model
+  (`listEmpresas`, vale em todas as telas), busca por nome ou CNPJ e vínculo de cada empresa com várias categorias de
+  lançamento (tabela `empresas_categorias_lancamento`, migration 019). No novo lançamento, a categoria escolhida
+  lista só as empresas dela, e a empresa sugere a categoria.
 - [ ] **Tela órfã:** `src/views/More` não está em nenhuma rota. Remover ou ligar a uma rota.
 - [ ] **Erro de digitação:** o estado vazio de Faturas diz "lançe uma compra"; o correto é "lance".
 - [ ] **Títulos repetidos:** Categorias de lançamento e Categorias de produto exibem o mesmo título "Categorias"; só o
@@ -58,7 +68,10 @@ Vindos do [Relatório de telas](<Relatório de telas — Finance Diário.md>) e 
 - [ ] **Faturas vazias ao excluir plano:** excluir um parcelamento ou uma assinatura no cartão (`deletePlanoById`) não
   chama o `apagarFaturasVazias`, como o encerrar faz; a fatura fica na lista com total zero.
 - [ ] **Código sem uso:** nenhuma tela usa `BlankView`, `getMonthlyIncome`/`saveMonthlyIncome`,
-  `contarNotasLancamento` (só o teste dele) nem o parâmetro `produtoId` da rota `AnalisePrecos`. Remover ou ligar a uma
-  tela.
+  `contarNotasLancamento` (só o teste dele) nem `deleteHistoricoPrecoById`. Remover ou ligar a uma tela. (O parâmetro
+  `produtoId` da rota `AnalisePrecos` saiu desta lista: a Inflação pessoal passou a usar.)
+- [ ] **Apagar preço do histórico:** nenhuma tela apaga um registro do histórico de preços. Um preço digitado errado
+  (R$ 249,00 no lugar de R$ 24,90) fica para sempre na Análise de preços e vira um salto na Inflação pessoal. O model
+  já tem `deleteHistoricoPrecoById`.
 - [ ] **Nomes repetidos nos cadastros:** Marcas, Empresas e Categorias de produto aceitam nomes repetidos (as tags já
   recusam, sem diferenciar maiúsculas nem acentos). Duas marcas "Camil" dividem as variantes entre rótulos iguais.

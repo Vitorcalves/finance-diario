@@ -11,6 +11,7 @@ import { materializarPlanos } from '../../models/materializacaoPlanos';
 import { listTransacoes, type Transacoes } from '../../models/transacoesModel';
 import { Locais } from '../../utils/local';
 import { projetarMes, type SituacaoMes } from '../../utils/projecaoMes';
+import { acumuladoMesAnterior } from './comparativo';
 import type {
   ComparativoMes,
   DetalheDoDia,
@@ -66,6 +67,8 @@ export type UseMensal = {
   /** Gasto do mes por categoria de lancamento, do maior para o menor. */
   gastoPorCategoria: GastoPorCategoria[];
   comparativo: ComparativoMes;
+  /** Acumulado do mes anterior por dia do mes exibido: a curva de fundo do grafico. */
+  acumuladoAnterior: number[];
   /** Curva do acumulado projetada ate o fim do mes; vazia fora do mes corrente. */
   projecaoPorDia: number[];
   escalaAcumulado: number;
@@ -334,6 +337,11 @@ export function useMensal(): UseMensal {
     return { totalAnterior, ateMesmoDia, variacao };
   }, [transacoesMesAnterior, diasDecorridos, resumo.gastoTotal]);
 
+  const acumuladoAnterior = useMemo(
+    (): number[] => acumuladoMesAnterior(transacoesMesAnterior, diasNoMes),
+    [transacoesMesAnterior, diasNoMes],
+  );
+
   /**
    * Acumulado projetado dia a dia: parte do realizado e soma, em cada dia que
    * falta, o que ja esta comprometido nele mais a media dos gastos avulsos.
@@ -398,6 +406,7 @@ export function useMensal(): UseMensal {
     gastoPorLocal,
     gastoPorCategoria,
     comparativo,
+    acumuladoAnterior,
     projecaoPorDia,
     escalaAcumulado,
     escalaDiaria,

@@ -5,7 +5,7 @@ import {
   ultimaCategoriaPorEmpresa,
 } from '../../models/categoriasLancamento';
 import { type Conta, listContasPorTipo } from '../../models/contas';
-import { type Empresa, listEmpresas } from '../../models/empresas';
+import { type Empresa, listCategoriasPorEmpresa, listEmpresas } from '../../models/empresas';
 import { listMarcas, type Marca } from '../../models/marcas';
 import { listProdutos, type Produto } from '../../models/produtos';
 import { listProdutoVariantes, type ProdutoVariantes } from '../../models/produtoVariantes';
@@ -21,6 +21,11 @@ export type CatalogoLancamento = {
   contas: Conta[];
   /** Categoria usada por ultimo em cada empresa, para sugerir ao escolher a empresa. */
   categoriaPorEmpresa: Map<string, string>;
+  /**
+   * Categorias vinculadas a cada empresa no cadastro: com a categoria
+   * escolhida, o seletor de empresa lista so as dela.
+   */
+  categoriasDaEmpresa: Map<string, string[]>;
   /** Tags de evento, em ordem alfabetica. */
   tags: Tag[];
   /** Poe na lista uma tag criada agora no formulario, sem recarregar tudo. */
@@ -38,6 +43,7 @@ export function useCatalogoLancamento(): CatalogoLancamento {
   const [categorias, setCategorias] = useState<CategoriaLancamento[]>([]);
   const [contas, setContas] = useState<Conta[]>([]);
   const [categoriaPorEmpresa, setCategoriaPorEmpresa] = useState<Map<string, string>>(new Map());
+  const [categoriasDaEmpresa, setCategoriasDaEmpresa] = useState<Map<string, string[]>>(new Map());
   const [tags, setTags] = useState<Tag[]>([]);
 
   const carregar = useCallback((): void => {
@@ -52,6 +58,7 @@ export function useCatalogoLancamento(): CatalogoLancamento {
           caixasDoBanco,
           cartoesDoBanco,
           categoriaPorEmpresaDoBanco,
+          categoriasDaEmpresaDoBanco,
           tagsDoBanco,
         ] = await Promise.all([
           listEmpresas(),
@@ -62,6 +69,7 @@ export function useCatalogoLancamento(): CatalogoLancamento {
           listContasPorTipo('caixa'),
           listContasPorTipo('cartao'),
           ultimaCategoriaPorEmpresa(),
+          listCategoriasPorEmpresa(),
           listTags(),
         ]);
 
@@ -72,6 +80,7 @@ export function useCatalogoLancamento(): CatalogoLancamento {
         setCategorias(categoriasDoBanco);
         setContas([...caixasDoBanco, ...cartoesDoBanco]);
         setCategoriaPorEmpresa(categoriaPorEmpresaDoBanco);
+        setCategoriasDaEmpresa(categoriasDaEmpresaDoBanco);
         setTags(tagsDoBanco);
       } catch (error: unknown) {
         console.error('Erro ao carregar dados do lancamento', error);
@@ -95,6 +104,7 @@ export function useCatalogoLancamento(): CatalogoLancamento {
     categorias,
     contas,
     categoriaPorEmpresa,
+    categoriasDaEmpresa,
     tags,
     incluirTag,
     carregar,

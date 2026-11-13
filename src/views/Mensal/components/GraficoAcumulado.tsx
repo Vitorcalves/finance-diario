@@ -1,3 +1,4 @@
+import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
 import { Animated, Easing, View } from 'react-native';
 import Svg, { Circle, Defs, G, Line, LinearGradient, Path, Stop } from 'react-native-svg';
@@ -22,17 +23,23 @@ type GraficoAcumuladoProps = {
   /** Projecao do acumulado por dia; posicoes sem projecao vem como 0. */
   projecaoPorDia: number[];
   escala: number;
-  /** Total fechado do mes anterior, desenhado como linha de referencia. */
+  /** Acumulado do mes anterior em cada dia do mes exibido: a curva de fundo. */
+  acumuladoAnterior: number[];
+  /** Total do mes anterior; sem gasto la, a curva de fundo nao aparece. */
   totalMesAnterior: number;
   mesCorrente: boolean;
   diasNoMes: number;
 };
 
-/** Curva do gasto acumulado do dia 1 ate o fim do mes, com a projecao tracejada. */
+/**
+ * Curva do gasto acumulado do dia 1 ate o fim do mes, com a projecao tracejada
+ * e, ao fundo, a curva do mes anterior para comparar o ritmo dia a dia.
+ */
 export default function GraficoAcumulado({
   dias,
   projecaoPorDia,
   escala,
+  acumuladoAnterior,
   totalMesAnterior,
   mesCorrente,
   diasNoMes,
@@ -75,7 +82,17 @@ export default function GraficoAcumulado({
         ]
       : [];
 
-  const yReferencia = totalMesAnterior > 0 ? yDoValor(totalMesAnterior) : null;
+  const anteriores: PontoGrafico[] =
+    totalMesAnterior > 0
+      ? acumuladoAnterior.map((valor, indice) => ({ x: xDoDia(indice + 1), y: yDoValor(valor) }))
+      : [];
+
+  /** Onde o mes anterior estava no dia de hoje: o ponto que se compara com o de agora. */
+  const hoje = dias.find((dia) => dia.hoje);
+  const anteriorHoje = hoje ? anteriores[hoje.dia - 1] : undefined;
+
+  const nomeMesAnterior = dayjs(mes).subtract(1, 'month').format('MMMM');
+  const rotuloMesAnterior = nomeMesAnterior.charAt(0).toUpperCase() + nomeMesAnterior.slice(1);
 
   return (
     <View style={sharedStyles.card}>
@@ -118,16 +135,23 @@ export default function GraficoAcumulado({
                 strokeWidth={1}
               />
 
-              {yReferencia !== null && (
-                <Line
-                  x1={0}
-                  x2={largura}
-                  y1={yReferencia}
-                  y2={yReferencia}
-                  stroke={colors.textSubtle}
-                  strokeWidth={1}
-                  strokeDasharray="5 5"
-                />
+              {/* Mes anterior ao fundo: cinza e mais fino, para nao disputar com o mes exibido. */}
+              {anteriores.length > 1 && (
+                <>
+                  <Path
+                    d={caminhoArea(anteriores, ALTURA_ACUMULADO)}
+                    fill={colors.textSubtle}
+                    fillOpacity={0.1}
+                  />
+                  <Path
+                    d={caminhoSuave(anteriores)}
+                    stroke={colors.textSubtle}
+                    strokeWidth={1.5}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    fill="none"
+                  />
+                </>
               )}
 
               {projetados.length > 1 && (
@@ -160,6 +184,17 @@ export default function GraficoAcumulado({
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   fill="none"
+                />
+              )}
+
+              {mesCorrente && anteriorHoje && (
+                <Circle
+                  cx={anteriorHoje.x}
+                  cy={anteriorHoje.y}
+                  r={3.5}
+                  fill={colors.surface}
+                  stroke={colors.textSubtle}
+                  strokeWidth={1.5}
                 />
               )}
 
@@ -206,7 +241,7 @@ export default function GraficoAcumulado({
           <View style={styles.legendaItem}>
             <View style={styles.legendaLinha} />
             <Text style={styles.legendaTexto}>
-              {`Mês passado fechou em ${toCurrencyCurto(totalMesAnterior)}`}
+              {`${rotuloMesAnterior}: ${toCurrencyCurto(totalMesAnterior)}`}
             </Text>
           </View>
         )}
@@ -254,7 +289,8 @@ const useStyles = makeStyles((colors) => ({
   },
   legendaLinha: {
     width: 12,
-    height: 1,
+    height: 2,
+    borderRadius: radius.sm,
     backgroundColor: colors.textSubtle,
   },
   legendaTexto: {

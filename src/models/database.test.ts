@@ -59,6 +59,7 @@ describe('initializeDatabase', () => {
       'categorias',
       'categorias_lancamento',
       'empresas',
+      'empresas_categorias_lancamento',
       'historico_preco',
       'itens_transacao',
       'lista_compras_itens',

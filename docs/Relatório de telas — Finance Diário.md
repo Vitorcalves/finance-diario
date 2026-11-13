@@ -4,13 +4,14 @@ Nov 6, 2026 · @carlos
 
 ## Visão geral
 
-O Finance Diário tem **21 telas** ativas, distribuídas em 5 abas inferiores. É um app React Native 0.88 com Expo 58,
+O Finance Diário tem **22 telas** ativas, distribuídas em 5 abas inferiores. É um app React Native 0.88 com Expo 58,
 banco local SQLite (expo-sqlite) e navegação React Navigation 7 (bottom tabs + native stacks, todos sem header nativo).
 
 - **Início** (pilha Home): lançamentos do dia, busca de lançamentos, lista de compras e notas para lançar.
 - **Mês**: tela única, sem pilha, com os gastos do mês.
 - **Produtos** (pilha Produtos): lista e formulário de produtos.
-- **Análises** (pilha Dashboard): hub de análises, análise de preços, histórico de preços e orçamento.
+- **Análises** (pilha Dashboard): hub de análises, análise de preços, histórico de preços, inflação pessoal e
+  orçamento.
 - **Menu** (pilha Menu): cadastros, financeiro (planos, contas, faturas, tags de eventos) e integração.
 
 A app inicia na aba Início. Antes de mostrar as rotas, `App.tsx` inicializa o banco, carrega o tema preferido
@@ -37,9 +38,10 @@ abre o documento detalhado da tela, em `docs/telas/`.
 | Mês      | GastosMensais        | [Mensal](telas/Mensal.md)                             | Gastos do mês            | Evolução do gasto no mês, gráficos por dia, categoria e local   |
 | Produtos | ProdutosList         | [ProdutosList](telas/ProdutosList.md)                 | Produtos                 | Lista de produtos cadastrados                                   |
 | Produtos | ProdutoForm          | [ProdutoForm](telas/ProdutoForm.md)                   | Novo / Editar Produto    | Cadastro de produto, categorias e variantes                     |
-| Análises | DashboardHome        | [Dashboard](telas/Dashboard.md)                       | Análises                 | Hub com três cartões de análise                                 |
+| Análises | DashboardHome        | [Dashboard](telas/Dashboard.md)                       | Análises                 | Hub com quatro cartões de análise                               |
 | Análises | AnalisePrecos        | [AnalisePrecos](telas/AnalisePrecos.md)               | Análise de preços        | Valor pago x histórico de preços ao longo do tempo              |
 | Análises | HistoricoPrecos      | [HistoricoPrecos](telas/HistoricoPrecos.md)           | Histórico de Preços      | Preços registrados agrupados por variante ou produto            |
+| Análises | InflacaoPessoal      | [InflacaoPessoal](telas/InflacaoPessoal.md)           | Inflação pessoal         | Quanto a cesta de compras de verdade subiu mês a mês            |
 | Análises | Orcamento            | [Orcamento](telas/Orcamento.md)                       | Orçamento                | Pesquisa de preços por mercado, sem gerar lançamento            |
 | Menu     | MenuHome             | [MenuHome](telas/MenuHome.md)                         | Menu                     | Cadastros, financeiro, preferências, sistema e zona de perigo   |
 | Menu     | CategoriasLancamento | [CategoriasLancamento](telas/CategoriasLancamento.md) | Categorias               | Categorias dos lançamentos (Mercado, Transporte...)             |
@@ -55,7 +57,7 @@ abre o documento detalhado da tela, em `docs/telas/`.
 
 As telas também se cruzam entre abas: a Home abre o Orçamento pelo atalho; o gráfico de categorias da aba Mês abre a
 busca de lançamentos na aba Início; Produtos mostra o histórico de preços do produto num painel; Contas abre Faturas com
-o `contaId` do cartão. A busca de lançamentos também está registrada na pilha Menu: a tela de Tags a abre já filtrada
+o `contaId` do cartão; a Inflação pessoal abre a Análise de preços já no produto do item tocado. A busca de lançamentos também está registrada na pilha Menu: a tela de Tags a abre já filtrada
 pela tag, sem trocar de aba. Os atalhos entre abas usam `initial: false`,
 então o hub da aba fica embaixo da tela aberta (o voltar leva ao hub). Trocar de aba mantém a tela aberta em cada
 pilha (dá para deixar uma análise aberta e consultar outra aba); tocar de novo na aba já selecionada volta ao hub.
@@ -109,7 +111,8 @@ pilha (dá para deixar uma análise aberta e consultar outra aba); tocar de novo
 
 - Seletor de mês; arrastar para o lado troca de mês; botão para voltar ao mês atual.
 - Resumo com comparativo ao mês anterior e projeção.
-- Gráficos: acumulado (com projeção), diário (tocar no dia mostra o detalhe), por categoria e por local.
+- Gráficos: acumulado (com projeção e, ao fundo, a curva do mês anterior para comparar o ritmo dia a dia), diário
+  (tocar no dia mostra o detalhe), por categoria e por local.
 
 ### Aba Produtos
 
@@ -125,7 +128,7 @@ pilha (dá para deixar uma análise aberta e consultar outra aba); tocar de novo
 
 ### Aba Análises
 
-**Análises (hub)** — três cartões: Análise de preços, Histórico de preços, Orçamento.
+**Análises (hub)** — quatro cartões: Análise de preços, Histórico de preços, Inflação pessoal, Orçamento.
 
 **Análise de preços** — gráfico de linhas do valor pago contra o histórico de preços do produto.
 
@@ -135,6 +138,16 @@ pilha (dá para deixar uma análise aberta e consultar outra aba); tocar de novo
 **Histórico de Preços** — preços registrados agrupados por variante ou produto.
 
 - Destaca o grupo com menor preço atual; filtro por código de barras lido.
+
+**Inflação pessoal** — quanto a cesta de compras de verdade subiu mês a mês.
+
+- Acumulado do período (6 meses, 12 meses ou tudo), último mês, média por mês e quantos itens estão na cesta.
+- Gráfico com a variação de cada mês (barras para cima ou para baixo do zero) ou o acumulado (linha); tocar num mês
+  mostra o detalhe dele.
+- "O que mais pesou": os itens por impacto na cesta, com o preço de antes e de depois; tocar abre a Análise de preços
+  do produto.
+- A conta sai do histórico de preços (preço médio do mês por variante; mês sem registro repete o último preço) e pesa
+  cada item pelo que foi gasto nele nos últimos 12 meses (`src/utils/inflacaoPessoal.ts`). A tela só lê.
 
 **Orçamento** — pesquisa de preços na gôndola, sem gerar lançamento.
 
@@ -153,8 +166,14 @@ pilha (dá para deixar uma análise aberta e consultar outra aba); tocar de novo
 
 **Categorias de lançamento** — categorias como Mercado e Transporte, em grupos; toque para editar.
 
-**Categorias de produto**, **Marcas** e **Empresas** — cadastros simples: lista de cartões, botão + no header e modal de
+**Categorias de produto** e **Marcas** — cadastros simples: lista de cartões, botão + no header e modal de
 formulário.
+
+**Empresas** — mercados e lojas, em ordem alfabética.
+
+- Busca por nome ou CNPJ e filtro por categoria de lançamento (com "Sem categoria").
+- Cada empresa pode ser vinculada a várias categorias de lançamento. No novo lançamento, a categoria escolhida lista
+  só as empresas dela (as outras voltam ao digitar o nome), e a empresa escolhida sugere a categoria.
 
 **Assinaturas e parcelas** — resumo e lista de planos.
 

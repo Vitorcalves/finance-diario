@@ -37,6 +37,7 @@ export default function MensalView(): React.ReactNode {
     gastoPorLocal,
     gastoPorCategoria,
     comparativo,
+    acumuladoAnterior,
     projecaoPorDia,
     escalaAcumulado,
     escalaDiaria,
@@ -146,6 +147,7 @@ export default function MensalView(): React.ReactNode {
                   dias={dias}
                   projecaoPorDia={projecaoPorDia}
                   escala={escalaAcumulado}
+                  acumuladoAnterior={acumuladoAnterior}
                   totalMesAnterior={comparativo.totalAnterior}
                   mesCorrente={mesCorrente}
                   diasNoMes={diasNoMes}

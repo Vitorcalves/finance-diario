@@ -36,6 +36,8 @@ cache de um arquivo nunca vaza para outro.
 Para testar uma migration pendente (o caso de quem atualiza o app), o
 `desfazerUltimaMigration()` de `setup/banco.ts` volta o banco para a versao
 anterior; a proxima `initializeDatabase()` aplica a ultima migration de novo.
+Para uma migration que ja nao e a ultima, use `desfazerMigrationsDesde(id)`:
+ele desfaz a migration `id` e todas as que vieram depois.
 
 ## Arquivos
 

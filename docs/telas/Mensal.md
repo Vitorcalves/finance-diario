@@ -8,8 +8,8 @@ Voltar ao [Relatório de telas](<../Relatório de telas — Finance Diário.md>)
 ## Para que serve
 
 Mostra o ritmo do gasto de um mês, do dia 1 ao último: quanto já foi gasto, a comparação com o mesmo período do mês
-passado, o que ainda vai vencer, a projeção de fechamento e quatro gráficos (acumulado, por dia, por categoria e por
-localidade). Dá para navegar para meses passados e futuros.
+passado, o que ainda vai vencer, a projeção de fechamento e quatro gráficos (acumulado, com o mês anterior ao fundo,
+por dia, por categoria e por localidade). Dá para navegar para meses passados e futuros.
 
 ## Navegação
 
@@ -44,8 +44,11 @@ localidade). Dá para navegar para meses passados e futuros.
 
 - Curva suave do gasto realizado somado dia a dia, com área em gradiente, e a escala (valor do topo) no título.
 - No mês corrente: ponto de hoje destacado e a projeção tracejada de hoje até o fim do mês.
-- Linha tracejada de referência com o total fechado do mês passado ("Mês passado fechou em R$ X").
-- Legenda: Gasto realizado, Projeção (mês corrente) e a referência do mês passado.
+- **Mês anterior ao fundo:** a curva do acumulado do mês anterior, cinza e mais fina, com a área clara, atrás da curva
+  do mês exibido. Dá para comparar o ritmo dia a dia (se a curva verde está acima da cinza, o mês está mais caro que o
+  anterior naquele ponto), e não só o total. No mês corrente, um ponto vazado marca onde o mês anterior estava no dia
+  de hoje. Sem gasto no mês anterior, a curva não aparece.
+- Legenda: Gasto realizado, Projeção (mês corrente) e o mês anterior com o total dele ("Outubro: R$ 3.200").
 - A curva "cresce" a partir da base a cada mês novo.
 
 ### Por dia (`GraficoDiario` + `DetalheDia`)
@@ -81,9 +84,10 @@ Sem nenhum lançamento no mês: "Nenhum lançamento neste mês" e a dica de regi
 | `useMensal.ts`                   | Carga do mês e todos os números derivados                                 |
 | `types.ts`                       | `DiaDoMes`, `ResumoMes`, `ComparativoMes`, `DetalheDoDia`, `GastoPorLocal`, `GastoPorCategoria` |
 | `charts.ts`                      | Alturas, proporções e a curva monótona dos gráficos                       |
+| `comparativo.ts`                 | Acumulado do mês anterior encaixado nos dias do mês exibido               |
 | `components/SeletorMes.tsx`      | Navegação entre meses                                                     |
 | `components/ResumoMes.tsx`       | Cartão de resumo                                                          |
-| `components/GraficoAcumulado.tsx`| Curva do acumulado com projeção e referência                              |
+| `components/GraficoAcumulado.tsx`| Curva do acumulado com projeção e o mês anterior ao fundo                 |
 | `components/GraficoDiario.tsx`   | Barras por dia                                                            |
 | `components/DetalheDia.tsx`      | Lançamentos do dia escolhido                                              |
 | `components/GraficoCategoria.tsx`| Composição e lista por categoria                                          |
@@ -134,6 +138,10 @@ durante a busca do próximo.
   média diária, média dos gastos avulsos, comprometido e projeção; mais os dias com gasto e o maior dia.
 - **`comparativo`:** total do mês anterior, total do mês anterior até o mesmo dia (`dia <= diasDecorridos`) e a
   variação percentual contra ele (`null` sem base). Comparar com o mesmo ponto não pune o mês em andamento.
+- **`acumuladoAnterior`** (`acumuladoMesAnterior`, em `comparativo.ts`): o gasto do mês anterior somado dia a dia, com
+  um valor por dia do mês exibido, para as duas curvas dividirem o mesmo eixo. Os meses não têm o mesmo tamanho: o dia
+  que não existe no mês exibido (31 num mês de 30) entra no último dia, e o mês anterior mais curto (28 contra 31)
+  segue plano até o fim. A curva termina sempre no total do mês anterior.
 - **`projecaoPorDia`** (só no mês corrente): parte do realizado e soma, em cada dia que falta, o comprometido daquele
   dia mais a média diária dos gastos avulsos.
 - **Escalas:** acumulado = maior entre realizado, projeção, total do mês passado e 1; diária = maior gasto ou
@@ -174,6 +182,8 @@ Utilitários: `projetarMes` (`utils/projecaoMes.ts`), `Locais` (`utils/local.ts`
 ## Testes
 
 - `src/views/Mensal/charts.test.ts`: alturas, proporções e a curva.
+- `src/views/Mensal/comparativo.test.ts`: acumulado do mês anterior (soma por dia, entradas de fora, meses de
+  tamanhos diferentes).
 - `src/utils/projecaoMes.test.ts`: projeção nas três situações.
 - `src/models/lancamentos.test.ts`: o fluxo de gastos inclui a parcela no cartão e exclui o pagamento da fatura.
 - `src/models/materializacaoPlanos.test.ts`: a entrada programada entra como receita do mês.

@@ -14,9 +14,10 @@ o último registro do histórico.
 
 ## Navegação
 
-- **Entrada:** cartão "Análise de preços" do [hub de Análises](Dashboard.md).
-- **Parâmetro:** `AnalisePrecos: { produtoId?: string }`, que pré-seleciona o produto. Hoje nenhuma tela passa esse
-  parâmetro.
+- **Entrada:** cartão "Análise de preços" do [hub de Análises](Dashboard.md), ou um item da lista "O que mais pesou"
+  da [Inflação pessoal](InflacaoPessoal.md).
+- **Parâmetro:** `AnalisePrecos: { produtoId?: string }`, que pré-seleciona o produto. Quem passa é a Inflação
+  pessoal; pelo hub a tela abre no produto mais movimentado.
 - **Saída:** voltar do header.
 
 ## Funcionalidades
@@ -125,5 +126,5 @@ quanto as cotações levadas da Lista de compras e do Orçamento.
 
 ## Observações
 
-- O parâmetro `produtoId` está pronto na rota, mas nenhum atalho o usa ainda (a lista de Produtos abre o histórico em
-  modal, não esta tela); pendência em Tarefas.
+- O parâmetro `produtoId` só vale na abertura da tela (é o estado inicial do hook). A Inflação pessoal sempre abre
+  uma tela nova, então isso basta; a lista de Produtos continua abrindo o histórico em modal, não esta tela.

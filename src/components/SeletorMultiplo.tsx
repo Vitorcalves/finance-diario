@@ -29,6 +29,11 @@ type SeletorMultiploProps = {
   textoTrigger?: string;
   textoVazio?: string;
   textoNenhumEncontrado?: string;
+  /**
+   * Aviso exibido enquanto ha opcoes `oculta` e nada foi digitado, para dizer
+   * que a lista esta filtrada (ex.: "Digite para buscar em todas").
+   */
+  textoOcultas?: string;
   add?: boolean;
   textoAdicionar?: string;
   formAdicionar?: (fechar: () => void) => React.ReactNode;
@@ -50,6 +55,7 @@ export default function SeletorMultiplo({
   textoTrigger = 'Adicionar item',
   textoVazio = 'Nenhum item cadastrado',
   textoNenhumEncontrado = 'Nenhum item encontrado',
+  textoOcultas,
   add = false,
   textoAdicionar = 'Adicionar novo',
   formAdicionar,
@@ -82,6 +88,8 @@ export default function SeletorMultiplo({
   const opcoesFiltradas = opcoes.filter(
     (opcao) => (termo || !opcao.oculta) && correspondeBusca(opcao.nome, termo),
   );
+
+  const avisoOcultas = !termo && opcoes.some((opcao) => opcao.oculta) ? textoOcultas : undefined;
 
   const fecharFormAdicionar = (): void => setMostrarFormAdicionar(false);
 
@@ -163,9 +171,10 @@ export default function SeletorMultiplo({
                 </Pressable>
               );
             })}
-            {opcoesFiltradas.length === 0 && (
+            {opcoesFiltradas.length === 0 && !avisoOcultas && (
               <Text style={sharedStyles.inlineEmptyText}>{textoNenhumEncontrado}</Text>
             )}
+            {avisoOcultas ? <Text style={sharedStyles.inlineEmptyText}>{avisoOcultas}</Text> : null}
             {add && (
               <Pressable
                 style={styles.comboItemAdicionar}

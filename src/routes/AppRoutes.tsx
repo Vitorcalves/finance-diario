@@ -14,6 +14,7 @@ import FaturasView from '../views/Faturas';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import HistoricoPrecosView from '../views/HistoricoPrecos';
 import HomeView from '../views/Home';
+import InflacaoPessoalView from '../views/InflacaoPessoal';
 import IntegracaoView from '../views/Integracao';
 import ListaComprasView from '../views/ListaCompras';
 import MarcasView from '../views/Marcas';
@@ -89,6 +90,7 @@ function DashboardStack(): React.ReactNode {
       <DashboardStackNav.Screen name="DashboardHome" component={DashboardHomeView} />
       <DashboardStackNav.Screen name="AnalisePrecos" component={AnalisePrecosView} />
       <DashboardStackNav.Screen name="HistoricoPrecos" component={HistoricoPrecosView} />
+      <DashboardStackNav.Screen name="InflacaoPessoal" component={InflacaoPessoalView} />
       <DashboardStackNav.Screen name="Orcamento" component={OrcamentoView} />
     </DashboardStackNav.Navigator>
   );

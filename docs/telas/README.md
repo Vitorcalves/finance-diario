@@ -20,6 +20,7 @@ Cada arquivo tem o nome da pasta da tela em `src/views/`.
 | Análises | [Análises (hub)](Dashboard.md)                    | `DashboardHome`        |
 | Análises | [Análise de preços](AnalisePrecos.md)             | `AnalisePrecos`        |
 | Análises | [Histórico de Preços](HistoricoPrecos.md)         | `HistoricoPrecos`      |
+| Análises | [Inflação pessoal](InflacaoPessoal.md)            | `InflacaoPessoal`      |
 | Análises | [Orçamento](Orcamento.md)                         | `Orcamento`            |
 | Menu     | [Menu](MenuHome.md)                               | `MenuHome`             |
 | Menu     | [Categorias de lançamento](CategoriasLancamento.md) | `CategoriasLancamento` |
@@ -74,7 +75,7 @@ Cada arquivo tem o nome da pasta da tela em `src/views/`.
 
 - `src/views/<Tela>/index.tsx` monta os blocos visuais; `use<Tela>.ts` concentra o acesso ao banco, o estado e os
   cálculos; `components/` guarda as partes da tela. Funções puras ficam em arquivos próprios (`series.ts`,
-  `charts.ts`, `normalizacao.ts`) ou em `src/utils/`, e têm testes.
+  `charts.ts`, `comparativo.ts`, `grafico.ts`, `normalizacao.ts`) ou em `src/utils/`, e têm testes.
 - A carga roda em `useFocusEffect`: voltar para a tela relê os dados, então o que foi gravado em outra tela (ou um
   backup importado) aparece sem reiniciar o app. O indicador de carregamento aparece só na primeira carga.
 - Formulários abrem em `BottomSheet` e recebem uma `key` nova a cada abertura, para nascerem com os dados certos.
@@ -110,6 +111,7 @@ validada uma vez na abertura (`getConnection`).
 | 016 | Várias cotações por item e mercado (`lista_compras_precos` ganha `id`)                             |
 | 017 | `notas_lancamento`                                                                                 |
 | 018 | Índice único (`transacao_id`, `tag_id`) e índice por tag em `transacoes_tags`                      |
+| 019 | `empresas_categorias_lancamento` (categorias de lançamento de cada empresa)                        |
 
 Migration publicada não muda: correções entram numa migration nova. O "Recriar banco" desfaz todas (cada `down`) e
 aplica de novo.
@@ -160,7 +162,7 @@ Cada linha de `transacoes` grava o que ela é; as consultas filtram por aqui.
 | `ScannerCodigoBarras`    | Câmera (`expo-camera`) que lê o código de barras                               | item do lançamento, variante, lista, histórico, orçamento |
 | `SeletorCategoria`       | Faixa de categorias de um tipo, com ícone e cor                                | lançamento, assinatura |
 | `SeletorCor`             | Grade com a paleta do app                                                      | categorias de lançamento, contas |
-| `SeletorMultiplo`        | Lista com busca, de escolha única ou múltipla, com "adicionar" opcional         | produto, empresa, tags, categorias, marcas |
+| `SeletorMultiplo`        | Lista com busca, de escolha única ou múltipla, com "adicionar" opcional; opção `oculta` só aparece quando buscada (`textoOcultas` avisa que a lista está filtrada) | produto, empresa, tags, categorias, marcas |
 | `BlankView`              | Tela vazia na cor de fundo                                                     | nenhuma tela (sem uso; pendência em Tarefas) |
 
 ### `src/components/ui/`
@@ -190,6 +192,7 @@ vermelho, cinza) é validada para daltonismo nos dois modos.
 | `parcelas.ts`            | Rateio sem perder centavo, datas das ocorrências, próxima ocorrência, custo mensal |
 | `cartao.ts`              | Ciclo da fatura de uma compra e próximos ciclos                                 |
 | `projecaoMes.ts`         | Gasto realizado, comprometido, médias e projeção do mês                         |
+| `inflacaoPessoal.ts`     | Inflação da cesta: preço do mês, peso pelas compras, variação, acumulado e impacto por item |
 | `contas.ts`              | Valor, descrição, meta, cor e seções das contas                                 |
 | `agruparPorDia.ts`, `itensPorTransacao.ts` | Agrupamento das listas de lançamentos                         |
 | `unidades.ts`, `variantes.ts` | Unidades, granel, rótulos de variante e preço por unidade primária         |

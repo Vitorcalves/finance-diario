@@ -7,8 +7,8 @@ Voltar ao [Relatório de telas](<../Relatório de telas — Finance Diário.md>)
 
 ## Para que serve
 
-Porta de entrada da aba Análises: três cartões que levam às telas de consulta e comparação de preços. Não lê nada do
-banco.
+Porta de entrada da aba Análises: quatro cartões que levam às telas de consulta e comparação de preços. Não lê nada
+do banco.
 
 ## Navegação
 
@@ -20,6 +20,7 @@ banco.
 |---------------------|----------------------------------------------------------------------------------|-------------------|
 | Análise de preços   | "Quanto você pagou por produto ao longo do tempo, contra o histórico de preços." | [`AnalisePrecos`](AnalisePrecos.md) |
 | Histórico de preços | "Compare o preço de cada variante entre mercados e encontre o mais barato."      | [`HistoricoPrecos`](HistoricoPrecos.md) |
+| Inflação pessoal    | "Quanto a sua cesta de compras de verdade subiu mês a mês."                      | [`InflacaoPessoal`](InflacaoPessoal.md) |
 | Orçamento           | "Pesquise preços na gôndola e veja em qual mercado a lista sai mais barata."     | [`Orcamento`](Orcamento.md) |
 
 - Tocar de novo na aba Análises, com uma análise aberta, volta para este hub. Trocar de aba mantém a análise aberta (o
@@ -27,21 +28,22 @@ banco.
 
 ## Funcionalidades
 
-- Cada cartão (`AnaliseCard`) tem um selo com ícone (tendência, etiquetas, carrinho) no tom da análise (marca, azul de
-  informação ou amarelo de aviso), título, descrição e a seta. O toque vibra e tem resposta de escala.
+- Cada cartão (`AnaliseCard`) tem um selo com ícone (tendência, etiquetas, cesta, carrinho) no tom da análise (marca,
+  azul de informação, vermelho ou amarelo de aviso), título, descrição e a seta. O toque vibra e tem resposta de
+  escala.
 - Os cartões entram em sequência, com 60 ms de atraso entre eles (`Aparecer`).
 
 ## Arquivos
 
 | Arquivo                       | Papel                                         |
 |-------------------------------|-----------------------------------------------|
-| `index.tsx`                   | Header e os três cartões                      |
+| `index.tsx`                   | Header e os quatro cartões                    |
 | `components/AnaliseCard.tsx`  | Cartão de atalho com ícone, título e descrição |
 
 ```
 DashboardHomeView
 ├── ScreenHeader
-└── ScrollView → Aparecer → AnaliseCard × 3
+└── ScrollView → Aparecer → AnaliseCard × 4
 ```
 
 ## Lógica, models e testes

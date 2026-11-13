@@ -45,6 +45,39 @@ export type ProdutoComMovimento = {
   registros: number;
 };
 
+/** Compra de uma variante: e ela que da o peso do item na cesta da inflacao pessoal. */
+export type CompraVariante = {
+  variante_id: string;
+  produto_id: string;
+  /** Preco unitario x quantidade. */
+  total: number;
+  /** Data da transacao, no formato YYYY-MM-DD. */
+  data: string;
+};
+
+/**
+ * Todas as compras de itens com variante, da mais antiga para a mais recente.
+ * Item sem variante fica de fora: ele nao gera registro no historico de
+ * precos, entao nao ha preco para acompanhar.
+ */
+export const listComprasDeVariantes = async (): Promise<CompraVariante[]> => {
+  const db = await getConnection();
+
+  return await db.getAllAsync<CompraVariante>(
+    `
+        SELECT i.variante_id,
+               i.produto_id,
+               i.valor * COALESCE(i.quantidade, 1) AS total,
+               substr(t.data, 1, 10)               AS data
+        FROM itens_transacao i
+                 JOIN transacoes t ON t.id = i.transacao_id
+        WHERE i.variante_id IS NOT NULL
+          AND i.produto_id IS NOT NULL
+        ORDER BY t.data, t.created_at
+    `,
+  );
+};
+
 /**
  * Precos pagos por produto: `itens_transacao` cruzado com a data e o local da
  * transacao. Fica de fora da lista a transacao de parcela (`parcela_numero > 0`),

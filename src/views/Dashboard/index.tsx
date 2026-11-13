@@ -43,6 +43,16 @@ export default function DashboardHomeView(): React.ReactNode {
 
         <Aparecer atraso={120}>
           <AnaliseCard
+            titulo="Inflação pessoal"
+            descricao="Quanto a sua cesta de compras de verdade subiu mês a mês."
+            icone="basket-outline"
+            tom="danger"
+            onPress={(): void => navigation.navigate('InflacaoPessoal')}
+          />
+        </Aparecer>
+
+        <Aparecer atraso={180}>
+          <AnaliseCard
             titulo="Orçamento"
             descricao="Pesquise preços na gôndola e veja em qual mercado a lista sai mais barata."
             icone="cart-outline"

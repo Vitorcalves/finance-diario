@@ -4,9 +4,14 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useToast } from '../../components/ui';
 import { v4 as uuidv4 } from 'uuid';
 import {
+  type CategoriaLancamento,
+  listCategoriasLancamento,
+} from '../../models/categoriasLancamento';
+import {
   deleteEmpresaById,
   type Empresa,
   insertEmpresa,
+  listCategoriasPorEmpresa,
   listEmpresas,
   updateEmpresa,
 } from '../../models/empresas';
@@ -15,10 +20,17 @@ export type DadosEmpresa = {
   nome: string;
   cnpj: string;
   observacao: string;
+  /** Categorias de lancamento em que a empresa aparece no formulario de lancamento. */
+  categoriaIds: string[];
 };
 
 export type UseEmpresas = {
+  /** Em ordem alfabetica. */
   empresas: Empresa[];
+  /** Categorias de lancamento, para vincular a empresa e filtrar a lista. */
+  categorias: CategoriaLancamento[];
+  /** Ids das categorias de cada empresa; empresa sem categoria fica fora do mapa. */
+  categoriasPorEmpresa: Map<string, string[]>;
   loading: boolean;
   /** Cria ou atualiza a empresa e devolve `true` quando deu certo. */
   salvar: (dados: DadosEmpresa, empresaEditando: Empresa | null) => Promise<boolean>;
@@ -29,12 +41,23 @@ export type UseEmpresas = {
 export function useEmpresas(): UseEmpresas {
   const toast = useToast();
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [categorias, setCategorias] = useState<CategoriaLancamento[]>([]);
+  const [categoriasPorEmpresa, setCategoriasPorEmpresa] = useState<Map<string, string[]>>(
+    new Map(),
+  );
   const [loading, setLoading] = useState(true);
 
   const carregar = useCallback(async (): Promise<void> => {
     try {
-      const empresasDoBanco = await listEmpresas();
+      const [empresasDoBanco, categoriasDoBanco, categoriasPorEmpresaDoBanco] = await Promise.all([
+        listEmpresas(),
+        listCategoriasLancamento(),
+        listCategoriasPorEmpresa(),
+      ]);
+
       setEmpresas(empresasDoBanco);
+      setCategorias(categoriasDoBanco);
+      setCategoriasPorEmpresa(categoriasPorEmpresaDoBanco);
     } catch (error: unknown) {
       console.error('Erro ao carregar empresas:', error);
       Alert.alert('Erro', 'Não foi possível carregar as empresas');
@@ -62,15 +85,18 @@ export function useEmpresas(): UseEmpresas {
 
       try {
         if (empresaEditando) {
-          await updateEmpresa({ ...empresaEditando, nome, cnpj, observacao });
+          await updateEmpresa({ ...empresaEditando, nome, cnpj, observacao }, dados.categoriaIds);
         } else {
-          await insertEmpresa({
-            id: uuidv4(),
-            nome,
-            cnpj,
-            observacao,
-            created_at: new Date().toISOString(),
-          });
+          await insertEmpresa(
+            {
+              id: uuidv4(),
+              nome,
+              cnpj,
+              observacao,
+              created_at: new Date().toISOString(),
+            },
+            dados.categoriaIds,
+          );
         }
 
         await carregar();
@@ -110,5 +136,5 @@ export function useEmpresas(): UseEmpresas {
     [carregar, toast],
   );
 
-  return { empresas, loading, salvar, deletar };
+  return { empresas, categorias, categoriasPorEmpresa, loading, salvar, deletar };
 }

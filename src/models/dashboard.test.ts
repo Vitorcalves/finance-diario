@@ -2,6 +2,7 @@ import { beforeEach, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { AGORA, prepararBanco } from '../../tests/setup/banco';
 import {
+  listComprasDeVariantes,
   listHistoricoPorProduto,
   listPrecosPagosPorProduto,
   listProdutosComMovimento,
@@ -102,6 +103,57 @@ describe('listPrecosPagosPorProduto', () => {
 
     assert.equal(pagos.length, 1);
     assert.equal(pagos[0].preco, 9);
+  });
+});
+
+describe('listComprasDeVariantes', () => {
+  test('devolve o total de cada item (preco x quantidade) com a data da transacao', async () => {
+    await criarProduto('arroz', 'Arroz');
+    await criarProduto('feijao', 'Feijao');
+    await criarCompra({
+      transacaoId: 't2',
+      produtoId: 'feijao',
+      data: '2026-02-10',
+      preco: 9,
+    });
+    await criarCompra({
+      transacaoId: 't1',
+      produtoId: 'arroz',
+      data: '2026-01-05',
+      preco: 22.5,
+      quantidade: 2,
+    });
+
+    const compras = await listComprasDeVariantes();
+
+    assert.deepEqual(compras, [
+      { variante_id: 'arroz-v1', produto_id: 'arroz', total: 45, data: '2026-01-05' },
+      { variante_id: 'feijao-v1', produto_id: 'feijao', total: 9, data: '2026-02-10' },
+    ]);
+  });
+
+  test('item sem variante fica de fora', async () => {
+    await criarProduto('arroz', 'Arroz');
+    await insertTransacao({
+      id: 't1',
+      descricao: 'Compra',
+      valor: -30,
+      data: '2026-01-05',
+      natureza: 'movimento',
+      created_at: AGORA,
+    });
+    await insertItemTransacao({
+      id: 'i1',
+      transacao_id: 't1',
+      produto_id: 'arroz',
+      variante_id: null,
+      descricao: 'Arroz avulso',
+      valor: 30,
+      quantidade: 1,
+      created_at: AGORA,
+    });
+
+    assert.deepEqual(await listComprasDeVariantes(), []);
   });
 });
 

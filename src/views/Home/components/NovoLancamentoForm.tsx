@@ -19,6 +19,7 @@ import {
 import { salvarTag, ValidacaoTagError } from '../../../models/tags';
 import { fontSize, fontWeight, makeStyles, radius, spacing, useTheme } from '../../../theme';
 import { faturaDaCompra } from '../../../utils/cartao';
+import { opcoesDeEmpresa, sugerirCategoriaDaEmpresa } from '../../../utils/empresasPorCategoria';
 import { formatarData, toCurrency } from '../../../utils/format';
 import { vibrarAviso } from '../../../utils/haptics';
 import { useCatalogoLancamento } from '../useCatalogoLancamento';
@@ -147,14 +148,33 @@ export default function NovoLancamentoForm({
     const nova = empresaId === id ? null : id;
     setEmpresaId(nova);
 
-    // Sugere a categoria usada da ultima vez nesta empresa.
-    const sugerida = nova ? catalogo.categoriaPorEmpresa.get(nova) : undefined;
-    const categoriaSugerida = catalogo.categorias.find((categoria) => categoria.id === sugerida);
+    if (!nova || categoriaManual) {
+      return;
+    }
 
-    if (!categoriaManual && categoriaSugerida && categoriaSugerida.tipo === tipo) {
-      setCategoriaId(categoriaSugerida.id);
+    // Sugere a categoria vinculada a empresa ou a usada da ultima vez nela.
+    const sugerida = sugerirCategoriaDaEmpresa(
+      nova,
+      tipo,
+      catalogo.categorias,
+      catalogo.categoriaPorEmpresa,
+      catalogo.categoriasDaEmpresa,
+    );
+
+    if (sugerida) {
+      setCategoriaId(sugerida);
     }
   };
+
+  /**
+   * Com a categoria escolhida, a empresa vinculada so a outras categorias sai
+   * da lista e volta quando o usuario busca pelo nome.
+   */
+  const opcoesEmpresa = useMemo(
+    () => opcoesDeEmpresa(catalogo.empresas, catalogo.categoriasDaEmpresa, categoriaId),
+    [catalogo.empresas, catalogo.categoriasDaEmpresa, categoriaId],
+  );
+  const nomeCategoria = catalogo.categorias.find((categoria) => categoria.id === categoriaId)?.nome;
 
   const alternarTag = (id: string): void =>
     setTagIds((atuais) =>
@@ -539,16 +559,18 @@ export default function NovoLancamentoForm({
         <>
           <SeletorMultiplo
             label="Empresa"
-            opcoes={catalogo.empresas.map((empresa) => ({
-              id: empresa.id,
-              nome: empresa.nome,
-            }))}
+            opcoes={opcoesEmpresa}
             selecionados={empresaId ? [empresaId] : []}
             onToggle={escolherEmpresa}
             placeholderBusca="Buscar empresa"
             textoTrigger="Selecionar empresa"
             textoVazio="Nenhuma empresa cadastrada"
             textoNenhumEncontrado="Nenhuma empresa encontrada"
+            textoOcultas={
+              nomeCategoria
+                ? `Mostrando as empresas de ${nomeCategoria}. Digite para buscar em todas.`
+                : undefined
+            }
           />
 
           <SeletorMultiplo

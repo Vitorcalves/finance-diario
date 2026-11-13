@@ -38,8 +38,10 @@ export type MenuStackParamList = {
 /** Aba Analises: hub e as telas de consulta de precos. */
 export type DashboardStackParamList = {
   DashboardHome: undefined;
+  /** `produtoId` abre a analise ja no produto (vinda da inflacao pessoal). */
   AnalisePrecos: { produtoId?: string } | undefined;
   HistoricoPrecos: undefined;
+  InflacaoPessoal: undefined;
   Orcamento: undefined;
 };
 

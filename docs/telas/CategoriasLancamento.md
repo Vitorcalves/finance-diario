@@ -77,6 +77,8 @@ CategoriasLancamentoView
   antigo (`semearCategoriasLancamento`).
 - Excluir a categoria deixa `transacoes.categoria_id` e `planos_pagamento.categoria_id` como `NULL` ("Sem categoria"),
   por `ON DELETE SET NULL`.
+- Excluir a categoria também a tira das empresas vinculadas a ela (`empresas_categorias_lancamento`, `ON DELETE
+  CASCADE`); as empresas continuam. O vínculo é feito no cadastro de [Empresas](Empresas.md).
 - A Lista de compras sugere a categoria de id `mercado` ao fechar a compra; se ela foi excluída, o lançamento sai sem
   categoria.
 

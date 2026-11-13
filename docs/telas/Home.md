@@ -76,11 +76,14 @@ Painel inferior (`BottomSheet`) "Novo lançamento", aberto pelo botão flutuante
   "Cai na fatura de DD/MM (vence DD/MM)", recalculada ao mudar a data; parcelado, "1ª parcela cai na fatura de ...".
 - **Transferência:** troca a conta por "De (origem)" e "Para (destino)"; o destino não lista a origem. Some categoria,
   empresa, tags, itens e parcelamento.
-- **Categoria:** `SeletorCategoria` com as categorias do tipo. Ao escolher a empresa, o formulário sugere a categoria
-  usada por último nela, desde que o usuário ainda não tenha escolhido uma.
+- **Categoria:** `SeletorCategoria` com as categorias do tipo. Ao escolher a empresa, o formulário sugere uma
+  categoria, desde que o usuário ainda não tenha escolhido uma: se a empresa tem categorias vinculadas no cadastro
+  ([Empresas](Empresas.md)), a usada por último entre elas ou a única; sem vínculo, a do último lançamento na empresa.
 - **Descrição:** opcional quando há itens (usa a do 1º item) e na transferência ("Transferência entre contas").
 - **Data:** chips Hoje / Ontem e campo DD/MM/AAAA (`BrazilianDateInput`).
-- **Empresa:** `SeletorMultiplo` de escolha única, com busca.
+- **Empresa:** `SeletorMultiplo` de escolha única, com busca, em ordem alfabética. Com uma categoria escolhida, lista
+  só as empresas vinculadas a ela e as que não têm categoria nenhuma, com o aviso "Mostrando as empresas de X. Digite
+  para buscar em todas."; as outras voltam ao digitar o nome.
 - **Tags:** `SeletorMultiplo` de várias escolhas; "Nova tag" cria a tag na hora (`NomeSimplesForm`) e já a marca.
 - **Itens:** cartões dos itens (`LancamentoItemCard`, com editar e remover) e "Adicionar item", que abre o
   `LancamentoItemForm` dentro do painel.
@@ -198,8 +201,11 @@ compras, transacoes)` e os mapas id → empresa e id → categoria.
 ### Formulário (`NovoLancamentoForm`)
 
 - A cada abertura, `useCatalogoLancamento().carregar()` relê empresas, produtos, variantes, marcas, categorias, contas
-  caixa e cartão ativas, a última categoria de cada empresa (`ultimaCategoriaPorEmpresa`) e as tags. Um produto criado
-  agora já aparece.
+  caixa e cartão ativas, a última categoria de cada empresa (`ultimaCategoriaPorEmpresa`), as categorias vinculadas a
+  cada empresa (`listCategoriasPorEmpresa`) e as tags. Um produto criado agora já aparece.
+- `opcoesDeEmpresa` e `sugerirCategoriaDaEmpresa` (`src/utils/empresasPorCategoria.ts`) decidem quais empresas a
+  categoria esconde e qual categoria a empresa sugere. A empresa escondida entra no seletor como opção `oculta`, a
+  mesma regra do produto eventual: só aparece quando buscada.
 - A conta padrão (primeira caixa) é aplicada durante a renderização, uma vez por abertura, quando o catálogo chega.
 - `categoriaManual` impede que a sugestão por empresa troque a categoria escolhida pelo usuário.
 - `cicloFatura` usa `faturaDaCompra(referência, diaFechamento, diaVencimento)`; a referência é a data da compra ou,
@@ -246,7 +252,7 @@ a ser gerada.
 | `listContasComSaldo`, `somarPorTipo`, `listContasPorTipo` | `contas.ts`   | `contas`, `transacoes`                                    |
 | `listCategoriasLancamento`, `definirCategoriaTransacao`, `ultimaCategoriaPorEmpresa` | `categoriasLancamento.ts` | `categorias_lancamento`, `transacoes`, `planos_pagamento` |
 | `listTags`, `listTagsPorTransacao`, `salvarTag`, `definirTagsTransacao` | `tags.ts` | `tags`, `transacoes_tags`, `transacoes`                 |
-| `listEmpresas`                               | `empresas.ts`              | `empresas`                                                |
+| `listEmpresas`, `listCategoriasPorEmpresa`   | `empresas.ts`              | `empresas`, `empresas_categorias_lancamento`              |
 | `listProdutos`, `listProdutoVariantes`, `listMarcas` | `produtos.ts`, `produtoVariantes.ts`, `marcas.ts` | `produtos`, `produto_variantes`, `marcas` |
 | `getLocalPadrao`                             | `settingsModel.ts`         | `settings` (chave `local_padrao`)                         |
 

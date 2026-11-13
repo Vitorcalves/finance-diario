@@ -17,7 +17,7 @@ type AnaliseCardProps = {
   descricao: string;
   icone: ComponentProps<typeof Ionicons>['name'];
   /** Cor de destaque do icone; padrao e a cor da marca. */
-  tom?: 'primary' | 'info' | 'warning';
+  tom?: 'primary' | 'info' | 'warning' | 'danger';
   onPress: () => void;
 };
 
@@ -36,6 +36,7 @@ export default function AnaliseCard({
     primary: { fundo: colors.primarySoft, icone: colors.primary },
     info: { fundo: colors.infoSoft, icone: colors.info },
     warning: { fundo: colors.warningSoft, icone: colors.warning },
+    danger: { fundo: colors.dangerSoft, icone: colors.danger },
   }[tom];
 
   return (

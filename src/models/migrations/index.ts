@@ -17,6 +17,7 @@ import { migration015 } from './015_natureza_transacao';
 import { migration016 } from './016_lista_compras_cotacoes';
 import { migration017 } from './017_notas_lancamento';
 import { migration018 } from './018_tags_eventos';
+import { migration019 } from './019_empresas_categorias';
 
 export const migrations: Migration[] = [
   migration001,
@@ -37,4 +38,5 @@ export const migrations: Migration[] = [
   migration016,
   migration017,
   migration018,
+  migration019,
 ];

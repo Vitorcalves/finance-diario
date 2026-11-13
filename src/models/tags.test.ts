@@ -1,6 +1,6 @@
 import { beforeEach, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { AGORA, desfazerUltimaMigration, prepararBanco } from '../../tests/setup/banco';
+import { AGORA, desfazerMigrationsDesde, prepararBanco } from '../../tests/setup/banco';
 import { Locais } from '../utils/local';
 import { getConnection, initializeDatabase } from './database';
 import { registrarLancamento, type DadosLancamento } from './lancamentos';
@@ -353,7 +353,7 @@ describe('migration 018', () => {
     await registrarLancamento(lancamento({ tagIds: [viagem.id] }), Locais.padrao);
     const [transacao] = await todasAsTransacoes();
 
-    await desfazerUltimaMigration();
+    await desfazerMigrationsDesde(18);
     const db = await getConnection();
     await db.runAsync(
       `INSERT INTO transacoes_tags (id, transacao_id, tag_id, created_at)

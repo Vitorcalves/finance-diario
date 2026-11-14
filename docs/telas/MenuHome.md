@@ -107,3 +107,5 @@ O local padrão é usado por `registrarLancamento` (Home, Lista de compras, Nota
 - `src/views/More` ("Mais funcionalidades") não está ligada a este menu nem a nenhuma rota; ver [More](More.md).
 - `settingsModel.ts` ainda tem `getMonthlyIncome`/`saveMonthlyIncome` (renda mensal), sem uso em nenhuma tela
   (pendência em Tarefas).
+- A tela de abertura (splash) não segue a Aparência escolhida aqui: o sistema a desenha antes de o app ler a
+  preferência, então ela usa o modo do aparelho (ver "Abertura do app" no [README](README.md)).

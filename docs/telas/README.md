@@ -53,9 +53,24 @@ Cada arquivo tem o nome da pasta da tela em `src/views/`.
    as pendentes, cada uma numa transação. Se havia dados e alguma migration pendente, grava antes uma cópia do banco
    em JSON (sem a cópia, nenhuma migration roda e o app não abre). No fim, liga as chaves estrangeiras.
 2. Lê a preferência de tema (`getTemaPreferido`) e carrega a fonte Inter (sem ela, o app usa a fonte do sistema).
-3. Monta `SafeAreaProvider` → `ThemeProvider` → `ToastProvider` → `AppRoutes`. Até tudo ficar pronto, mostra um
-   indicador.
+3. Monta `SafeAreaProvider` → `ThemeProvider` → `ToastProvider` → `AppRoutes`. Até tudo ficar pronto, quem aparece é
+   a tela de abertura (abaixo); o indicador de carregamento fica por baixo dela.
 4. Em desenvolvimento, o banco pode ser inspecionado pelo Drizzle Studio (`useDrizzleStudio`).
+
+**Tela de abertura (splash).** É nativa, do `expo-splash-screen`, e a configuração fica no plugin dele, em `app.json`
+(o bloco `splash` saiu: o Expo 58 já o ignorava). Mostra a logo (`assets/logo.png`) com 128 dp no fundo do tema:
+`#f2f5f3` no claro e `#0b1210` no escuro.
+
+- O `App.tsx` chama `SplashScreen.preventAutoHideAsync()` ao ser carregado e `SplashScreen.hide()` quando o banco, o
+  tema e a fonte estão prontos, com as rotas já montadas: o splash sai direto para o app, sem passar pelo indicador.
+- Se a inicialização do banco falhar, o splash também sai e fica o indicador, como antes (o erro vai para o console).
+- O modo do splash (claro ou escuro) é o do aparelho: o sistema o desenha antes de o app ler a preferência gravada.
+  Com "Claro" ou "Escuro" forçado no Menu, a abertura pode vir no outro modo.
+- No Android 12 ou mais novo, só aparece o círculo central de 192 dp do ícone do splash. A logo é quadrada e cabe nele
+  até uns 160 dp de largura; acima disso os cantos são cortados.
+- Imagem, tamanho e cores viram arquivos nativos: depois de mudar o plugin, rodar
+  `npx expo prebuild --platform android` e gerar um novo build (`npm run android`). Num build anterior ao
+  `expo-splash-screen` as chamadas do `App.tsx` não fazem nada e a abertura fica como era.
 
 ### Navegação (`src/routes/AppRoutes.tsx`)
 

@@ -15,10 +15,12 @@ banco local SQLite (expo-sqlite) e navegação React Navigation 7 (bottom tabs +
 - **Menu** (pilha Menu): cadastros, financeiro (planos, contas, faturas, tags de eventos) e integração.
 
 A app inicia na aba Início. Antes de mostrar as rotas, `App.tsx` inicializa o banco, carrega o tema preferido
-(claro/escuro/sistema) e a fonte Inter. Quando há migration pendente, a inicialização grava antes uma cópia do banco em
-JSON; o "Recriar banco" do Menu também grava uma antes de apagar, e Integração › Exportar cria uma na hora. As 5 últimas
-cópias ficam em `backups/`, na pasta de documentos do app, e podem ser restauradas em Integração › Importar. Cada tela
-segue o padrão `src/views/<Tela>/index.tsx` + um hook `use<Tela>.ts` + uma pasta `components/`.
+(claro/escuro/sistema) e a fonte Inter; enquanto isso fica na frente a tela de abertura nativa (`expo-splash-screen`,
+configurada em `app.json`), com a logo no fundo do tema, claro ou escuro conforme o aparelho. Quando há migration
+pendente, a inicialização grava antes uma cópia do banco em JSON; o "Recriar banco" do Menu também grava uma antes de
+apagar, e Integração › Exportar cria uma na hora. As 5 últimas cópias ficam em `backups/`, na pasta de documentos do
+app, e podem ser restauradas em Integração › Importar. Cada tela segue o padrão `src/views/<Tela>/index.tsx` + um hook
+`use<Tela>.ts` + uma pasta `components/`.
 
 Este relatório é a visão geral. O detalhe de cada tela (funcionalidades, componentes, models e a lógica por trás) fica
 em [`docs/telas/`](telas/README.md), um arquivo por tela; o [README](telas/README.md) de lá reúne o que vale para todas:

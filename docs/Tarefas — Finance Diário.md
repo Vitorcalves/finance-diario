@@ -12,14 +12,16 @@ Em ordem: a primeira tarefa não concluída é a próxima a fazer.
 - [x] **2. Backup ao recriar o banco:** fazer o "Recriar banco" (Menu › Zona de perigo) exportar um backup antes de
   apagar. Hoje ele só pede isso no alerta. Feito: `recriarBancoComBackup()`, em `src/models/backupAutomatico.ts`, grava
   a cópia (no mesmo rodízio das 5) e só então recria; se a cópia falhar, nada é apagado.
-  - [x] **Extra, backup manual:** botão "Criar backup no app" em Integração › Exportar, que grava uma cópia na hora (no
-    mesmo rodízio das 5).
+    - [x] **Extra, backup manual:** botão "Criar backup no app" em Integração › Exportar, que grava uma cópia na hora
+      (no
+      mesmo rodízio das 5).
 - [x] **3. Bloco de notas de lançamentos:** um bloco de notas para anotar rápido, por texto ou voz, o que ainda falta
   lançar ("almoço 35 ontem no cartão") e lançar depois, quando tiver tempo. Na hora de lançar, a IA pode transformar a
   nota num `RascunhoLancamento`, que o `NovoLancamentoForm` já sabe abrir (a Lista de compras usa isso). Feito: tela
   Notas para lançar (atalho "Notas" na Home), tabela `notas_lancamento` (migration 017). A voz usa o reconhecedor do
-  celular via `expo-speech-recognition` (precisa de novo build nativo). No lugar da IA, um interpretador local por regras
-  (`src/utils/interpretarNota.ts`) lê valor, dia, parcelas, entrada, conta, empresa e categoria; o rascunho ganhou
+  celular via `expo-speech-recognition` (precisa de novo build nativo). No lugar da IA, um interpretador local por
+  regras (`src/utils/interpretarNota.ts`) lê valor, dia, parcelas, entrada, conta, empresa e categoria; o rascunho
+  ganhou
   `tipo`, `valor`, `data`, `contaId` e `parcelas`.
 - [x] **4. Tags para eventos:** marcar lançamentos com tags como "Viagem julho" ou "Reforma". As tabelas `tags` e
   `transacoes_tags` existem desde a migration 001, mas nenhuma tela usa. Elas respondem "quanto custou a viagem?", coisa
@@ -34,9 +36,25 @@ Em ordem: a primeira tarefa não concluída é a próxima a fazer.
   produto). A conta (`src/utils/inflacaoPessoal.ts`) é um índice encadeado: o item é a variante, o preço do mês é a
   média do histórico (mês sem registro repete o último preço) e o peso é o gasto no item nos últimos 12 meses. Não
   teve migration: só a consulta `listComprasDeVariantes`, em `src/models/dashboard.ts`.
-  - [x] **Extra, mês anterior no gráfico do mês:** o "Acumulado" da aba Mês desenha ao fundo a curva do mês anterior
-    (`src/views/Mensal/comparativo.ts`), no lugar da linha reta com o total dele.
-- [ ] **6. Limite mensal por categoria:** definir um limite por categoria de lançamento e, usando a projeção que a tela
+    - [x] **Extra, mês anterior no gráfico do mês:** o "Acumulado" da aba Mês desenha ao fundo a curva do mês anterior
+      (`src/views/Mensal/comparativo.ts`), no lugar da linha reta com o total dele.
+- [x] **6. Tela de abertura (splash):** desde o Expo 58 o `splash` do `app.json` é ignorado e saiu do schema (o
+  expo-doctor acusa). Para manter a `splash-icon.png` em fundo branco, instalar o `expo-splash-screen` e passar a
+  configuração para
+  o plugin dele; senão, só apagar o bloco. Feito: o bloco saiu e o plugin do `expo-splash-screen` mostra a logo
+  (`logo.png`, 128 dp) no fundo do tema (`#f2f5f3` no claro, `#0b1210` no escuro), no lugar da `splash-icon.png`, que
+  era só a grade do template do Expo. O `App.tsx` segura o splash até o banco, o tema e a fonte carregarem. Precisa
+  de `npx expo prebuild --platform android` e de novo build nativo.
+- [ ] **7. Excluir produto apaga o histórico:** excluir um produto, ou remover uma variante e salvar o produto, apaga em
+  cascata o histórico de preços dele, mas o alerta só pergunta "Deseja excluir?". Avisar no alerta o que vai junto.
+- [ ] **8. Apagar preço do histórico:** nenhuma tela apaga um registro do histórico de preços. Um preço digitado errado
+  (R$
+  249,00 no lugar de R$ 24,90) fica para sempre na Análise de preços e vira um salto na Inflação pessoal. O model
+  já tem `deleteHistoricoPrecoById`.
+- [ ] **10. Nomes repetidos nos cadastros:** Marcas, Empresas e Categorias de produto aceitam nomes repetidos (as tags
+  já
+  recusam, sem diferenciar maiúsculas nem acentos). Duas marcas "Camil" dividem as variantes entre rótulos iguais.
+- [ ] **11. Limite mensal por categoria:** definir um limite por categoria de lançamento e, usando a projeção que a tela
   Mês já calcula, avisar algo como "no ritmo atual, Mercado estoura dia 22".
 
 ## Ajustes menores
@@ -52,9 +70,6 @@ Vindos do [Relatório de telas](<Relatório de telas — Finance Diário.md>) e 
 - [ ] **Erro de digitação:** o estado vazio de Faturas diz "lançe uma compra"; o correto é "lance".
 - [ ] **Títulos repetidos:** Categorias de lançamento e Categorias de produto exibem o mesmo título "Categorias"; só o
   subtítulo diferencia.
-- [ ] **Tela de abertura (splash):** desde o Expo 58 o `splash` do `app.json` é ignorado e saiu do schema (o expo-doctor
-  acusa). Para manter a `splash-icon.png` em fundo branco, instalar o `expo-splash-screen` e passar a configuração para
-  o plugin dele; senão, só apagar o bloco.
 - [ ] **Telas sem voltar:** Categorias de produto, Marcas, Empresas, Assinaturas e parcelas, Contas e Faturas não
   passam `onBack` ao `ScreenHeader`, então não mostram a seta de voltar; só o voltar do Android funciona. As outras
   telas de pilha têm a seta.
@@ -63,15 +78,10 @@ Vindos do [Relatório de telas](<Relatório de telas — Finance Diário.md>) e 
   recebe o salário" do `usePlanos` nunca aparece.
 - [ ] **Data do pagamento da fatura:** o `PagarFaturaModal` não valida a data. Com uma data inválida, o campo devolve
   texto vazio e o `pagarFatura` grava o pagamento sem data.
-- [ ] **Excluir produto apaga o histórico:** excluir um produto, ou remover uma variante e salvar o produto, apaga em
-  cascata o histórico de preços dele, mas o alerta só pergunta "Deseja excluir?". Avisar no alerta o que vai junto.
 - [ ] **Faturas vazias ao excluir plano:** excluir um parcelamento ou uma assinatura no cartão (`deletePlanoById`) não
   chama o `apagarFaturasVazias`, como o encerrar faz; a fatura fica na lista com total zero.
 - [ ] **Código sem uso:** nenhuma tela usa `BlankView`, `getMonthlyIncome`/`saveMonthlyIncome`,
   `contarNotasLancamento` (só o teste dele) nem `deleteHistoricoPrecoById`. Remover ou ligar a uma tela. (O parâmetro
   `produtoId` da rota `AnalisePrecos` saiu desta lista: a Inflação pessoal passou a usar.)
-- [ ] **Apagar preço do histórico:** nenhuma tela apaga um registro do histórico de preços. Um preço digitado errado
-  (R$ 249,00 no lugar de R$ 24,90) fica para sempre na Análise de preços e vira um salto na Inflação pessoal. O model
-  já tem `deleteHistoricoPrecoById`.
-- [ ] **Nomes repetidos nos cadastros:** Marcas, Empresas e Categorias de produto aceitam nomes repetidos (as tags já
-  recusam, sem diferenciar maiúsculas nem acentos). Duas marcas "Camil" dividem as variantes entre rótulos iguais.
+
+

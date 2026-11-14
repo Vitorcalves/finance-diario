@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SQLite from 'expo-sqlite';
 import { useDrizzleStudio } from 'expo-drizzle-studio-plugin';
@@ -17,6 +18,13 @@ import { type PreferenciaTema, ThemeProvider, useTheme } from './src/theme';
 import { initializeDatabase, getConnection } from './src/models/database';
 import { backupAntesDasMigrations } from './src/models/backupAutomatico';
 import { getTemaPreferido, saveTemaPreferido } from './src/models/settingsModel';
+
+// A tela de abertura (a logo no fundo do tema, configurada no `app.json`) fica
+// ate o banco e a fonte carregarem; quem a esconde e o `App`. A chamada tem que
+// ficar aqui, fora do componente: mais tarde o splash ja teria saido sozinho.
+SplashScreen.preventAutoHideAsync().catch((error) =>
+  console.error('Erro ao segurar a tela de abertura', error),
+);
 
 /** Barra de status unica do app: texto claro no modo escuro e escuro no claro. */
 function StatusBarDoTema(): React.ReactNode {
@@ -53,7 +61,11 @@ export default function App(): React.ReactNode {
         setPreferencia(tema);
         setDb(connection);
       })
-      .catch((error) => console.error('Erro ao inicializar banco de dados', error));
+      .catch((error) => {
+        console.error('Erro ao inicializar banco de dados', error);
+        // Sem banco o app para no indicador: o splash sai para nao esconder a falha.
+        SplashScreen.hide();
+      });
   }, []);
 
   const alterarPreferencia = useCallback((nova: PreferenciaTema): void => {
@@ -63,6 +75,13 @@ export default function App(): React.ReactNode {
 
   // Sem a Inter (erro ao carregar) o app segue com a fonte do sistema.
   const pronto = db !== null && (fontesCarregadas || erroFontes !== null);
+
+  // O efeito roda com as rotas ja montadas: o splash sai direto para o app.
+  useEffect(() => {
+    if (pronto) {
+      SplashScreen.hide();
+    }
+  }, [pronto]);
 
   return (
     <SafeAreaProvider>

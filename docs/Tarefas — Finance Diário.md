@@ -228,10 +228,10 @@ As que mais combinam com o que o app já faz: F1, F3, F9, F16 e F17.
   15/11/2026: a página de consulta da SEFAZ abre numa WebView dentro do app, o usuário passa pela verificação e o app
   lê o HTML. Começar por MG. Pede build nativo a partir da F1.2.
     - **Feito em 15/11/2026 (código e testes):** atalho Cupom na Home → câmera no modo QR → aviso de nota já lançada →
-      `ConsultaNfce` → empresa pelo CNPJ (ou cadastro na hora) → formulário preenchido. `react-native-webview` 14.0.1
-      instalado (`npx expo install`). Falta o que só o aparelho mostra: gerar o build (`npm run android`), conferir
-      que o Turnstile passa dentro da WebView e guardar mais páginas reais (ver F1.2). Detalhes em
-      [docs/telas/Home.md](telas/Home.md), seção "Cupom fiscal (NFC-e)".
+      `ConsultaNfce` → empresa pelo CNPJ (ou apontada/cadastrada no painel "Empresa da nota") → formulário
+      preenchido. `react-native-webview` 14.0.1 instalado (`npx expo install`). Falta o que só o aparelho mostra:
+      gerar o build (`npm run android`), conferir que o Turnstile passa dentro da WebView e guardar mais páginas
+      reais (ver F1.2). Detalhes em [docs/telas/Home.md](telas/Home.md), seção "Cupom fiscal (NFC-e)".
     - **O que a pesquisa de 15/11/2026 mostrou:**
         - A SEFAZ-MG não tem API aberta para o consumidor. Os web services (`nfce.fazenda.mg.gov.br`) são para
           emissores e pedem certificado digital. O Nota Fiscal Mineira só tem app com login e mostra valor e
@@ -324,10 +324,14 @@ As que mais combinam com o que o app já faz: F1, F3, F9, F16 e F17.
           (`paginaNfce<UF>.ts`), escolhido pela UF da chave.
     - [x] **F1.4 Da nota para o rascunho:** `src/utils/rascunhoDaNotaFiscal.ts`, função pura com teste, que recebe a
       nota e o catálogo (empresas, variantes, de-para) e devolve o `RascunhoLancamento`. Feito; o rascunho ganhou
-      `chaveNfce` e `avisos` (mostrados no topo do formulário). Mesmo nome com outro CNPJ: o cadastro sugerido leva o
-      CNPJ no nome, porque o repetido seria recusado. O código da nota só é comparado com o `codigo_barras` quando
-      tem cara de GTIN (8, 12, 13 ou 14 dígitos): o código interno da loja é curto. Para o total fechar, o
-      formulário passou a somar cada linha arredondada ao centavo, em centavos (vale para todo lançamento com itens).
+      `chaveNfce` e `avisos` (mostrados no topo do formulário). No lugar do alerta "Cadastrar?", o painel "Empresa da
+      nota" (`EmpresaDaNotaSheet`, pedido do usuário em 15/11): a nota traz a razão social e a loja costuma estar
+      cadastrada com o nome comercial e sem CNPJ, então dá para apontar a loja já cadastrada (o CNPJ fica gravado
+      nela; com outro CNPJ, "Só nesta nota" ou "Trocar CNPJ"), cadastrar uma nova com o nome que quiser ou seguir sem
+      empresa. A lista mostra as parecidas com a nota e as sem CNPJ; a página ganhou o endereço do emitente para
+      ajudar a reconhecer a loja. O código da nota só é comparado com o `codigo_barras` quando tem cara de GTIN (8,
+      12, 13 ou 14 dígitos): o código interno da loja é curto. Para o total fechar, o formulário passou a somar cada
+      linha arredondada ao centavo, em centavos (vale para todo lançamento com itens).
         - Empresa: mesmo CNPJ, comparado sem pontuação e em maiúsculas (não usar `\D`, por causa das letras);
           senão, mesma raiz (8 primeiros caracteres: outra filial da mesma empresa). Sem nenhuma, a tela pergunta
           "Cadastrar <emitente> com este CNPJ?" (`insertEmpresa`); se o nome já existe sem CNPJ, oferece gravar o

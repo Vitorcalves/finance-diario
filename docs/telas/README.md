@@ -205,8 +205,9 @@ O cupom fiscal (NFC-e de MG) lido pelo atalho Cupom da Home vira lançamento; o 
 - **Backup:** a coluna e a tabela entram no JSON sozinhas (o export lê o `sqlite_master`); um backup de antes da 021
   entra com a chave vazia e sem de-para.
 - **CNPJ das empresas:** o cadastro aceita o CNPJ com ou sem pontuação; a nota compara sem pontuação e em maiúsculas
-  (o CNPJ novo, de julho de 2026, tem letras). A empresa cadastrada pelo cupom grava o CNPJ formatado
-  (`20.320.503/0011-23`).
+  (o CNPJ novo, de julho de 2026, tem letras). Sem empresa com o CNPJ (nem outra filial dele), o painel "Empresa da
+  nota" deixa apontar a loja já cadastrada, que passa a ter o CNPJ, ou cadastrar uma nova; nos dois casos o CNPJ é
+  gravado formatado (`20.320.503/0011-23`).
 
 ### Natureza das transações (`src/models/naturezaTransacao.ts`)
 
@@ -294,7 +295,7 @@ vermelho, cinza) é validada para daltonismo nos dois modos.
 | `interpretarNota.ts`     | Interpretador local das Notas para lançar                                       |
 | `chaveNfce.ts`           | QR Code e chave de acesso da NFC-e (dígito verificador, versões 2 e 3, contingência), URL da consulta de MG e o filtro de navegação da WebView |
 | `paginaNfceMg.ts`        | Leitor da página da NFC-e da SEFAZ-MG (nota, verificação, não encontrada, outra nota), sem biblioteca de DOM |
-| `rascunhoDaNotaFiscal.ts` | Da nota para o rascunho do formulário: empresa pelo CNPJ, cadastro sugerido, rateio do desconto, de-para dos itens |
+| `rascunhoDaNotaFiscal.ts` | Da nota para o rascunho do formulário: empresa pelo CNPJ, lojas parecidas com a nota, CNPJ da loja escolhida, rateio do desconto, de-para dos itens |
 | `haptics.ts`, `local.ts` | Vibrações e catálogo de locais                                                  |
 
 ## Testes

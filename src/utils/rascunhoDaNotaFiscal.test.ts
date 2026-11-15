@@ -6,16 +6,18 @@ import { lerQrCodeNfce, type QrCodeNfce } from './chaveNfce';
 import { interpretarPaginaNfceMg, type NotaFiscalLida } from './paginaNfceMg';
 import {
   acharEmpresaDaNota,
-  cadastroDaNota,
   type CatalogoNotaFiscal,
   chaveDoItemNota,
   contaDoPagamento,
+  empresasParecidas,
   formatarCnpj,
+  nomeParaCadastro,
   normalizarCnpj,
   quantidadeFracionada,
   rascunhoDaChave,
   rascunhoDaNotaFiscal,
   ratearDesconto,
+  situacaoDoCnpj,
 } from './rascunhoDaNotaFiscal';
 
 const CHAVE_REAL = '31261120320503001123650350001972781044038887';
@@ -107,31 +109,67 @@ describe('acharEmpresaDaNota', () => {
   });
 });
 
-describe('cadastroDaNota', () => {
-  test('emitente novo: cadastrar com o CNPJ formatado', () => {
-    assert.deepEqual(cadastroDaNota('Fundacao Arthur Bernardes', '20320503001123', []), {
-      tipo: 'cadastrar',
-      nome: 'Fundacao Arthur Bernardes',
-      cnpj: '20.320.503/0011-23',
-    });
+describe('empresasParecidas', () => {
+  const empresas = [
+    { id: 'ana', nome: 'Ana Doces' },
+    { id: 'bahamas', nome: 'Bahamas' },
+    { id: 'bahamas-mix', nome: 'Bahamas Mix Supermercado' },
+    { id: 'super', nome: 'Supermercado Central' },
+    { id: 'funarbe', nome: 'Funarbe' },
+  ];
+
+  test('o mesmo nome primeiro, depois quem divide mais palavras', () => {
+    assert.deepEqual(
+      empresasParecidas(['BAHAMAS MIX SUPERMERCADOS LTDA'], empresas).map((empresa) => empresa.id),
+      ['bahamas-mix', 'bahamas'],
+    );
+    assert.deepEqual(
+      empresasParecidas(['  bahamas '], empresas).map((empresa) => empresa.id),
+      ['bahamas', 'bahamas-mix'],
+    );
   });
 
-  test('mesmo nome sem CNPJ: gravar o CNPJ na empresa que ja existe', () => {
-    const bahamas = { id: 'bahamas', nome: 'BAHAMAS ', cnpj: '' };
-    assert.deepEqual(cadastroDaNota('Bahamas', '20320503001123', [bahamas]), {
-      tipo: 'gravar_cnpj',
-      empresa: bahamas,
-      cnpj: '20.320.503/0011-23',
-    });
+  test('palavras genericas nao contam', () => {
+    assert.deepEqual(empresasParecidas(['SUPERMERCADO DO POVO LTDA'], empresas), []);
   });
 
-  test('mesmo nome com outro CNPJ: o nome novo leva o CNPJ', () => {
-    const outra = { id: 'outra', nome: 'Bahamas', cnpj: '11.111.111/0001-91' };
-    assert.deepEqual(cadastroDaNota('Bahamas', '20320503001123', [outra]), {
-      tipo: 'cadastrar',
-      nome: 'Bahamas (20.320.503/0011-23)',
-      cnpj: '20.320.503/0011-23',
-    });
+  test('razao social sem nada do nome comercial: nenhuma sugestao', () => {
+    assert.deepEqual(empresasParecidas(['Fundacao Arthur Bernardes'], empresas), []);
+  });
+
+  test('qualquer um dos nomes da nota serve, e o limite corta a lista', () => {
+    assert.deepEqual(
+      empresasParecidas(['XYZ COMERCIO LTDA', 'Ana Doces'], empresas).map((empresa) => empresa.id),
+      ['ana'],
+    );
+    assert.equal(empresasParecidas(['Bahamas'], empresas, 1).length, 1);
+    assert.deepEqual(empresasParecidas([''], empresas), []);
+  });
+});
+
+describe('situacaoDoCnpj', () => {
+  test('sem CNPJ, o mesmo (com ou sem pontuacao) ou outro', () => {
+    assert.equal(situacaoDoCnpj(null, '20320503001123'), 'sem_cnpj');
+    assert.equal(situacaoDoCnpj(' ', '20320503001123'), 'sem_cnpj');
+    assert.equal(situacaoDoCnpj('20.320.503/0011-23', '20320503001123'), 'mesmo');
+    assert.equal(situacaoDoCnpj('11.111.111/0001-91', '20320503001123'), 'outro');
+  });
+});
+
+describe('nomeParaCadastro', () => {
+  test('o nome do emitente, ou com o CNPJ quando o nome ja e de outra empresa', () => {
+    assert.equal(
+      nomeParaCadastro(' Fundacao Arthur Bernardes ', '20320503001123', []),
+      'Fundacao Arthur Bernardes',
+    );
+    assert.equal(
+      nomeParaCadastro('BAHAMAS', '20320503001123', [{ id: 'b', nome: 'Bahamas' }]),
+      'BAHAMAS (20.320.503/0011-23)',
+    );
+  });
+
+  test('sem o nome do emitente, vazio para o usuario digitar', () => {
+    assert.equal(nomeParaCadastro('', '20320503001123', []), '');
   });
 });
 

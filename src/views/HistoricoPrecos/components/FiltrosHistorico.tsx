@@ -4,6 +4,7 @@ import { Pressable, View } from 'react-native';
 import ScannerCodigoBarras from '../../../components/ScannerCodigoBarras';
 import SeletorMultiplo from '../../../components/SeletorMultiplo';
 import { ChipSelector, IconButton, Text } from '../../../components/ui';
+import { nomeComExclusao } from '../../../models/exclusaoLogica';
 import type { Produto } from '../../../models/produtos';
 import {
   fontSize,
@@ -66,7 +67,7 @@ export default function FiltrosHistorico({
     <View style={sharedStyles.card}>
       <SeletorMultiplo
         label="Produto"
-        opcoes={produtos.map((produto) => ({ id: produto.id, nome: produto.nome }))}
+        opcoes={produtos.map((produto) => ({ id: produto.id, nome: nomeComExclusao(produto) }))}
         selecionados={produtoFiltro ? [produtoFiltro] : []}
         onToggle={onAlternarProduto}
         placeholderBusca="Buscar produto"

@@ -63,8 +63,9 @@ export function useAnalisePrecos(produtoInicial?: string): UseAnalisePrecos {
       setLoading(true);
       const [produtosDoBanco, variantesDoBanco, marcasDoBanco] = await Promise.all([
         listProdutosComMovimento(),
-        listProdutoVariantes(),
-        listMarcas(),
+        // Com os excluidos: o historico deles continua na analise, com rotulo.
+        listProdutoVariantes({ comExcluidos: true }),
+        listMarcas({ comExcluidos: true }),
       ]);
 
       setProdutos(produtosDoBanco);

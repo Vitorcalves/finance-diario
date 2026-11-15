@@ -167,8 +167,9 @@ describe('importarBanco sobrescreve', () => {
     await importarBanco(backup);
     const depois = await exportarBanco();
 
+    // O `deleted_at`, que o JSON nao trazia, fica com o padrao da coluna: ativa.
     assert.deepEqual(depois.tabelas.marcas, [
-      { id: 99, nome: 'Unica', created_at: '2026-01-01T00:00:00.000Z' },
+      { id: 99, nome: 'Unica', created_at: '2026-01-01T00:00:00.000Z', deleted_at: null },
     ]);
     assert.equal(depois.tabelas.transacoes.length, 0);
     assert.equal(depois.tabelas.empresas.length, 0);

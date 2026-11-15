@@ -16,6 +16,7 @@ import {
 import type { CategoriaLancamento } from '../../../models/categoriasLancamento';
 import type { Conta } from '../../../models/contas';
 import type { Empresa } from '../../../models/empresas';
+import { nomeComExclusao } from '../../../models/exclusaoLogica';
 import type { Tag } from '../../../models/tags';
 import { SEM_CATEGORIA } from '../../../models/transacoesModel';
 import {
@@ -139,7 +140,7 @@ export default function FiltrosBusca({
 
   const opcoesEmpresa: OpcaoSheet<string>[] = [
     { valor: TODAS, rotulo: 'Todas as empresas' },
-    ...empresas.map((item) => ({ valor: item.id, rotulo: item.nome })),
+    ...empresas.map((item) => ({ valor: item.id, rotulo: nomeComExclusao(item, 'excluída') })),
   ];
 
   const opcoesConta: OpcaoSheet<string>[] = [

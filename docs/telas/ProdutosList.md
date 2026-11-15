@@ -42,7 +42,9 @@ cada um. Do menu de cada produto dá para ver o histórico de preços, editar ou
 
 - **Ver histórico de preços** (`HistoricoProdutoModal`).
 - **Editar.**
-- **Excluir:** confirma ("Deseja excluir "X"?"), apaga e avisa ""X" excluído".
+- **Excluir:** confirma ("Deseja excluir "X"? Ele sai do cadastro, do lançamento e da lista de compras. O histórico
+  de preços e as compras já lançadas continuam nas análises."), exclui e avisa ""X" excluído". A exclusão é lógica:
+  ver "O que a exclusão faz".
 
 ### Histórico do produto (`src/components/HistoricoProdutoModal.tsx`)
 
@@ -81,39 +83,55 @@ ProdutosListView
 ## Lógica (`useProdutosList`)
 
 - A cada foco: `listProdutos()`, `listProdutoVariantes()`, `listCategorias()` de `categoriasProduto.ts` (os vínculos
-  produto–categoria), `listCategorias()` de `categorias.ts` (os nomes) e `listMarcas()`.
+  produto–categoria), `listCategorias()` de `categorias.ts` (os nomes) e `listMarcas({ comExcluidos: true })`. Produtos,
+  variantes e categorias vêm só os ativos; as marcas vêm com as excluídas, porque a variante que já usa uma continua
+  com ela no rótulo.
 - `categoriasDoProduto(id)`: nomes das categorias vinculadas. `variantesDoProduto(id)`: variantes do produto.
   `nomeUnidade` vem do catálogo fixo `Unidades`; `nomeMarca`, das marcas carregadas.
 - `deletar(produto)`: confirmação, `deleteProdutoById` e recarga.
 - O filtro e a busca são feitos na tela (`useMemo`), sem ir ao banco.
-- O modal de histórico carrega por conta própria: `listHistoricoPorProduto`, `listPrecosPagosPorProduto` e
-  `listEmpresas` (ver `src/models/dashboard.ts`).
+- O modal de histórico carrega por conta própria: `listHistoricoPorProduto`, `listPrecosPagosPorProduto` (ver
+  `src/models/dashboard.ts`), `listEmpresas({ comExcluidos: true })` e
+  `listProdutoVariantesByProduto(id, { comExcluidos: true })`. Com os excluídos, o registro antigo continua mostrando
+  o mercado e a variante; os chips do filtro são só as variantes ativas, e o registro de uma variante excluída aparece
+  no chip "Produto".
 
 ## Models e tabelas
 
 | Função                                          | Módulo                  | Tabelas                            |
 |-------------------------------------------------|-------------------------|------------------------------------|
 | `listProdutos`, `deleteProdutoById`             | `produtos.ts`           | `produtos`                         |
-| `listProdutoVariantes`                          | `produtoVariantes.ts`   | `produto_variantes`                |
+| `listProdutoVariantes`, `listProdutoVariantesByProduto` | `produtoVariantes.ts` | `produto_variantes`          |
 | `listCategorias` (vínculos)                     | `categoriasProduto.ts`  | `categoria_produto`                |
 | `listCategorias` (nomes)                        | `categorias.ts`         | `categorias`                       |
 | `listMarcas`                                    | `marcas.ts`             | `marcas`                           |
 | `listHistoricoPorProduto`, `listPrecosPagosPorProduto` | `dashboard.ts`   | `historico_preco`, `itens_transacao`, `transacoes` |
 | `listEmpresas`                                  | `empresas.ts`           | `empresas`                         |
 
-### O que a exclusão leva junto
+### O que a exclusão faz
 
-Com as chaves estrangeiras ligadas, excluir o produto apaga em cascata as variantes, os vínculos de categoria, **todo o
-histórico de preços** do produto e os itens dele na lista de compras. Os itens de lançamentos já gravados ficam, sem o
-vínculo com o produto (`produto_id` vira `NULL`), então somem do histórico de compras e das análises.
+A exclusão é **lógica** (migration 020; regra geral em [Base comum](README.md), seção "Exclusão lógica dos
+cadastros"): `deleteProdutoById` não apaga a linha, grava a data em `produtos.deleted_at` e, na mesma transação:
+
+- marca com a mesma data as variantes ativas do produto (`produto_variantes.deleted_at`);
+- tira da Lista de compras os itens do produto, com as cotações deles (a lista é rascunho, não histórico).
+
+Nada mais é tocado. Como a linha continua no banco, nenhuma chave estrangeira dispara: **o histórico de preços fica
+inteiro**, os itens dos lançamentos continuam ligados ao produto e à variante, e os vínculos de categoria ficam
+guardados. O produto some desta lista, do formulário de lançamento, da Lista de compras e do Orçamento, e continua
+aparecendo, com nome, na Análise de preços (marcado "(excluído)" no seletor), no Histórico de preços e na Inflação
+pessoal.
+
+Não há tela para desfazer a exclusão: a linha fica no banco com o `deleted_at` preenchido.
 
 ## Testes
 
 - `src/models/produtos.test.ts`: ordem alfabética com acentos e a marcação de compra eventual.
+- `src/models/exclusaoLogica.test.ts`: o produto excluído sai da listagem e mantém a linha, as variantes saem junto, o
+  histórico de preços e o item do lançamento continuam ligados a ele, e os itens saem da Lista de compras.
 - `src/models/dashboard.test.ts`: as consultas do histórico do produto.
 - `src/utils/busca.test.ts`: `correspondeBusca`.
 
 ## Observações
 
-- O alerta de exclusão não avisa que o histórico de preços vai junto (pendência em Tarefas).
 - A categoria aqui é a **categoria de produto** (tabela `categorias`), diferente da categoria de lançamento.

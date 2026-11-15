@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '../../components/ui';
 import { emTransacao } from '../../models/database';
 import { type Empresa, listEmpresas } from '../../models/empresas';
-import { type HistoricoPreco, listHistoricoPreco } from '../../models/historicoPreco';
+import { type HistoricoPreco, listHistoricoPrecoDeAtivos } from '../../models/historicoPreco';
 import { listMarcas, type Marca } from '../../models/marcas';
 import { listProdutos, type Produto } from '../../models/produtos';
 import {
@@ -120,8 +120,10 @@ export function useOrcamento(): UseOrcamento {
         listEmpresas(),
         listProdutos(),
         listProdutoVariantes(),
-        listMarcas(),
-        listHistoricoPreco(),
+        // Com as excluidas: a variante que ja usa a marca continua com ela no rotulo.
+        listMarcas({ comExcluidos: true }),
+        // So de cadastro ativo: preco de variante ou mercado excluido nao entra na comparacao.
+        listHistoricoPrecoDeAtivos(),
         getLocalPadrao(),
       ]);
 

@@ -35,7 +35,10 @@ a empresa escolhida sugere a categoria.
   - **CNPJ** (teclado de números e pontuação; texto livre, sem máscara nem validação);
   - **Observação** (várias linhas).
 - O lápis abre o painel como "Editar empresa", com as categorias já vinculadas marcadas.
-- **Excluir:** confirma ("Deseja excluir "X"?") e avisa "Empresa excluída".
+- **Nome único:** criar ou renomear para o nome de outra empresa ativa é recusado com o alerta "Nome repetido" ("Já
+  existe a empresa "Bahamas"."), sem diferenciar maiúsculas, acentos nem espaços sobrando; o painel continua aberto.
+- **Excluir:** confirma ("Deseja excluir "X"? Ela sai do cadastro, do lançamento e da lista de compras. Os lançamentos
+  e o histórico de preços continuam com o nome dela.") e avisa "Empresa excluída".
 - Avisos: "Empresa adicionada" / "Empresa atualizada".
 
 ### O que o vínculo com a categoria faz
@@ -67,11 +70,12 @@ EmpresasView
 
 ## Lógica (`useEmpresas`)
 
-- A cada foco: `listEmpresas()` (ordem alfabética, feita no model com `localeCompare` em pt-BR: "Água" fica junto do
-  "A"), `listCategoriasLancamento()` e `listCategoriasPorEmpresa()` (mapa empresa → ids das categorias).
+- A cada foco: `listEmpresas()` (só as ativas, em ordem alfabética, feita no model com `localeCompare` em pt-BR: "Água"
+  fica junto do "A"), `listCategoriasLancamento()` e `listCategoriasPorEmpresa()` (mapa empresa ativa → ids das
+  categorias).
 - `salvar(dados, editando)`: limpa os espaços; CNPJ e observação vazios viram `NULL`; recusa nome vazio;
   `updateEmpresa` ou `insertEmpresa` (UUID novo), os dois recebendo `categoriaIds` e gravando os vínculos na mesma
-  transação.
+  transação. O `NomeRepetidoError` do model vira o alerta "Nome repetido".
 - `deletar`: confirmação e `deleteEmpresaById`.
 - A busca e o filtro rodam na tela, sobre a lista já carregada (`correspondeBusca`, de `src/utils/busca.ts`). Se a
   categoria filtrada fica sem empresa, o filtro volta para "Todas".
@@ -80,28 +84,45 @@ EmpresasView
 
 | Função                                                                | Módulo        | Tabela     |
 |-----------------------------------------------------------------------|---------------|------------|
-| `listEmpresas`, `insertEmpresa`, `updateEmpresa`, `deleteEmpresaById` | `empresas.ts` | `empresas` (migration 001) |
+| `listEmpresas`, `insertEmpresa`, `updateEmpresa`, `deleteEmpresaById` | `empresas.ts` | `empresas` (migrations 001 e 020) |
 | `listCategoriasPorEmpresa`, `definirCategoriasEmpresa`                | `empresas.ts` | `empresas_categorias_lancamento` (migration 019) |
 | `listCategoriasLancamento`                                            | `categoriasLancamento.ts` | `categorias_lancamento` |
+| `exigirNomeLivre`, `NomeRepetidoError`                                | `nomeRepetido.ts` | — |
 
+- **Nome único:** `insertEmpresa` e `updateEmpresa` leem as empresas ativas e chamam `exigirNomeLivre` dentro da
+  transação, antes de gravar (regra geral em [Base comum](README.md), seção "Nome único nos cadastros"). Recusada, a
+  empresa não é gravada nem tem os vínculos trocados. Só as ativas contam: o nome de uma excluída pode ser usado de
+  novo. Editar sem trocar o nome sempre passa, então duas empresas iguais de antes da regra ainda têm CNPJ,
+  observação e categorias editáveis.
 - `empresas_categorias_lancamento`: `empresa_id`, `categoria_id` (chave primária composta, então o mesmo par não entra
   duas vezes) e `created_at`. As duas colunas têm `ON DELETE CASCADE`.
 - `updateEmpresa(empresa)` sem o segundo argumento não mexe nos vínculos; com a lista (mesmo vazia), troca todos.
 - Categoria que não existe mais é pulada ao gravar o vínculo.
 
-### O que a exclusão leva junto
+### O que a exclusão faz
 
-- Lançamentos, planos e registros do histórico de preços continuam, mas sem a empresa (`empresa_id` vira `NULL`).
-- Sai da comparação da Lista de compras, com todas as cotações anotadas nela (`ON DELETE CASCADE`). Se era o mercado
-  atual, a lista o esquece na próxima carga.
-- Os vínculos com as categorias de lançamento saem junto (`ON DELETE CASCADE`).
-- A sugestão de categoria por empresa daquela loja deixa de existir.
+A exclusão é **lógica** (migration 020; regra geral em [Base comum](README.md), seção "Exclusão lógica dos
+cadastros"): `deleteEmpresaById` não apaga a linha, grava a data em `empresas.deleted_at`.
+
+- Lançamentos, planos e registros do histórico de preços **continuam com a empresa** (`empresa_id` não muda). A Home, a
+  Busca, o Mês, os Planos e as análises de preço mostram o nome dela normalmente; no filtro de empresa da Busca ela
+  aparece depois das ativas, como "(excluída)".
+- Some deste cadastro, do seletor de empresa do lançamento, das assinaturas novas, do Orçamento e dos mercados da Lista
+  de compras.
+- Sai da comparação da Lista de compras, com todas as cotações anotadas nela (`removerMercadoDaLista`, na mesma
+  transação: a lista é rascunho, não histórico). Se era o mercado atual, a lista o esquece na próxima carga.
+- Os vínculos com as categorias de lançamento ficam no banco, mas o `listCategoriasPorEmpresa` deixa de listá-los.
+- Na Lista de compras e no Orçamento, o preço já visto nela continua valendo como "último preço" e "menor preço" da
+  variante, mas sem mercado: ela não entra na comparação entre mercados (`listHistoricoPrecoDeAtivos`).
+
+Não há tela para desfazer a exclusão.
 
 ## Validações e mensagens
 
 | Situação           | Mensagem                                 |
 |--------------------|------------------------------------------|
 | Nome vazio         | "Nome da empresa é obrigatório"          |
+| Nome repetido      | "Já existe a empresa "X"." (alerta "Nome repetido") |
 | Falha ao carregar  | "Não foi possível carregar as empresas"  |
 | Falha ao salvar    | "Não foi possível salvar a empresa"      |
 | Falha ao excluir   | "Não foi possível excluir a empresa"     |
@@ -109,10 +130,13 @@ EmpresasView
 ## Testes
 
 - `src/models/empresas.test.ts`: ordem alfabética com acento e maiúscula, vínculos (criar, trocar, limpar, repetida ou
-  inexistente) e as exclusões em cascata (empresa e categoria).
+  inexistente), a empresa excluída escondendo os vínculos sem apagar e a categoria excluída saindo das empresas.
+- `src/models/exclusaoLogica.test.ts`: a empresa excluída sai da listagem, o lançamento e o histórico de preços
+  continuam com ela, e o mercado sai da comparação da Lista de compras com as cotações.
+- `src/models/nomeRepetido.test.ts`: nome repetido recusado sem gravar a empresa nem os vínculos, nome de empresa
+  excluída liberado, edição que não troca o nome e as repetidas de antes da regra.
 - `src/utils/empresasPorCategoria.test.ts`: quais empresas o lançamento esconde em cada categoria e qual categoria a
   empresa sugere.
-- O efeito da exclusão na Lista de compras é coberto em `src/models/listaCompras.test.ts`.
 
 ## Observações
 
@@ -121,5 +145,6 @@ EmpresasView
   da Busca continuam listando todas as empresas.
 - A ordem alfabética vale em todo lugar que lista empresas (lançamento, busca, planos, lista de compras, orçamento,
   histórico), porque vem do model.
-- O model não impede nomes repetidos (pendência em Tarefas).
+- Empresas de mesmo nome criadas antes da regra do nome único continuam no cadastro: não há migration que junte.
+  Renomeie ou exclua uma das duas.
 - Sem seta de voltar no header, como Categorias de produto e Marcas (pendência em Tarefas).

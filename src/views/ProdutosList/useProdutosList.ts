@@ -48,7 +48,8 @@ export function useProdutosList(): UseProdutosList {
           listProdutoVariantes(),
           listCategoriaVinculos(),
           listCategorias(),
-          listMarcas(),
+          // Com as excluidas: a variante que ja usa a marca continua com ela no rotulo.
+          listMarcas({ comExcluidos: true }),
         ]);
 
       setProdutos(produtosDoBanco);
@@ -104,25 +105,29 @@ export function useProdutosList(): UseProdutosList {
 
   const deletar = useCallback(
     (produto: Produto): void => {
-      Alert.alert('Excluir produto', `Deseja excluir "${produto.nome}"?`, [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Excluir',
-          style: 'destructive',
-          onPress: (): void => {
-            void (async (): Promise<void> => {
-              try {
-                await deleteProdutoById(produto.id);
-                await carregar();
-                toast.mostrar(`"${produto.nome}" excluído`);
-              } catch (error: unknown) {
-                console.error('Erro ao deletar produto:', error);
-                Alert.alert('Erro', 'Não foi possível excluir o produto');
-              }
-            })();
+      Alert.alert(
+        'Excluir produto',
+        `Deseja excluir "${produto.nome}"? Ele sai do cadastro, do lançamento e da lista de compras. O histórico de preços e as compras já lançadas continuam nas análises.`,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Excluir',
+            style: 'destructive',
+            onPress: (): void => {
+              void (async (): Promise<void> => {
+                try {
+                  await deleteProdutoById(produto.id);
+                  await carregar();
+                  toast.mostrar(`"${produto.nome}" excluído`);
+                } catch (error: unknown) {
+                  console.error('Erro ao deletar produto:', error);
+                  Alert.alert('Erro', 'Não foi possível excluir o produto');
+                }
+              })();
+            },
           },
-        },
-      ]);
+        ],
+      );
     },
     [carregar, toast],
   );

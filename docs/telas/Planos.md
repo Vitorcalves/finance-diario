@@ -64,7 +64,8 @@ Painel "Nova assinatura" ("Streaming, academia, plano do celular..."):
   fatura do ciclo."). No salário, "Para caixa" lista só os caixas e é obrigatório.
 - **Frequência:** Semanal, Mensal ou Anual (o intervalo é sempre 1).
 - **1ª cobrança \*:** "O dia desta data vira o dia da cobrança em todos os meses seguintes."
-- **Empresa** (não aparece no salário).
+- **Empresa** (não aparece no salário). Só as ativas; o plano de uma empresa excluída continua mostrando o nome dela
+  no cartão.
 - Salário sem descrição vira "Salário — <caixa>".
 - Ao salvar, a assinatura é criada e as cobranças até o fim do mês já são geradas. Aviso: "Assinatura "X" criada".
 
@@ -102,7 +103,7 @@ PlanosView
 ### Carga
 
 A cada foco: `materializarPlanos()` (gera as cobranças que faltam até o fim do mês) e, em paralelo, `listPlanos()`,
-`listEmpresas()`, `listCategoriasLancamento()`, `listContasPorTipo('caixa')`, `listContasPorTipo('cartao')` e
+`listEmpresas({ comExcluidos: true })`, `listCategoriasLancamento()`, `listContasPorTipo('caixa')`, `listContasPorTipo('cartao')` e
 `listCobrancasDePlanos()` (todas as cobranças de planos, no caixa e no cartão, sem limite; o registro da compra fica
 de fora).
 

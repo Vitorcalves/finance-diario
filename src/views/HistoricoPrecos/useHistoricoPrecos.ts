@@ -3,6 +3,7 @@ import { Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import dayjs from 'dayjs';
 import { type Empresa, listEmpresas } from '../../models/empresas';
+import { ativosPrimeiro, estaAtivo } from '../../models/exclusaoLogica';
 import { type HistoricoPreco, listHistoricoPreco } from '../../models/historicoPreco';
 import { listMarcas, type Marca } from '../../models/marcas';
 import { listProdutos, type Produto } from '../../models/produtos';
@@ -15,6 +16,7 @@ const toTimestamp = (data: string): number => dayjs(data).valueOf();
 
 export type UseHistoricoPrecos = {
   loading: boolean;
+  /** Para o filtro: os ativos e, depois deles, os excluidos que tem historico. */
   produtos: Produto[];
   grupos: GrupoPreco[];
   /** Escala em que os grupos estao sendo comparados entre si. */
@@ -61,10 +63,11 @@ export function useHistoricoPrecos(): UseHistoricoPrecos {
       const [historicoDoBanco, produtosDoBanco, variantesDoBanco, marcasDoBanco, empresasDoBanco] =
         await Promise.all([
           listHistoricoPreco(),
-          listProdutos(),
-          listProdutoVariantes(),
-          listMarcas(),
-          listEmpresas(),
+          // Tudo com os excluidos: o historico deles continua aqui, com nome.
+          listProdutos({ comExcluidos: true }),
+          listProdutoVariantes({ comExcluidos: true }),
+          listMarcas({ comExcluidos: true }),
+          listEmpresas({ comExcluidos: true }),
         ]);
 
       setHistorico(historicoDoBanco);
@@ -91,6 +94,14 @@ export function useHistoricoPrecos(): UseHistoricoPrecos {
       produtos.find((produto) => produto.id === id)?.nome ?? 'Produto removido',
     [produtos],
   );
+
+  const produtosDoFiltro = useMemo((): Produto[] => {
+    const comHistorico = new Set(historico.map((registro) => registro.produto_id));
+
+    return ativosPrimeiro(
+      produtos.filter((produto) => estaAtivo(produto) || comHistorico.has(produto.id)),
+    );
+  }, [produtos, historico]);
 
   const nomeEmpresa = useCallback(
     (id: string | null): string =>
@@ -238,7 +249,11 @@ export function useHistoricoPrecos(): UseHistoricoPrecos {
         return;
       }
 
-      const variante = variantes.find((item) => (item.codigo_barras ?? '').trim() === codigoLimpo);
+      // A ativa primeiro: o codigo de uma variante excluida pode ter sido
+      // cadastrado de novo em outra.
+      const variante = ativosPrimeiro(variantes).find(
+        (item) => (item.codigo_barras ?? '').trim() === codigoLimpo,
+      );
 
       if (!variante) {
         Alert.alert(
@@ -258,7 +273,7 @@ export function useHistoricoPrecos(): UseHistoricoPrecos {
 
   return {
     loading,
-    produtos,
+    produtos: produtosDoFiltro,
     grupos,
     baseComparacao,
     ehMelhorPreco,

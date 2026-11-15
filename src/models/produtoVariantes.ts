@@ -1,6 +1,8 @@
 import { v4 as uuidv4 } from 'uuid';
-import { getConnection } from './database';
+import { emTransacao, getConnection } from './database';
+import { filtroDeAtivos, type OpcoesListagem, type SemExclusao } from './exclusaoLogica';
 import { type HistoricoPreco, insertHistoricoPreco } from './historicoPreco';
+import { desvincularVarianteDaLista } from './listaCompras';
 
 export type ProdutoVariantes = {
   id: string;
@@ -11,22 +13,27 @@ export type ProdutoVariantes = {
   codigo_barras: string | null;
   preco: number;
   created_at: string;
+  /** Quando foi excluida (ISO); `null` = ativa. Ver `exclusaoLogica`. */
+  deleted_at: string | null;
 };
 
-export const listProdutoVariantes = async (): Promise<ProdutoVariantes[]> => {
+const COLUNAS =
+  'id, produto_id, marca_id, unidade_id, quantidade, codigo_barras, preco, created_at, deleted_at';
+
+/**
+ * Variantes de todos os produtos. So as ativas; `comExcluidos` traz tambem as
+ * excluidas, para dar nome ao historico.
+ */
+export const listProdutoVariantes = async (
+  opcoes: OpcoesListagem = {},
+): Promise<ProdutoVariantes[]> => {
   const db = await getConnection();
 
   return await db.getAllAsync<ProdutoVariantes>(
     `
-        SELECT id,
-               produto_id,
-               marca_id,
-               unidade_id,
-               quantidade,
-               codigo_barras,
-               preco,
-               created_at
+        SELECT ${COLUNAS}
         FROM produto_variantes
+        ${filtroDeAtivos(opcoes)}
         ORDER BY created_at DESC
     `,
   );
@@ -34,28 +41,25 @@ export const listProdutoVariantes = async (): Promise<ProdutoVariantes[]> => {
 
 export const listProdutoVariantesByProduto = async (
   produtoId: string,
+  opcoes: OpcoesListagem = {},
 ): Promise<ProdutoVariantes[]> => {
   const db = await getConnection();
 
   return await db.getAllAsync<ProdutoVariantes>(
     `
-        SELECT id,
-               produto_id,
-               marca_id,
-               unidade_id,
-               quantidade,
-               codigo_barras,
-               preco,
-               created_at
+        SELECT ${COLUNAS}
         FROM produto_variantes
         WHERE produto_id = ?
+        ${filtroDeAtivos(opcoes, 'AND')}
         ORDER BY created_at DESC
     `,
     [produtoId],
   );
 };
 
-export const insertProdutoVariantes = async (produto: ProdutoVariantes): Promise<void> => {
+export const insertProdutoVariantes = async (
+  produto: SemExclusao<ProdutoVariantes>,
+): Promise<void> => {
   const db = await getConnection();
 
   await db.runAsync(
@@ -77,12 +81,28 @@ export const insertProdutoVariantes = async (produto: ProdutoVariantes): Promise
   );
 };
 
-export const deleteProdutoVariantesById = async (id: string): Promise<void> => {
-  const db = await getConnection();
-  await db.runAsync('DELETE FROM produto_variantes   WHERE id = ?', [id]);
-};
+/**
+ * Exclui a variante sem apagar a linha: o historico de precos e os itens dos
+ * lancamentos continuam ligados a ela. Na lista de compras, que e rascunho, os
+ * itens e as cotacoes ficam sem a marca.
+ */
+export const deleteProdutoVariantesById = async (
+  id: string,
+  agora: string = new Date().toISOString(),
+): Promise<void> =>
+  emTransacao(async () => {
+    const db = await getConnection();
 
-export const updateProdutoVariantes = async (variante: ProdutoVariantes): Promise<void> => {
+    await db.runAsync(
+      'UPDATE produto_variantes SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL',
+      [agora, id],
+    );
+    await desvincularVarianteDaLista(id);
+  });
+
+export const updateProdutoVariantes = async (
+  variante: SemExclusao<ProdutoVariantes>,
+): Promise<void> => {
   const db = await getConnection();
 
   const varianteAntiga = await getProdutoVariantesById(variante.id);
@@ -153,18 +173,12 @@ export const registrarPrecoVariante = async (params: {
   await insertHistoricoPreco(historico);
 };
 
+/** Busca pelo id mesmo que a variante tenha sido excluida (confira `deleted_at`). */
 export const getProdutoVariantesById = async (id: string): Promise<ProdutoVariantes | null> => {
   const db = await getConnection();
   const row = await db.getFirstAsync<ProdutoVariantes>(
     `
-        SELECT id,
-               produto_id,
-               marca_id,
-               unidade_id,
-               quantidade,
-               codigo_barras,
-               preco,
-               created_at
+        SELECT ${COLUNAS}
         FROM produto_variantes
         WHERE id = ?
     `,

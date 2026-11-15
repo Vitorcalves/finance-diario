@@ -23,7 +23,8 @@ Dá para filtrar por produto ou pelo código de barras lido na câmera.
 ### Filtros (`FiltrosHistorico`)
 
 - **Produto:** `SeletorMultiplo` de escolha única com busca ("Todos os produtos" / "Trocar produto"). Tocar de novo no
-  escolhido tira o filtro.
+  escolhido tira o filtro. Lista os produtos ativos e, depois deles, os excluídos que têm histórico, marcados
+  "(excluído)".
 - **Código de barras:** o botão ao lado abre a câmera. Achada a variante pelo código, o filtro passa a ser o produto
   dela e, comparando por variante, a própria variante. Um cartão mostra o código lido e a variante (ou "Filtrando pelo
   produto da variante lida"), com X para limpar. Código desconhecido: "Nenhuma variante cadastrada com o código ...".
@@ -75,7 +76,12 @@ HistoricoPrecosView
 ### Carga
 
 A cada foco: `listHistoricoPreco()` (todo o histórico), `listProdutos()`, `listProdutoVariantes()`, `listMarcas()` e
-`listEmpresas()`. Todo o resto é calculado na tela.
+`listEmpresas()`, os quatro com `{ comExcluidos: true }`. Todo o resto é calculado na tela.
+
+Os cadastros vêm com os excluídos porque o histórico deles continua aqui (ver [Base comum](README.md), seção "Exclusão
+lógica dos cadastros"): o registro de um produto, uma variante ou um mercado excluído aparece com o nome de sempre. A
+leitura do código de barras procura primeiro entre as variantes ativas, porque o código de uma excluída pode ter sido
+cadastrado de novo em outra.
 
 ### Montagem dos grupos
 
@@ -90,7 +96,9 @@ A cada foco: `listHistoricoPreco()` (todo o histórico), `listProdutos()`, `list
 6. Ordena pela opção escolhida (`valorComparavel` no menor preço atual).
 7. **Melhor preço:** o menor `valorComparavel` entre os grupos, só com dois grupos ou mais.
 
-Nomes que sumiram do cadastro aparecem como "Produto removido", "Sem empresa" ou "Variante removida".
+Registro sem mercado aparece como "Sem empresa". "Produto removido" e "Variante removida" ficam só para uma
+referência que não existe mais no banco (um backup importado com dado órfão); cadastro excluído pelo app continua com
+nome.
 
 ## Models e tabelas
 
@@ -113,6 +121,7 @@ Utilitários: `precoPorUnidadePrimaria` e `rotuloVariantePorId` (`utils/variante
 
 - `src/views/HistoricoPrecos/normalizacao.test.ts`: normalização por grupo, registros sem medida, unidades
   incompatíveis e a base de comparação.
+- `src/models/exclusaoLogica.test.ts`: o histórico continua depois de excluir produto, variante ou empresa.
 - `src/utils/variantes.test.ts` e `src/utils/unidades.test.ts`.
 
 ## Observações

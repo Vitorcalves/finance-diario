@@ -181,7 +181,7 @@ describe('enviarParaApi', () => {
       const enviado = JSON.parse(String(chamadas[0].init?.body)) as BackupJson;
       assert.equal(enviado.formato, BACKUP_FORMATO);
       assert.deepEqual(enviado.tabelas.categorias, [
-        { id: 'c1', nome: 'Casa', created_at: '2026-01-01' },
+        { id: 'c1', nome: 'Casa', created_at: '2026-01-01', deleted_at: null },
       ]);
     } finally {
       restaurar();

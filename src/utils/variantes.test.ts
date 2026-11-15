@@ -11,8 +11,8 @@ import {
 } from './variantes';
 
 const MARCAS: Marca[] = [
-  { id: 1, nome: 'Marca A', created_at: '2026-01-01' },
-  { id: 2, nome: 'Marca B', created_at: '2026-01-01' },
+  { id: 1, nome: 'Marca A', created_at: '2026-01-01', deleted_at: null },
+  { id: 2, nome: 'Marca B', created_at: '2026-01-01', deleted_at: null },
 ];
 
 const variante = (over: Partial<ProdutoVariantes> = {}): ProdutoVariantes => ({
@@ -24,6 +24,7 @@ const variante = (over: Partial<ProdutoVariantes> = {}): ProdutoVariantes => ({
   codigo_barras: null,
   preco: 10,
   created_at: '2026-01-01',
+  deleted_at: null,
   ...over,
 });
 

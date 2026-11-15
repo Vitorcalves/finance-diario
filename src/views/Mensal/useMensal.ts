@@ -124,7 +124,8 @@ export function useMensal(): UseMensal {
             mesAnterior.endOf('month').format('YYYY-MM-DD'),
             { fluxoGastos: true },
           ),
-          listEmpresas(),
+          // Com as excluidas: o lancamento antigo continua com o nome da empresa.
+          listEmpresas({ comExcluidos: true }),
           listCategoriasLancamento(),
         ]);
 

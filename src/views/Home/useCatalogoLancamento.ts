@@ -12,9 +12,11 @@ import { listProdutoVariantes, type ProdutoVariantes } from '../../models/produt
 import { listTags, type Tag } from '../../models/tags';
 
 export type CatalogoLancamento = {
+  /** Empresas, produtos e variantes ativos: o que da para escolher num lancamento novo. */
   empresas: Empresa[];
   produtos: Produto[];
   variantes: ProdutoVariantes[];
+  /** Com as excluidas: so dao nome as variantes, nao ha seletor de marca aqui. */
   marcas: Marca[];
   categorias: CategoriaLancamento[];
   /** Contas caixa e cartao ativas: para onde (ou para qual fatura) o dinheiro vai. */
@@ -64,7 +66,8 @@ export function useCatalogoLancamento(): CatalogoLancamento {
           listEmpresas(),
           listProdutos(),
           listProdutoVariantes(),
-          listMarcas(),
+          // Com as excluidas: a variante que ja usa a marca continua com ela no rotulo.
+          listMarcas({ comExcluidos: true }),
           listCategoriasLancamento(),
           listContasPorTipo('caixa'),
           listContasPorTipo('cartao'),

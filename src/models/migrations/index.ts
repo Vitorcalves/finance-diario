@@ -18,6 +18,7 @@ import { migration016 } from './016_lista_compras_cotacoes';
 import { migration017 } from './017_notas_lancamento';
 import { migration018 } from './018_tags_eventos';
 import { migration019 } from './019_empresas_categorias';
+import { migration020 } from './020_exclusao_logica';
 
 export const migrations: Migration[] = [
   migration001,
@@ -39,4 +40,5 @@ export const migrations: Migration[] = [
   migration017,
   migration018,
   migration019,
+  migration020,
 ];

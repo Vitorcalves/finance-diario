@@ -7,14 +7,21 @@ export type CategoriaProduto = {
   created_at: string;
 };
 
+/**
+ * Vinculos entre produtos e categorias. O de uma categoria excluida (ver
+ * `exclusaoLogica`) continua no banco, mas fica fora da lista: a categoria
+ * some dos produtos sem que o vinculo seja apagado.
+ */
 export const listCategorias = async (): Promise<CategoriaProduto[]> => {
   const db = await getConnection();
 
   return await db.getAllAsync<CategoriaProduto>(
     `
-        SELECT id, categoria_id, produto_id, created_at
-        FROM categoria_produto
-        ORDER BY created_at DESC
+        SELECT cp.id, cp.categoria_id, cp.produto_id, cp.created_at
+        FROM categoria_produto cp
+                 JOIN categorias c ON c.id = cp.categoria_id
+        WHERE c.deleted_at IS NULL
+        ORDER BY cp.created_at DESC
     `,
   );
 };

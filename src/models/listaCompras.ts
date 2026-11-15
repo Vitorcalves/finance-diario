@@ -238,21 +238,55 @@ export const saveMercadoAtualDaLista = async (empresaId: string | null): Promise
   );
 };
 
+// --- Cadastro excluido -----------------------------------------------------------
+
+// Produto, variante e empresa tem exclusao logica (ver `exclusaoLogica`): a
+// linha fica no banco e as chaves estrangeiras da lista nao disparam mais. A
+// lista e rascunho, nao historico, entao o model do cadastro excluido chama
+// estas funcoes para repetir o que a chave fazia. A empresa usa o
+// `removerMercadoDaLista`.
+
+/** Produto excluido: os itens dele saem da lista, com as cotacoes (FK em cascata). */
+export const removerProdutoDaLista = async (produtoId: string): Promise<void> => {
+  const db = await getConnection();
+  await db.runAsync('DELETE FROM lista_compras_itens WHERE produto_id = ?', [produtoId]);
+};
+
+/** Variante excluida: os itens e as cotacoes que a usavam continuam, sem a marca. */
+export const desvincularVarianteDaLista = async (varianteId: string): Promise<void> => {
+  const db = await getConnection();
+
+  await db.runAsync('UPDATE lista_compras_itens SET variante_id = NULL WHERE variante_id = ?', [
+    varianteId,
+  ]);
+  await db.runAsync('UPDATE lista_compras_precos SET variante_id = NULL WHERE variante_id = ?', [
+    varianteId,
+  ]);
+};
+
 // --- Historico -----------------------------------------------------------------
 
 /**
  * Cada vez que um produto cadastrado entrou num lancamento, com a data do
  * lancamento. A base para descobrir o que e comprado com frequencia.
+ *
+ * Produto excluido fica de fora (nao ha o que sugerir) e a compra de uma
+ * variante excluida conta para o produto, sem a variante.
  */
 export const listComprasDeProdutos = async (): Promise<CompraDeProduto[]> => {
   const db = await getConnection();
 
   return await db.getAllAsync<CompraDeProduto>(
     `
-        SELECT i.produto_id, i.variante_id, i.quantidade, t.data
+        SELECT i.produto_id,
+               CASE WHEN v.id IS NOT NULL AND v.deleted_at IS NULL THEN i.variante_id END AS variante_id,
+               i.quantidade,
+               t.data
         FROM itens_transacao i
                  JOIN transacoes t ON t.id = i.transacao_id
-        WHERE i.produto_id IS NOT NULL
+                 JOIN produtos p ON p.id = i.produto_id
+                 LEFT JOIN produto_variantes v ON v.id = i.variante_id
+        WHERE p.deleted_at IS NULL
         ORDER BY t.data
     `,
   );

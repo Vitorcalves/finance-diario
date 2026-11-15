@@ -25,7 +25,8 @@ o último registro do histórico.
 ### Filtros (`FiltrosAnalise`)
 
 - **Produto:** chips com os produtos que têm alguma compra ou preço registrado, do mais movimentado para o menos. Sem
-  produto escolhido (ou com um que sumiu), a tela escolhe o mais movimentado.
+  produto escolhido (ou com um que sumiu), a tela escolhe o mais movimentado. O produto excluído continua na lista,
+  depois dos ativos e marcado "(excluído)": o histórico dele não é apagado, e é aqui que ele pode ser visto.
 - **Variante:** só aparece quando o produto tem mais de uma variante nos dados; "Todas" e uma por variante, em ordem
   alfabética.
 - **Preço por kg** (caixa de marcar): só aparece quando todos os registros com medida reduzem à mesma unidade base.
@@ -82,7 +83,10 @@ AnalisePrecosView
 
 ### Carga
 
-- A cada foco: `listProdutosComMovimento()`, `listProdutoVariantes()` e `listMarcas()`.
+- A cada foco: `listProdutosComMovimento()` (traz também os excluídos, com `deleted_at`, depois dos ativos),
+  `listProdutoVariantes({ comExcluidos: true })` e `listMarcas({ comExcluidos: true })`. Variantes e marcas vêm com as
+  excluídas para o chip e o cálculo por unidade continuarem valendo no histórico delas (ver [Base comum](README.md),
+  seção "Exclusão lógica dos cadastros").
 - A cada troca de produto (`useEffect`): `listPrecosPagosPorProduto(produtoId)` e `listHistoricoPorProduto(produtoId)`.
   O resultado é guardado junto com o id do produto; enquanto a leitura nova não chega, os dados do produto anterior são
   ignorados.
@@ -122,6 +126,7 @@ quanto as cotações levadas da Lista de compras e do Orçamento.
 - `src/views/AnalisePrecos/series.test.ts`: agrupamento por dia, unidade base, domínio e ticks, projeção, ponto mais
   próximo e resumo.
 - `src/models/dashboard.test.ts`: as três consultas.
+- `src/models/exclusaoLogica.test.ts`: o produto excluído continua em `listProdutosComMovimento`, depois dos ativos.
 - `src/utils/variantes.test.ts`: preço por unidade primária.
 
 ## Observações

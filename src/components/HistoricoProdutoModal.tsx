@@ -3,7 +3,7 @@ import { ActivityIndicator, Alert, View } from 'react-native';
 import { listHistoricoPorProduto, listPrecosPagosPorProduto } from '../models/dashboard';
 import { listEmpresas } from '../models/empresas';
 import type { Marca } from '../models/marcas';
-import type { ProdutoVariantes } from '../models/produtoVariantes';
+import { listProdutoVariantesByProduto, type ProdutoVariantes } from '../models/produtoVariantes';
 import { fontSize, fontWeight, makeStyles, spacing, useTheme } from '../theme';
 import { formatarData, toCurrency, toCurrencyPorUnidade } from '../utils/format';
 import { precoPorUnidadePrimaria, rotuloQuantidade, rotuloVariantePorId } from '../utils/variantes';
@@ -27,6 +27,8 @@ type Dados = {
   precos: Registro[];
   compras: Registro[];
   nomesEmpresas: Map<string, string>;
+  /** Variantes do produto, com as excluidas: o registro antigo continua com rotulo. */
+  variantes: ProdutoVariantes[];
 };
 
 type HistoricoProdutoModalProps = {
@@ -38,7 +40,9 @@ type HistoricoProdutoModalProps = {
    * Sem ela, cada variante do produto ganha o seu chip.
    */
   varianteId?: string;
+  /** Variantes ativas: viram os chips do filtro. */
   variantes: ProdutoVariantes[];
+  /** Com as excluidas, que continuam no rotulo das variantes que as usam. */
   marcas: Marca[];
   onFechar: () => void;
 };
@@ -69,10 +73,12 @@ export default function HistoricoProdutoModal({
 
     void (async (): Promise<void> => {
       try {
-        const [historico, pagos, empresas] = await Promise.all([
+        const [historico, pagos, empresas, variantesDoProduto] = await Promise.all([
           listHistoricoPorProduto(produtoId),
           listPrecosPagosPorProduto(produtoId),
-          listEmpresas(),
+          // Com os excluidos: o registro antigo continua com mercado e variante.
+          listEmpresas({ comExcluidos: true }),
+          listProdutoVariantesByProduto(produtoId, { comExcluidos: true }),
         ]);
 
         if (!ativo) {
@@ -98,13 +104,14 @@ export default function HistoricoProdutoModal({
             quantidade: pago.quantidade,
           })),
           nomesEmpresas: new Map(empresas.map((empresa) => [empresa.id, empresa.nome])),
+          variantes: variantesDoProduto,
         });
       } catch (error: unknown) {
         console.error('Erro ao carregar historico do produto:', error);
         Alert.alert('Erro', 'Não foi possível carregar o histórico do produto');
 
         if (ativo) {
-          setDados({ precos: [], compras: [], nomesEmpresas: new Map() });
+          setDados({ precos: [], compras: [], nomesEmpresas: new Map(), variantes: [] });
         }
       }
     })();
@@ -130,8 +137,10 @@ export default function HistoricoProdutoModal({
   const registros =
     fonte && filtro !== TODAS ? fonte.filter((registro) => registro.varianteId === filtro) : fonte;
 
+  const variantesDoHistorico = dados?.variantes ?? variantes;
+
   const renderRegistro = (registro: Registro): React.ReactNode => {
-    const variante = variantes.find((opcao) => opcao.id === registro.varianteId);
+    const variante = variantesDoHistorico.find((opcao) => opcao.id === registro.varianteId);
     const unitario = precoPorUnidadePrimaria(registro.preco, variante);
     const detalhes = [
       (registro.empresaId ? dados?.nomesEmpresas.get(registro.empresaId) : undefined) ??
@@ -149,7 +158,7 @@ export default function HistoricoProdutoModal({
           {filtro === TODAS && (
             <Text style={styles.variante}>
               {registro.varianteId
-                ? rotuloVariantePorId(registro.varianteId, variantes, marcas)
+                ? rotuloVariantePorId(registro.varianteId, variantesDoHistorico, marcas)
                 : 'Sem variante'}
             </Text>
           )}

@@ -22,6 +22,16 @@ apagar, e Integração › Exportar cria uma na hora. As 5 últimas cópias fica
 app, e podem ser restauradas em Integração › Importar. Cada tela segue o padrão `src/views/<Tela>/index.tsx` + um hook
 `use<Tela>.ts` + uma pasta `components/`.
 
+Excluir um produto, uma variante, uma marca, uma categoria de produto ou uma empresa não apaga a linha do banco: é uma
+exclusão lógica (coluna `deleted_at`, migration 020). O cadastro some das listas e dos seletores, mas o que já foi
+registrado com ele (histórico de preços, itens e empresa dos lançamentos, marca das variantes) continua inteiro e com
+nome nas análises. A regra completa está em [`docs/telas/README.md`](telas/README.md), seção "Exclusão lógica dos
+cadastros".
+
+Marcas, empresas e categorias de produto não aceitam nome repetido, sem diferenciar maiúsculas nem acentos, como as
+tags. Só os cadastros ativos contam: o nome de um excluído pode ser usado de novo. A regra está na seção "Nome único
+nos cadastros" do mesmo README.
+
 Este relatório é a visão geral. O detalhe de cada tela (funcionalidades, componentes, models e a lógica por trás) fica
 em [`docs/telas/`](telas/README.md), um arquivo por tela; o [README](telas/README.md) de lá reúne o que vale para todas:
 navegação, banco e migrations, natureza das transações, componentes e utilitários compartilhados.
@@ -82,7 +92,7 @@ pilha (dá para deixar uma análise aberta e consultar outra aba); tocar de novo
 **Busca de lançamentos** — todos os lançamentos com filtros.
 
 - Busca por texto, período (inclusive personalizado), tipo, categoria, empresa, conta e tag (o filtro de tag aparece
-  quando há alguma tag).
+  quando há alguma tag). O filtro de empresa traz também as excluídas, marcadas "(excluída)".
 - Resumo com quantidade, total de saídas e de entradas.
 - Pode abrir com filtros já aplicados (ex.: vinda do gráfico de categorias ou da tela de Tags); reutiliza
   `ListaLancamentos` da Home.
@@ -122,11 +132,14 @@ pilha (dá para deixar uma análise aberta e consultar outra aba); tocar de novo
 
 - Cartão com categorias e variantes de cada produto.
 - Menu do produto: ver histórico de preços, editar, excluir.
+- Excluir tira o produto (e as variantes dele) do cadastro, do lançamento e da lista de compras; o histórico de preços
+  e as compras já lançadas continuam nas análises. O alerta diz isso.
 
 **Novo / Editar Produto** — nome, unidade, categorias e variantes (marca, embalagem, código de barras).
 
 - Cria categoria e marca na hora, sem sair do formulário.
 - Marca "compra eventual" para tirar o produto da lista padrão.
+- Remover uma variante e salvar a exclui sem apagar o histórico de preços dela.
 
 ### Aba Análises
 
@@ -136,10 +149,12 @@ pilha (dá para deixar uma análise aberta e consultar outra aba); tocar de novo
 
 - Filtros de produto e variante; opção de ver o preço por unidade base (R$/kg) quando as unidades batem.
 - Cartão de resumo dos preços.
+- Produto excluído continua no filtro, depois dos ativos e marcado "(excluído)".
 
 **Histórico de Preços** — preços registrados agrupados por variante ou produto.
 
 - Destaca o grupo com menor preço atual; filtro por código de barras lido.
+- Mostra também o histórico de produto, variante e mercado excluídos, com o nome de sempre.
 
 **Inflação pessoal** — quanto a cesta de compras de verdade subiu mês a mês.
 
@@ -171,9 +186,17 @@ pilha (dá para deixar uma análise aberta e consultar outra aba); tocar de novo
 **Categorias de produto** e **Marcas** — cadastros simples: lista de cartões, botão + no header e modal de
 formulário.
 
+- Excluir uma marca a tira do cadastro e do seletor; as variantes que já a usam continuam com ela. Excluir uma
+  categoria a tira dos produtos; os produtos continuam.
+- Nome repetido é recusado ("Já existe a marca "Camil"."), também ao criar a marca ou a categoria pelo formulário de
+  produto.
+
 **Empresas** — mercados e lojas, em ordem alfabética.
 
 - Busca por nome ou CNPJ e filtro por categoria de lançamento (com "Sem categoria").
+- Nome repetido é recusado ("Já existe a empresa "Bahamas".").
+- Excluir tira a empresa do cadastro, do lançamento e da lista de compras; os lançamentos e o histórico de preços
+  continuam com o nome dela.
 - Cada empresa pode ser vinculada a várias categorias de lançamento. No novo lançamento, a categoria escolhida lista
   só as empresas dela (as outras voltam ao digitar o nome), e a empresa escolhida sugere a categoria.
 

@@ -10,7 +10,7 @@ import {
 } from '../../models/categoriasLancamento';
 import { emTransacao } from '../../models/database';
 import { type Empresa, listEmpresas } from '../../models/empresas';
-import { type HistoricoPreco, listHistoricoPreco } from '../../models/historicoPreco';
+import { type HistoricoPreco, listHistoricoPrecoDeAtivos } from '../../models/historicoPreco';
 import { registrarLancamento } from '../../models/lancamentos';
 import {
   adicionarMercadoNaLista,
@@ -316,10 +316,12 @@ export function useListaCompras(): UseListaCompras {
       getMercadoAtualDaLista(),
       listProdutos(),
       listProdutoVariantes(),
-      listMarcas(),
+      // Com as excluidas: a variante que ja usa a marca continua com ela no rotulo.
+      listMarcas({ comExcluidos: true }),
       listEmpresas(),
       listCategoriasLancamento(),
-      listHistoricoPreco(),
+      // So de cadastro ativo: preco de variante ou mercado excluido nao e referencia.
+      listHistoricoPrecoDeAtivos(),
       listComprasDeProdutos(),
       getLocalPadrao(),
     ]);
@@ -1009,7 +1011,7 @@ export function useListaCompras(): UseListaCompras {
         }
       });
 
-      setHistorico(await listHistoricoPreco());
+      setHistorico(await listHistoricoPrecoDeAtivos());
     }
 
     return { salvos: registros.length, semMarca };

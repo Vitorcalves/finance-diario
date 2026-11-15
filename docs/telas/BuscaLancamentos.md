@@ -39,7 +39,8 @@ foram achados e quanto somam as saídas e as entradas. A lista e as ações de d
     "Até ...".
   - **Tipo:** Saídas e entradas, Só saídas, Só entradas.
   - **Categoria:** Todas, cada categoria (as de entrada com a legenda "Entrada") e Sem categoria.
-  - **Empresa:** Todas ou uma empresa.
+  - **Empresa:** Todas ou uma empresa. As excluídas continuam na lista, depois das ativas e marcadas "(excluída)":
+    os lançamentos antigos seguem ligados a elas.
   - **Conta:** Todas ou uma conta, inclusive inativas; acha a conta em qualquer ponta (origem ou destino).
   - **Tag:** só aparece quando existe alguma tag (ou quando a tela abriu filtrada por uma). Todas ou uma tag, com a
     anotação dela.
@@ -96,8 +97,10 @@ paralelo:
 
 - `buscarTransacoes({ inicio, fim, empresaId, categoriaId, tipo, contaId, tagId })`, com o intervalo de
   `intervaloDoPeriodo(periodo, hoje, personalizado)`;
-- `listItensTransacao()`, `listTransacoesCompra()`, `listEmpresas()`, `listCategoriasLancamento()`, `listContas()`,
-  `listTags()` e `listTagsPorTransacao()`.
+- `listItensTransacao()`, `listTransacoesCompra()`, `listEmpresas({ comExcluidos: true })` (com `ativosPrimeiro`),
+  `listCategoriasLancamento()`, `listContas()`, `listTags()` e `listTagsPorTransacao()`. As empresas vêm com as
+  excluídas para o lançamento antigo continuar com o nome e ser achado pelo texto ou pelo filtro (ver
+  [Base comum](README.md), seção "Exclusão lógica dos cadastros").
 
 O texto não vai para o SQL: `filtrarPorTexto` filtra em JavaScript, porque o `LIKE` do SQLite não ignora acentos
 ("acucar" precisa achar "Açúcar"). Depois: `agruparPorDia`, `totalizarBusca` e `agruparItensPorTransacao` (itens da

@@ -96,8 +96,13 @@ InflacaoPessoalView
 ### Carga (`useInflacaoPessoal`)
 
 A cada foco, em paralelo: `listHistoricoPreco()`, `listComprasDeVariantes()`, `listProdutos()`,
-`listProdutoVariantes()` e `listMarcas()`. O indicador de carregamento aparece só na primeira carga. O cálculo roda em
-memória (`useMemo`) com `mesFinal` = mês corrente: o mês em andamento entra, e registros com data futura ficam de fora.
+`listProdutoVariantes()` e `listMarcas()`, os três cadastros com `{ comExcluidos: true }`. O indicador de carregamento
+aparece só na primeira carga. O cálculo roda em memória (`useMemo`) com `mesFinal` = mês corrente: o mês em andamento
+entra, e registros com data futura ficam de fora.
+
+Produto ou variante excluído continua na cesta, com nome: a exclusão é lógica (ver [Base comum](README.md), seção
+"Exclusão lógica dos cadastros"), então o histórico de preços e as compras dele não somem. Ele sai da cesta sozinho,
+12 meses depois da última compra, como qualquer item que deixou de ser comprado.
 
 ### A conta (`calcularInflacao`, em `src/utils/inflacaoPessoal.ts`)
 
@@ -156,5 +161,5 @@ migration.
   na cesta. A lista "O que mais pesou" mostra o item, mas hoje nenhuma tela apaga um registro do histórico de preços
   (`deleteHistoricoPrecoById` existe no model, sem uso); pendência em Tarefas.
 - Editar a embalagem de uma variante (de 1 kg para 5 kg) muda o preço dela sem ser inflação: a conta não distingue.
-- Excluir um produto ou uma variante apaga o histórico dele em cascata e muda a série para trás.
+- Excluir um produto ou uma variante não muda a série: o histórico e as compras dele continuam na conta.
 - A comparação é só da cesta com ela mesma; não há índice oficial (IPCA) na tela.

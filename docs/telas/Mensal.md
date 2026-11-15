@@ -117,7 +117,8 @@ A cada foco e a cada troca de mês (ou "puxar"), em `useFocusEffect`:
 1. `materializarPlanos(fimDoMes)`: abrir um mês futuro já gera as assinaturas dele, para a projeção nascer com os
    compromissos conhecidos.
 2. Em paralelo: `listTransacoes(início, fim do mês, { fluxoGastos: true })`, o mesmo para o mês anterior,
-   `listEmpresas()` e `listCategoriasLancamento()`.
+   `listEmpresas({ comExcluidos: true })` (o lançamento de uma empresa excluída continua com o nome dela) e
+   `listCategoriasLancamento()`.
 
 A visão é a de gastos: `movimento` e `compra_cartao` (a compra no cartão conta no mês da compra); pagamento de fatura e
 transferências ficam de fora, para não somar o mesmo gasto duas vezes. `ultimaBusca` garante que só a busca mais

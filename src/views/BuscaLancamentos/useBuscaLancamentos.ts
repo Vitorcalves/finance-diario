@@ -8,6 +8,7 @@ import {
 } from '../../models/categoriasLancamento';
 import { type Conta, listContas } from '../../models/contas';
 import { type Empresa, listEmpresas } from '../../models/empresas';
+import { ativosPrimeiro } from '../../models/exclusaoLogica';
 import { type ItemTransacao, listItensTransacao } from '../../models/itensTransacao';
 import {
   definirTagsTransacao,
@@ -142,7 +143,8 @@ export function useBuscaLancamentos(iniciais?: FiltrosIniciaisBusca): UseBuscaLa
       }),
       listItensTransacao(),
       listTransacoesCompra(),
-      listEmpresas(),
+      // Com as excluidas: dao nome ao lancamento antigo e continuam no filtro.
+      listEmpresas({ comExcluidos: true }).then(ativosPrimeiro),
       listCategoriasLancamento(),
       listContas(),
       listTags(),

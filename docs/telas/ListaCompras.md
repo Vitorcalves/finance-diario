@@ -196,9 +196,14 @@ ListaComprasView
 ### Carga
 
 `carregarDoBanco` lê em paralelo: itens, cotações, mercados da comparação, mercado atual, produtos, variantes, marcas,
-empresas, categorias de lançamento, todo o histórico de preços, as compras passadas de produtos
-(`listComprasDeProdutos`) e o local padrão. Se o mercado atual saiu da comparação (ou foi excluído), ele é esquecido.
-A carga roda ao ganhar foco; antes, grava o que estiver pendente.
+empresas, categorias de lançamento, o histórico de preços dos cadastros ativos (`listHistoricoPrecoDeAtivos`), as
+compras passadas de produtos (`listComprasDeProdutos`) e o local padrão. Se o mercado atual saiu da comparação (ou foi
+excluído), ele é esquecido. A carga roda ao ganhar foco; antes, grava o que estiver pendente.
+
+Produtos, variantes e empresas vêm só os ativos; as marcas vêm com as excluídas, porque a variante que já usa uma
+continua com ela no rótulo. O histórico e as compras ignoram o cadastro excluído (ver [Base comum](README.md), seção
+"Exclusão lógica dos cadastros"): preço de produto ou variante excluído não vira referência nem sugestão, e o preço
+visto numa empresa excluída continua valendo, sem mercado.
 
 ### Gravação otimista
 
@@ -263,14 +268,17 @@ mesmo mercado e no mesmo dia não entra de novo, então finalizar duas vezes nã
 | `listCotacoesDaLista`, `salvarCotacao` (upsert pelo id), `deleteCotacao`, `deleteTodasCotacoesDaLista` | `listaCompras.ts` | `lista_compras_precos` |
 | `listMercadosDaLista`, `adicionarMercadoNaLista`, `removerMercadoDaLista` | `listaCompras.ts` | `lista_compras_mercados`, `lista_compras_precos` |
 | `getMercadoAtualDaLista`, `saveMercadoAtualDaLista`         | `listaCompras.ts`      | `settings` (`lista_compras_mercado`)      |
-| `listComprasDeProdutos`                                    | `listaCompras.ts`      | `itens_transacao`, `transacoes`           |
-| `listHistoricoPreco`                                       | `historicoPreco.ts`    | `historico_preco`                         |
+| `listComprasDeProdutos`                                    | `listaCompras.ts`      | `itens_transacao`, `transacoes`, `produtos`, `produto_variantes` |
+| `listHistoricoPrecoDeAtivos`                               | `historicoPreco.ts`    | `historico_preco`, `produtos`, `produto_variantes`, `empresas` |
+| `removerProdutoDaLista`, `desvincularVarianteDaLista` (chamadas pelos models de produto e variante) | `listaCompras.ts` | `lista_compras_itens`, `lista_compras_precos` |
 | `registrarPrecoVariante`                                   | `produtoVariantes.ts`  | `produto_variantes`, `historico_preco`    |
 | `registrarLancamento`                                      | `lancamentos.ts`       | ver [Home](Home.md)                       |
 | `listProdutos`, `listProdutoVariantes`, `listMarcas`, `listEmpresas`, `listCategoriasLancamento`, `getLocalPadrao` | vários | cadastros e `settings` |
 
-Chaves estrangeiras que importam aqui: apagar o item apaga as cotações dele; apagar o produto tira o item da lista;
-apagar a variante só desvincula (item e cotações ficam sem marca); apagar a empresa tira o mercado e as cotações dele.
+Apagar o item apaga as cotações dele, por chave estrangeira. Produto, variante e empresa têm exclusão lógica (a linha
+fica no banco e a chave não dispara), então o model de cada um repete aqui o que a chave fazia: excluir o produto tira
+o item da lista (`removerProdutoDaLista`); excluir a variante só desvincula, item e cotações ficam sem marca
+(`desvincularVarianteDaLista`); excluir a empresa tira o mercado e as cotações dele (`removerMercadoDaLista`).
 
 Utilitários: `compararLista` (`utils/comparativoLista.ts`), `compararCotacoes`, `empataComAMelhor`,
 `percentualAcimaDaMelhor` e `diferencaParaOMenor` (`utils/cotacoesLista.ts`), `precoDoItem` (`utils/comparativoMercados.ts`),

@@ -82,16 +82,23 @@ ProdutoFormView
 
 ### Carga
 
-Sempre lê `listCategorias()` e `listMarcas()`. Em edição, lê também o produto (`getProdutoById`), todas as variantes e
-todos os vínculos de categoria, filtra os do produto e guarda duas cópias: o estado editável e os **originais**
-(`vinculosOriginais`, `variantesOriginais`), usados para saber o que apagar ao salvar. As variantes viram
-`VarianteFormItem`, com os números como texto.
+Sempre lê `listCategorias()` (só as ativas) e `listMarcas({ comExcluidos: true })`. Em edição, lê também o produto
+(`getProdutoById`), todas as variantes ativas e todos os vínculos de categoria, filtra os do produto e guarda duas
+cópias: o estado editável e os **originais** (`vinculosOriginais`, `variantesOriginais`), usados para saber o que
+excluir ao salvar. As variantes viram `VarianteFormItem`, com os números como texto.
+
+As marcas vêm com as excluídas porque a variante que já usa uma continua com ela: o cartão da variante mostra o nome,
+e o seletor de marca do `VarianteForm` oferece as ativas mais a que a variante em edição já tinha, esta marcada
+"(excluída)". Uma marca excluída nunca é oferecida para uma variante nova.
 
 ### Criação na hora
 
 - `criarCategoria(nome)`: recusa nome vazio, insere em `categorias`, relê a lista e já marca a categoria no produto.
-- `criarMarca(nome)`: recusa nome vazio, insere em `marcas` e devolve o id (achado pelo nome na lista relida), que o
-  `VarianteForm` deixa selecionado.
+- `criarMarca(nome)`: recusa nome vazio, insere em `marcas` e devolve o id (achado pelo nome entre as marcas ativas da
+  lista relida, para uma excluída de mesmo nome não ser a escolhida), que o `VarianteForm` deixa selecionado.
+- As duas recusam o nome que outra categoria ou marca ativa já usa (`NomeRepetidoError`, de `nomeRepetido.ts`; regra
+  em [Base comum](README.md), seção "Nome único nos cadastros"): o alerta "Nome repetido" diz qual já existe, o mini
+  formulário continua aberto e nada é marcado. Basta cancelar e escolher a que já existe na lista.
 
 ### Gravação (`salvar`)
 
@@ -100,8 +107,9 @@ ficar salvo pela metade:
 
 1. `insertProduto` ou `updateProduto` (nome, preço, unidade, eventual).
 2. Categorias: apaga os vínculos desmarcados e cria os novos (`categoria_produto`).
-3. Variantes: apaga as originais que saíram da lista; atualiza as que já existiam (`updateProdutoVariantes`) e insere
-   as novas (`insertProdutoVariantes`). Quantidade vazia vira `NULL`; código vazio, `NULL`.
+3. Variantes: exclui as originais que saíram da lista (`deleteProdutoVariantesById`, exclusão lógica); atualiza as que
+   já existiam (`updateProdutoVariantes`) e insere as novas (`insertProdutoVariantes`). Quantidade vazia vira `NULL`;
+   código vazio, `NULL`.
 
 Falha em qualquer passo: "Não foi possível salvar o produto" e nada fica gravado.
 
@@ -121,8 +129,14 @@ Unidades: catálogo fixo `Unidades` (`src/utils/unidades.ts`), espelhado na tabe
 
 ### Efeito de remover uma variante
 
-Remover a variante do produto e salvar apaga a linha em `produto_variantes` e, em cascata, o histórico de preços dela.
-Itens de lançamento, itens da lista de compras e cotações que apontavam para ela ficam sem a variante (`NULL`).
+A exclusão é **lógica** (migration 020; regra geral em [Base comum](README.md), seção "Exclusão lógica dos
+cadastros"). Remover a variante do produto e salvar não apaga a linha: `deleteProdutoVariantesById` grava a data em
+`produto_variantes.deleted_at`. O histórico de preços dela continua inteiro e os itens de lançamento continuam
+apontando para ela, então as análises seguem mostrando a variante com o rótulo. Só a Lista de compras, que é rascunho,
+é ajustada na mesma transação: os itens e as cotações que apontavam para ela ficam sem a variante (`NULL`).
+
+A variante excluída some deste formulário, do lançamento, da Lista de compras e do Orçamento. Não há tela para trazê-la
+de volta.
 
 ## Validações e mensagens
 
@@ -133,18 +147,23 @@ Itens de lançamento, itens da lista de compras e cotações que apontavam para 
 | Variante sem preço           | "Preço da variante deve ser maior que zero"      |
 | Categoria sem nome           | "Nome da categoria é obrigatório"                |
 | Marca sem nome               | "Nome da marca é obrigatório"                    |
+| Categoria ou marca repetida  | "Já existe a categoria "X"." / "Já existe a marca "X"." (alerta "Nome repetido") |
 | Falha ao carregar            | "Não foi possível carregar os dados do produto"  |
 | Falha ao salvar              | "Não foi possível salvar o produto"              |
 
 ## Testes
 
 - `src/models/produtos.test.ts`: ordem e marcação de eventual.
+- `src/models/exclusaoLogica.test.ts`: a variante excluída sai da listagem, o produto e o histórico continuam, e o
+  item e a cotação da Lista de compras ficam sem a marca.
+- `src/models/nomeRepetido.test.ts`: marca e categoria com nome repetido são recusadas pelo model.
 - `src/utils/unidades.test.ts` e `src/utils/variantes.test.ts`: conversões, granel e rótulos usados pelas variantes.
 
 ## Observações
 
 - A tela não impede duas variantes com o mesmo código de barras; a leitura por código usa a primeira que achar.
 - Marca e categoria criadas aqui ficam no cadastro mesmo que o produto não seja salvo.
-- Remover uma variante apaga o histórico de preços dela sem nenhum aviso (pendência em Tarefas).
+- Remover uma variante não pede confirmação: ela sai da lista do formulário e só é excluída ao salvar o produto. Como
+  a exclusão é lógica, o histórico de preços dela não se perde.
 - O `NomeSimplesForm` fica em `src/components/`, e não na pasta da tela, porque o formulário de lançamento também o
   usa para criar tags.

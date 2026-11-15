@@ -43,6 +43,8 @@ export type ProdutoComMovimento = {
   nome: string;
   compras: number;
   registros: number;
+  /** Quando foi excluido (ISO); `null` = ativo. O historico dele continua. */
+  deleted_at: string | null;
 };
 
 /** Compra de uma variante: e ela que da o peso do item na cesta da inflacao pessoal. */
@@ -131,6 +133,9 @@ export const listHistoricoPorProduto = async (produtoId: string): Promise<PrecoH
  * Produtos com pelo menos uma compra ou um preco registrado, ordenados pelo
  * mais movimentado. Alimenta o seletor de produto do dashboard: produto sem
  * nenhum dado nao teria o que mostrar.
+ *
+ * O produto excluido entra, depois dos ativos: o historico dele continua no
+ * banco (ver `exclusaoLogica`) e a analise e onde ele pode ser visto.
  */
 export const listProdutosComMovimento = async (): Promise<ProdutoComMovimento[]> => {
   const db = await getConnection();
@@ -140,11 +145,12 @@ export const listProdutosComMovimento = async (): Promise<ProdutoComMovimento[]>
         SELECT p.id,
                p.nome,
                (SELECT COUNT(*) FROM itens_transacao i WHERE i.produto_id = p.id) AS compras,
-               (SELECT COUNT(*) FROM historico_preco h WHERE h.produto_id = p.id) AS registros
+               (SELECT COUNT(*) FROM historico_preco h WHERE h.produto_id = p.id) AS registros,
+               p.deleted_at
         FROM produtos p
         WHERE compras > 0
            OR registros > 0
-        ORDER BY compras + registros DESC, p.nome
+        ORDER BY p.deleted_at IS NOT NULL, compras + registros DESC, p.nome
     `,
   );
 };

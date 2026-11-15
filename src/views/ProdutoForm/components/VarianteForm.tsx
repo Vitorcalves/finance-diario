@@ -5,6 +5,7 @@ import NomeSimplesForm from '../../../components/NomeSimplesForm';
 import ScannerCodigoBarras from '../../../components/ScannerCodigoBarras';
 import SeletorMultiplo from '../../../components/SeletorMultiplo';
 import { Button, IconButton, Text, TextInput } from '../../../components/ui';
+import { estaAtivo, nomeComExclusao } from '../../../models/exclusaoLogica';
 import type { Marca } from '../../../models/marcas';
 import { makeStyles, spacing, useTheme } from '../../../theme';
 import { Unidades } from '../../../utils/unidades';
@@ -12,6 +13,7 @@ import type { DadosVariante, VarianteFormItem } from '../types';
 import SeletorUnidade from './SeletorUnidade';
 
 type VarianteFormProps = {
+  /** Com as excluidas; o seletor mostra as ativas e a que a variante ja usa. */
   marcas: Marca[];
   /** Variante em edicao; `null` monta o formulario em branco. */
   varianteInicial: VarianteFormItem | null;
@@ -44,6 +46,12 @@ export default function VarianteForm({
   const [scannerAberto, setScannerAberto] = useState(false);
 
   const editando = varianteInicial !== null;
+
+  // Marca excluida nao e oferecida para uso novo; a que a variante ja tinha
+  // continua na lista para a edicao nao a perder sem o usuario escolher.
+  const opcoesMarca = marcas
+    .filter((marca) => estaAtivo(marca) || marca.id === varianteInicial?.marcaId)
+    .map((marca) => ({ id: String(marca.id), nome: nomeComExclusao(marca, 'excluída') }));
 
   /** Unidade de venda a granel: o preco e por kg/L/m e a quantidade vira opcional. */
   const granel = Unidades.ehGranel(unidadeId);
@@ -79,7 +87,7 @@ export default function VarianteForm({
 
       <SeletorMultiplo
         label="Marca"
-        opcoes={marcas.map((marca) => ({ id: String(marca.id), nome: marca.nome }))}
+        opcoes={opcoesMarca}
         selecionados={marcaId !== null ? [String(marcaId)] : []}
         onToggle={(id): void => setMarcaId((atual) => (atual === Number(id) ? null : Number(id)))}
         placeholderBusca="Buscar marca"

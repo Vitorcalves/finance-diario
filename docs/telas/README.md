@@ -127,9 +127,66 @@ validada uma vez na abertura (`getConnection`).
 | 017 | `notas_lancamento`                                                                                 |
 | 018 | Índice único (`transacao_id`, `tag_id`) e índice por tag em `transacoes_tags`                      |
 | 019 | `empresas_categorias_lancamento` (categorias de lançamento de cada empresa)                        |
+| 020 | `deleted_at` em `produtos`, `produto_variantes`, `marcas`, `categorias` e `empresas` (exclusão lógica) |
 
 Migration publicada não muda: correções entram numa migration nova. O "Recriar banco" desfaz todas (cada `down`) e
 aplica de novo.
+
+### Exclusão lógica dos cadastros (`src/models/exclusaoLogica.ts`)
+
+Produtos, variantes, marcas, categorias de produto e empresas **não saem do banco** quando o usuário exclui: a linha
+fica, com a data em `deleted_at` (`NULL` = ativo). Antes, o `DELETE` levava junto o que dependia do cadastro: produto e
+variante apagavam em cascata o histórico de preços e desligavam os itens dos lançamentos; a empresa tirava o mercado
+do histórico e dos lançamentos; a marca saía das variantes. Com a linha no lugar, nenhuma chave estrangeira dispara e
+o que já foi registrado continua inteiro e com nome.
+
+| Ao excluir   | O que o model faz (`delete...ById`)                                                              |
+|--------------|--------------------------------------------------------------------------------------------------|
+| Produto      | Marca o produto e as variantes ativas dele; tira os itens dele da Lista de compras               |
+| Variante     | Marca a variante; os itens e as cotações da Lista de compras ficam sem ela                       |
+| Marca        | Marca a marca; as variantes que a usam continuam com ela                                         |
+| Categoria    | Marca a categoria; os vínculos com os produtos ficam no banco, sem aparecer                      |
+| Empresa      | Marca a empresa; ela sai da comparação da Lista de compras, com as cotações anotadas nela        |
+
+A Lista de compras é ajustada porque é rascunho, não histórico: os models repetem ali o que a chave estrangeira fazia.
+
+**Regra das telas:**
+
+- **Seletor e cadastro listam só os ativos.** É o padrão de `listProdutos`, `listProdutoVariantes`, `listMarcas`,
+  `listCategorias` e `listEmpresas`. Um excluído nunca é oferecido para uso novo.
+- **Quem dá nome ao que já aconteceu pede `{ comExcluidos: true }`:** Home, Busca, Mês e Planos (empresa do
+  lançamento), Histórico de preços, Análise de preços, Inflação pessoal e o `HistoricoProdutoModal`. As marcas são
+  lidas com as excluídas em toda tela que monta rótulo de variante.
+- **Onde ativo e excluído aparecem lado a lado** (filtro de empresa da Busca, produto da Análise e do Histórico de
+  preços, marca da variante em edição), o excluído vem depois e marcado "(excluído)" / "(excluída)"
+  (`nomeComExclusao`, `ativosPrimeiro`). No histórico em si o nome vai puro.
+- **Referência para compra nova** (Lista de compras e Orçamento) usa `listHistoricoPrecoDeAtivos`: só o histórico de
+  produto e variante ativos, e o preço visto numa empresa excluída fica sem mercado. `listHistoricoPreco` continua
+  trazendo tudo, para as análises.
+
+No código: `getXById` devolve o registro mesmo excluído (confira `deleted_at`); insert e update recebem o tipo sem o
+campo (`SemExclusao<T>`); `somenteAtivos` e `estaAtivo` filtram uma lista já carregada. Não há tela para desfazer uma
+exclusão. O backup em JSON leva a coluna; um backup de antes da migration 020 entra com todos ativos.
+
+### Nome único nos cadastros (`src/models/nomeRepetido.ts`)
+
+Marcas, empresas e categorias de produto **não aceitam nome repetido**, como as tags já não aceitavam: duas marcas
+"Camil" viram rótulos iguais no seletor e dividem as variantes entre si.
+
+- **Comparação** (`chaveDoNome`): sem diferenciar maiúsculas, acentos nem espaços sobrando. "TIO JOAO" e
+  " tio  joão " são o mesmo nome que "Tio João".
+- **Só os ativos contam.** O cadastro excluído continua no banco (seção acima), mas não segura o nome: dá para criar
+  outro igual a um excluído.
+- **Onde vale:** no model, então em qualquer tela. `insertMarca`, `updateMarca`, `insertCategoria`, `insertEmpresa` e
+  `updateEmpresa` chamam `exigirNomeLivre` antes de gravar e recusam com `NomeRepetidoError`, cuja mensagem cita o
+  cadastro que já existe ("Já existe a marca "Camil"."). As telas mostram essa mensagem num alerta "Nome repetido" e
+  o painel continua aberto.
+- **Edição:** o registro não é repetido de si mesmo, e salvar sem trocar o nome sempre passa. Quem já tinha dois
+  cadastros iguais antes desta regra ainda edita o resto de cada um (CNPJ, categorias); só não cria um terceiro nem
+  renomeia para um nome em uso.
+
+Não há índice único no banco nem migration: os repetidos que já existiam continuam lá, e o backup importado entra como
+está. Para desfazer uma repetição antiga, renomeie ou exclua um dos dois.
 
 ### Natureza das transações (`src/models/naturezaTransacao.ts`)
 

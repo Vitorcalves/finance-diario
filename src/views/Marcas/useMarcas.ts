@@ -9,6 +9,7 @@ import {
   type Marca,
   updateMarca,
 } from '../../models/marcas';
+import { NomeRepetidoError } from '../../models/nomeRepetido';
 
 export type UseMarcas = {
   marcas: Marca[];
@@ -62,8 +63,13 @@ export function useMarcas(): UseMarcas {
         toast.mostrar(marcaEditando ? 'Marca atualizada' : 'Marca adicionada');
         return true;
       } catch (error: unknown) {
-        console.error('Erro ao salvar marca:', error);
-        Alert.alert('Erro', 'Não foi possível salvar a marca');
+        if (error instanceof NomeRepetidoError) {
+          Alert.alert('Nome repetido', error.message);
+        } else {
+          console.error('Erro ao salvar marca:', error);
+          Alert.alert('Erro', 'Não foi possível salvar a marca');
+        }
+
         return false;
       }
     },
@@ -72,25 +78,29 @@ export function useMarcas(): UseMarcas {
 
   const deletar = useCallback(
     (marca: Marca): void => {
-      Alert.alert('Excluir marca', `Deseja excluir "${marca.nome}"?`, [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Excluir',
-          style: 'destructive',
-          onPress: (): void => {
-            void (async (): Promise<void> => {
-              try {
-                await deleteMarcaById(marca.id);
-                await carregar();
-                toast.mostrar('Marca excluída');
-              } catch (error: unknown) {
-                console.error('Erro ao deletar marca:', error);
-                Alert.alert('Erro', 'Não foi possível excluir a marca');
-              }
-            })();
+      Alert.alert(
+        'Excluir marca',
+        `Deseja excluir "${marca.nome}"? Ela sai do cadastro e do seletor de marca. As variantes que já a usam continuam com ela.`,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Excluir',
+            style: 'destructive',
+            onPress: (): void => {
+              void (async (): Promise<void> => {
+                try {
+                  await deleteMarcaById(marca.id);
+                  await carregar();
+                  toast.mostrar('Marca excluída');
+                } catch (error: unknown) {
+                  console.error('Erro ao deletar marca:', error);
+                  Alert.alert('Erro', 'Não foi possível excluir a marca');
+                }
+              })();
+            },
           },
-        },
-      ]);
+        ],
+      );
     },
     [carregar, toast],
   );

@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '../../components/ui';
 import { emTransacao } from '../../models/database';
 import { type Categoria, insertCategoria, listCategorias } from '../../models/categorias';
+import { type SemExclusao, somenteAtivos } from '../../models/exclusaoLogica';
 import {
   type CategoriaProduto,
   deleteCategoriaById as deleteCategoriaVinculo,
@@ -11,6 +12,7 @@ import {
   listCategorias as listCategoriaVinculos,
 } from '../../models/categoriasProduto';
 import { insertMarca, listMarcas, type Marca } from '../../models/marcas';
+import { NomeRepetidoError } from '../../models/nomeRepetido';
 import { getProdutoById, insertProduto, updateProduto } from '../../models/produtos';
 import {
   deleteProdutoVariantesById,
@@ -26,6 +28,10 @@ export type UseProdutoForm = {
   editando: boolean;
 
   categorias: Categoria[];
+  /**
+   * Com as excluidas: a variante que ja usa uma continua com o nome dela. O
+   * seletor de marca oferece so as ativas.
+   */
   marcas: Marca[];
 
   nome: string;
@@ -81,7 +87,7 @@ export function useProdutoForm(produtoId?: string): UseProdutoForm {
       try {
         const [categoriasDoBanco, marcasDoBanco] = await Promise.all([
           listCategorias(),
-          listMarcas(),
+          listMarcas({ comExcluidos: true }),
         ]);
 
         if (!ativo) {
@@ -161,7 +167,7 @@ export function useProdutoForm(produtoId?: string): UseProdutoForm {
     }
 
     try {
-      const nova: Categoria = {
+      const nova: SemExclusao<Categoria> = {
         id: uuidv4(),
         nome: nomeLimpo,
         created_at: new Date().toISOString(),
@@ -172,8 +178,13 @@ export function useProdutoForm(produtoId?: string): UseProdutoForm {
       setCategoriasSelecionadas((prev) => [...prev, nova.id]);
       return true;
     } catch (error: unknown) {
-      console.error('Erro ao criar categoria:', error);
-      Alert.alert('Erro', 'Não foi possível criar a categoria');
+      if (error instanceof NomeRepetidoError) {
+        Alert.alert('Nome repetido', error.message);
+      } else {
+        console.error('Erro ao criar categoria:', error);
+        Alert.alert('Erro', 'Não foi possível criar a categoria');
+      }
+
       return false;
     }
   }, []);
@@ -188,13 +199,19 @@ export function useProdutoForm(produtoId?: string): UseProdutoForm {
 
     try {
       await insertMarca({ nome: nomeLimpo, created_at: new Date().toISOString() });
-      const marcasAtualizadas = await listMarcas();
+      const marcasAtualizadas = await listMarcas({ comExcluidos: true });
       setMarcas(marcasAtualizadas);
 
-      return marcasAtualizadas.find((marca) => marca.nome === nomeLimpo)?.id ?? null;
+      // So entre as ativas: uma excluida de mesmo nome nao pode ser a escolhida.
+      return somenteAtivos(marcasAtualizadas).find((marca) => marca.nome === nomeLimpo)?.id ?? null;
     } catch (error: unknown) {
-      console.error('Erro ao criar marca:', error);
-      Alert.alert('Erro', 'Não foi possível criar a marca');
+      if (error instanceof NomeRepetidoError) {
+        Alert.alert('Nome repetido', error.message);
+      } else {
+        console.error('Erro ao criar marca:', error);
+        Alert.alert('Erro', 'Não foi possível criar a marca');
+      }
+
       return null;
     }
   }, []);
@@ -271,7 +288,8 @@ export function useProdutoForm(produtoId?: string): UseProdutoForm {
           ),
         );
 
-        // Variantes: apaga as removidas da lista e grava as demais.
+        // Variantes: exclui as removidas da lista (o historico de precos delas
+        // continua, ver `exclusaoLogica`) e grava as demais.
         const idsAtuais = variantes
           .filter((variante) => variante.id !== null)
           .map((variante) => variante.id as string);
@@ -284,7 +302,7 @@ export function useProdutoForm(produtoId?: string): UseProdutoForm {
 
         await Promise.all(
           variantes.map((variante) => {
-            const dados: ProdutoVariantes = {
+            const dados: SemExclusao<ProdutoVariantes> = {
               id: variante.id ?? uuidv4(),
               produto_id: idDoProduto,
               marca_id: variante.marcaId,

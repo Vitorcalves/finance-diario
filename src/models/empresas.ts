@@ -1,4 +1,7 @@
 import { emTransacao, getConnection } from './database';
+import { filtroDeAtivos, type OpcoesListagem, type SemExclusao } from './exclusaoLogica';
+import { removerMercadoDaLista } from './listaCompras';
+import { exigirNomeLivre } from './nomeRepetido';
 
 export type Empresa = {
   id: string;
@@ -6,20 +9,26 @@ export type Empresa = {
   cnpj?: string;
   observacao?: string;
   created_at: string;
+  /** Quando foi excluida (ISO); `null` = ativa. Ver `exclusaoLogica`. */
+  deleted_at: string | null;
 };
 
 /** Ordena pelo nome como se le em portugues: `Água` junto do `A`, sem separar maiusculas. */
 const porNome = (a: Empresa, b: Empresa): number =>
   a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' });
 
-/** Todas as empresas, em ordem alfabetica. */
-export const listEmpresas = async (): Promise<Empresa[]> => {
+/**
+ * Empresas em ordem alfabetica. So as ativas; `comExcluidos` traz tambem as
+ * excluidas, para dar nome aos lancamentos e ao historico de precos.
+ */
+export const listEmpresas = async (opcoes: OpcoesListagem = {}): Promise<Empresa[]> => {
   const db = await getConnection();
 
   const empresas = await db.getAllAsync<Empresa>(
     `
-        SELECT id, nome, cnpj, observacao, created_at
+        SELECT id, nome, cnpj, observacao, created_at, deleted_at
         FROM empresas
+        ${filtroDeAtivos(opcoes)}
     `,
   );
 
@@ -68,8 +77,9 @@ export const definirCategoriasEmpresa = async (
   });
 
 /**
- * Ids das categorias de lancamento de cada empresa, na ordem em que as
- * categorias aparecem no app. Empresa sem categoria fica fora do mapa.
+ * Ids das categorias de lancamento de cada empresa ativa, na ordem em que as
+ * categorias aparecem no app. Empresa sem categoria fica fora do mapa, e a
+ * excluida tambem: as ligacoes dela continuam no banco, sem aparecer.
  */
 export const listCategoriasPorEmpresa = async (): Promise<Map<string, string[]>> => {
   const db = await getConnection();
@@ -78,6 +88,8 @@ export const listCategoriasPorEmpresa = async (): Promise<Map<string, string[]>>
         SELECT ec.empresa_id, ec.categoria_id
         FROM empresas_categorias_lancamento ec
                  JOIN categorias_lancamento c ON c.id = ec.categoria_id
+                 JOIN empresas e ON e.id = ec.empresa_id
+        WHERE e.deleted_at IS NULL
         ORDER BY c.tipo DESC, c.ordem, c.nome
     `,
   );
@@ -97,9 +109,17 @@ export const listCategoriasPorEmpresa = async (): Promise<Map<string, string[]>>
   return porEmpresa;
 };
 
-/** Cria a empresa ja com as categorias de lancamento dela, tudo ou nada. */
-export const insertEmpresa = async (empresa: Empresa, categoriaIds: string[] = []): Promise<void> =>
+/**
+ * Cria a empresa ja com as categorias de lancamento dela, tudo ou nada.
+ * Recusa, com `NomeRepetidoError`, o nome que outra empresa ativa ja usa.
+ */
+export const insertEmpresa = async (
+  empresa: SemExclusao<Empresa>,
+  categoriaIds: string[] = [],
+): Promise<void> =>
   emTransacao(async () => {
+    exigirNomeLivre(await listEmpresas(), empresa.nome, 'empresa');
+
     const db = await getConnection();
 
     await db.runAsync(
@@ -119,17 +139,31 @@ export const insertEmpresa = async (empresa: Empresa, categoriaIds: string[] = [
     await ligarCategorias(empresa.id, categoriaIds, empresa.created_at);
   });
 
-/** As ligacoes com as categorias de lancamento saem junto (`ON DELETE CASCADE`). */
-export const deleteEmpresaById = async (id: string): Promise<void> => {
-  const db = await getConnection();
-  await db.runAsync('DELETE FROM empresas WHERE id = ?', [id]);
-};
+/**
+ * Exclui a empresa sem apagar a linha: os lancamentos, as assinaturas e o
+ * historico de precos continuam com o nome dela. Na lista de compras, que e
+ * rascunho, o mercado sai da comparacao com as cotacoes anotadas nele.
+ */
+export const deleteEmpresaById = async (
+  id: string,
+  agora: string = new Date().toISOString(),
+): Promise<void> =>
+  emTransacao(async () => {
+    const db = await getConnection();
 
+    await db.runAsync('UPDATE empresas SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL', [
+      agora,
+      id,
+    ]);
+    await removerMercadoDaLista(id);
+  });
+
+/** Busca pelo id mesmo que a empresa tenha sido excluida (confira `deleted_at`). */
 export const getEmpresaById = async (id: string): Promise<Empresa | null> => {
   const db = await getConnection();
   const row = await db.getFirstAsync<Empresa>(
     `
-        SELECT id, nome, cnpj, observacao, created_at
+        SELECT id, nome, cnpj, observacao, created_at, deleted_at
         FROM empresas
         WHERE id = ?
     `,
@@ -146,9 +180,15 @@ export const getEmpresaById = async (id: string): Promise<Empresa | null> => {
 /**
  * Atualiza a empresa. Com `categoriaIds`, troca tambem as categorias de
  * lancamento dela na mesma transacao; sem ele, as categorias ficam como estao.
+ * Recusa, com `NomeRepetidoError`, trocar o nome para o de outra empresa ativa.
  */
-export const updateEmpresa = async (empresa: Empresa, categoriaIds?: string[]): Promise<void> =>
+export const updateEmpresa = async (
+  empresa: SemExclusao<Empresa>,
+  categoriaIds?: string[],
+): Promise<void> =>
   emTransacao(async () => {
+    exigirNomeLivre(await listEmpresas(), empresa.nome, 'empresa', empresa.id);
+
     const db = await getConnection();
 
     await db.runAsync(

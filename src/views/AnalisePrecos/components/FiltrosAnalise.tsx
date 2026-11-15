@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { View } from 'react-native';
 import { ChipSelector, PressableScale, Text } from '../../../components/ui';
 import type { ProdutoComMovimento } from '../../../models/dashboard';
+import { nomeComExclusao } from '../../../models/exclusaoLogica';
 import { fontSize, iconSize, makeStyles, spacing, useTheme } from '../../../theme';
 import { vibrarSelecao } from '../../../utils/haptics';
 import type { UnidadeBase } from '../types';
@@ -44,7 +45,10 @@ export default function FiltrosAnalise({
       <Text style={sharedStyles.label}>Produto</Text>
       <ChipSelector
         scroll
-        opcoes={produtos.map((produto) => ({ valor: produto.id, rotulo: produto.nome }))}
+        opcoes={produtos.map((produto) => ({
+          valor: produto.id,
+          rotulo: nomeComExclusao(produto),
+        }))}
         selecionado={produtoId}
         onSelecionar={onSelecionarProduto}
       />

@@ -15,6 +15,7 @@ import {
   listEmpresas,
   updateEmpresa,
 } from '../../models/empresas';
+import { NomeRepetidoError } from '../../models/nomeRepetido';
 
 export type DadosEmpresa = {
   nome: string;
@@ -103,8 +104,13 @@ export function useEmpresas(): UseEmpresas {
         toast.mostrar(empresaEditando ? 'Empresa atualizada' : 'Empresa adicionada');
         return true;
       } catch (error: unknown) {
-        console.error('Erro ao salvar empresa:', error);
-        Alert.alert('Erro', 'Não foi possível salvar a empresa');
+        if (error instanceof NomeRepetidoError) {
+          Alert.alert('Nome repetido', error.message);
+        } else {
+          console.error('Erro ao salvar empresa:', error);
+          Alert.alert('Erro', 'Não foi possível salvar a empresa');
+        }
+
         return false;
       }
     },
@@ -113,25 +119,29 @@ export function useEmpresas(): UseEmpresas {
 
   const deletar = useCallback(
     (empresa: Empresa): void => {
-      Alert.alert('Excluir empresa', `Deseja excluir "${empresa.nome}"?`, [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Excluir',
-          style: 'destructive',
-          onPress: (): void => {
-            void (async (): Promise<void> => {
-              try {
-                await deleteEmpresaById(empresa.id);
-                await carregar();
-                toast.mostrar('Empresa excluída');
-              } catch (error: unknown) {
-                console.error('Erro ao deletar empresa:', error);
-                Alert.alert('Erro', 'Não foi possível excluir a empresa');
-              }
-            })();
+      Alert.alert(
+        'Excluir empresa',
+        `Deseja excluir "${empresa.nome}"? Ela sai do cadastro, do lançamento e da lista de compras. Os lançamentos e o histórico de preços continuam com o nome dela.`,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Excluir',
+            style: 'destructive',
+            onPress: (): void => {
+              void (async (): Promise<void> => {
+                try {
+                  await deleteEmpresaById(empresa.id);
+                  await carregar();
+                  toast.mostrar('Empresa excluída');
+                } catch (error: unknown) {
+                  console.error('Erro ao deletar empresa:', error);
+                  Alert.alert('Erro', 'Não foi possível excluir a empresa');
+                }
+              })();
+            },
           },
-        },
-      ]);
+        ],
+      );
     },
     [carregar, toast],
   );

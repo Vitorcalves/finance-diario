@@ -174,8 +174,11 @@ HomeView
    - `listTransacoes(inicioMes, fimMes, { fluxoGastos: true })`: o mês inteiro, sem limite, só `movimento` e
      `compra_cartao`. É a base da média e da projeção.
    - `listItensTransacao()` e `listTransacoesCompra()`: itens e registros de compra parcelada (donos dos itens).
-   - `listEmpresas()`, `getLocalPadrao()`, `listCategoriasLancamento()`, `listContasComSaldo(hoje)`, `listTags()` e
-     `listTagsPorTransacao()`.
+   - `listEmpresas({ comExcluidos: true })`, `getLocalPadrao()`, `listCategoriasLancamento()`,
+     `listContasComSaldo(hoje)`, `listTags()` e `listTagsPorTransacao()`. As empresas vêm com as excluídas: o
+     lançamento antigo continua com o nome da empresa (ver [Base comum](README.md), seção "Exclusão lógica dos
+     cadastros"). O formulário de lançamento tem carga própria (`useCatalogoLancamento`) e oferece só empresas,
+     produtos e variantes ativos; as marcas ele lê com as excluídas, porque só dão nome às variantes.
 3. `projetarMes(transacoesMes, { hoje, situacao: 'corrente', diasDecorridos, diasNoMes })`.
 4. Se a tela perdeu o foco durante a carga (`focada.current`), o resultado é descartado.
 5. O resumo junta `somarPorTipo(contas)` (caixa disponível e total das reservas), as reservas ativas e a projeção.

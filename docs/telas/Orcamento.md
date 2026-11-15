@@ -96,7 +96,13 @@ OrcamentoView
 ### Carga
 
 A cada foco, sem trocar a tela pelo indicador (o item que estava sendo digitado continua): `listEmpresas()`,
-`listProdutos()`, `listProdutoVariantes()`, `listMarcas()`, `listHistoricoPreco()` e `getLocalPadrao()`.
+`listProdutos()`, `listProdutoVariantes()`, `listMarcas({ comExcluidos: true })`, `listHistoricoPrecoDeAtivos()` e
+`getLocalPadrao()`.
+
+Empresas, produtos e variantes vêm só os ativos; as marcas vêm com as excluídas, porque a variante que já usa uma
+continua com ela no rótulo. O histórico é o dos cadastros ativos (ver [Base comum](README.md), seção "Exclusão lógica
+dos cadastros"): um mercado excluído não entra no comparativo, e o preço visto nele continua valendo como último e
+menor preço da variante, sem mercado.
 
 ### Derivados
 
@@ -121,7 +127,7 @@ mercado, o preço, a data da pesquisa e o local padrão.
 
 | Função                                       | Módulo                 | Tabelas                                |
 |----------------------------------------------|------------------------|----------------------------------------|
-| `listHistoricoPreco`                         | `historicoPreco.ts`    | `historico_preco`                      |
+| `listHistoricoPrecoDeAtivos`                 | `historicoPreco.ts`    | `historico_preco`, `produtos`, `produto_variantes`, `empresas` |
 | `registrarPrecoVariante`                     | `produtoVariantes.ts`  | `produto_variantes`, `historico_preco` |
 | `listProdutos`, `listProdutoVariantes`, `listMarcas`, `listEmpresas` | vários | cadastros                     |
 | `getLocalPadrao`                             | `settingsModel.ts`     | `settings`                             |

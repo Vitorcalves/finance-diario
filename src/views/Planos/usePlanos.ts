@@ -9,6 +9,7 @@ import {
 } from '../../models/categoriasLancamento';
 import { type Conta, listContasPorTipo } from '../../models/contas';
 import { type Empresa, listEmpresas } from '../../models/empresas';
+import { somenteAtivos } from '../../models/exclusaoLogica';
 import {
   cancelarPlano,
   criarAssinatura,
@@ -63,7 +64,8 @@ export function usePlanos(): UsePlanos {
         cobrancasDoBanco,
       ] = await Promise.all([
         listPlanos(),
-        listEmpresas(),
+        // Com as excluidas: o plano antigo continua com o nome da empresa.
+        listEmpresas({ comExcluidos: true }),
         listCategoriasLancamento(),
         listContasPorTipo('caixa'),
         listContasPorTipo('cartao'),
@@ -93,6 +95,8 @@ export function usePlanos(): UsePlanos {
     (id?: string | null): string => empresas.find((empresa) => empresa.id === id)?.nome ?? '',
     [empresas],
   );
+
+  const empresasAtivas = useMemo(() => somenteAtivos(empresas), [empresas]);
 
   const naTela = useMemo((): PlanoNaTela[] => {
     const hoje = hojeIso();
@@ -280,7 +284,8 @@ export function usePlanos(): UsePlanos {
   return {
     loading,
     salvando,
-    empresas,
+    // O formulario de assinatura so oferece as ativas.
+    empresas: empresasAtivas,
     categorias,
     contas,
     ativos,

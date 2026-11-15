@@ -9,6 +9,7 @@ import {
   insertCategoria,
   listCategorias,
 } from '../../models/categorias';
+import { NomeRepetidoError } from '../../models/nomeRepetido';
 
 export type UseCategorias = {
   categorias: Categoria[];
@@ -62,8 +63,13 @@ export function useCategorias(): UseCategorias {
         toast.mostrar('Categoria adicionada');
         return true;
       } catch (error: unknown) {
-        console.error('Erro ao salvar categoria:', error);
-        Alert.alert('Erro', 'Não foi possível salvar a categoria');
+        if (error instanceof NomeRepetidoError) {
+          Alert.alert('Nome repetido', error.message);
+        } else {
+          console.error('Erro ao salvar categoria:', error);
+          Alert.alert('Erro', 'Não foi possível salvar a categoria');
+        }
+
         return false;
       }
     },
@@ -72,25 +78,29 @@ export function useCategorias(): UseCategorias {
 
   const deletar = useCallback(
     (categoria: Categoria): void => {
-      Alert.alert('Excluir categoria', `Deseja excluir "${categoria.nome}"?`, [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Excluir',
-          style: 'destructive',
-          onPress: (): void => {
-            void (async (): Promise<void> => {
-              try {
-                await deleteCategoriaById(categoria.id);
-                await carregar();
-                toast.mostrar('Categoria excluída');
-              } catch (error: unknown) {
-                console.error('Erro ao deletar categoria:', error);
-                Alert.alert('Erro', 'Não foi possível excluir a categoria');
-              }
-            })();
+      Alert.alert(
+        'Excluir categoria',
+        `Deseja excluir "${categoria.nome}"? Ela sai do cadastro e dos produtos em que está marcada. Os produtos continuam.`,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Excluir',
+            style: 'destructive',
+            onPress: (): void => {
+              void (async (): Promise<void> => {
+                try {
+                  await deleteCategoriaById(categoria.id);
+                  await carregar();
+                  toast.mostrar('Categoria excluída');
+                } catch (error: unknown) {
+                  console.error('Erro ao deletar categoria:', error);
+                  Alert.alert('Erro', 'Não foi possível excluir a categoria');
+                }
+              })();
+            },
           },
-        },
-      ]);
+        ],
+      );
     },
     [carregar, toast],
   );

@@ -94,14 +94,16 @@ describe('categorias de lancamento da empresa', () => {
     assert.deepEqual(await categoriasDe('bh'), ['mercado']);
   });
 
-  test('excluir a empresa leva as ligacoes dela', async () => {
+  test('excluir a empresa esconde as ligacoes dela, sem apagar', async () => {
     await criar('bahamas', 'Bahamas', ['mercado', 'compras']);
     await criar('bh', 'BH', ['mercado']);
 
     await deleteEmpresaById('bahamas');
 
-    assert.equal(await totalDeLigacoes(), 1);
+    assert.equal(await categoriasDe('bahamas'), undefined);
     assert.deepEqual(await categoriasDe('bh'), ['mercado']);
+    // A exclusao e logica: as tres ligacoes continuam no banco.
+    assert.equal(await totalDeLigacoes(), 3);
   });
 
   test('excluir a categoria a tira das empresas, que continuam', async () => {

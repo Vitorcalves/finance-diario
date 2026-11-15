@@ -45,15 +45,28 @@ Em ordem: a primeira tarefa não concluída é a próxima a fazer.
   (`logo.png`, 128 dp) no fundo do tema (`#f2f5f3` no claro, `#0b1210` no escuro), no lugar da `splash-icon.png`, que
   era só a grade do template do Expo. O `App.tsx` segura o splash até o banco, o tema e a fonte carregarem. Precisa
   de `npx expo prebuild --platform android` e de novo build nativo.
-- [ ] **7. Excluir produto apaga o histórico:** excluir um produto, ou remover uma variante e salvar o produto, apaga em
+- [x] **7. Excluir produto apaga o histórico:** excluir um produto, ou remover uma variante e salvar o produto, apaga em
   cascata o histórico de preços dele, mas o alerta só pergunta "Deseja excluir?". Avisar no alerta o que vai junto.
+  Feito de outro jeito: no lugar de só avisar, a exclusão virou lógica. A migration 020 põe `deleted_at` em `produtos`,
+  `produto_variantes`, `marcas`, `categorias` e `empresas`; os `delete...ById` gravam a data em vez de apagar a linha,
+  então o histórico de preços, os itens e a empresa dos lançamentos e a marca das variantes continuam. As listagens
+  trazem só os ativos e as telas de histórico pedem `{ comExcluidos: true }` (`src/models/exclusaoLogica.ts`; regra em
+  [docs/telas](telas/README.md), seção "Exclusão lógica dos cadastros"). Os alertas dos quatro cadastros dizem o que
+  sai e o que fica. Não há tela para desfazer uma exclusão.
 - [ ] **8. Apagar preço do histórico:** nenhuma tela apaga um registro do histórico de preços. Um preço digitado errado
   (R$
   249,00 no lugar de R$ 24,90) fica para sempre na Análise de preços e vira um salto na Inflação pessoal. O model
   já tem `deleteHistoricoPrecoById`.
-- [ ] **10. Nomes repetidos nos cadastros:** Marcas, Empresas e Categorias de produto aceitam nomes repetidos (as tags
+- [x] **10. Nomes repetidos nos cadastros:** Marcas, Empresas e Categorias de produto aceitam nomes repetidos (as tags
   já
   recusam, sem diferenciar maiúsculas nem acentos). Duas marcas "Camil" dividem as variantes entre rótulos iguais.
+  Comparar só com os ativos: desde a tarefa 7 o cadastro excluído continua no banco (`deleted_at`). Feito: a regra
+  fica no model (`src/models/nomeRepetido.ts`; em [docs/telas](telas/README.md), seção "Nome único nos cadastros").
+  `insertMarca`, `updateMarca`, `insertCategoria`, `insertEmpresa` e `updateEmpresa` recusam o nome de outro cadastro
+  ativo, sem diferenciar maiúsculas, acentos nem espaços sobrando, e as telas (os três cadastros e a criação de marca
+  e categoria no formulário de produto) mostram "Já existe a marca "Camil"." no alerta "Nome repetido". O nome de um
+  cadastro excluído pode ser usado de novo. Editar sem trocar o nome sempre passa. Não teve migration: os repetidos
+  que já existiam continuam no banco, e é preciso renomear ou excluir um deles à mão.
 - [ ] **11. Limite mensal por categoria:** definir um limite por categoria de lançamento e, usando a projeção que a tela
   Mês já calcula, avisar algo como "no ritmo atual, Mercado estoura dia 22".
 

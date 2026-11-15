@@ -64,9 +64,10 @@ export function useInflacaoPessoal(): UseInflacaoPessoal {
           const [historico, compras, produtos, variantes, marcas] = await Promise.all([
             listHistoricoPreco(),
             listComprasDeVariantes(),
-            listProdutos(),
-            listProdutoVariantes(),
-            listMarcas(),
+            // Com os excluidos: o que ja foi comprado continua na cesta, com nome.
+            listProdutos({ comExcluidos: true }),
+            listProdutoVariantes({ comExcluidos: true }),
+            listMarcas({ comExcluidos: true }),
           ]);
 
           if (!ativo) {

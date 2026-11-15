@@ -46,7 +46,15 @@ export type PagamentoNotaFiscal = {
 export type NotaFiscalLida = {
   /** Chave mostrada na pagina; `null` se ela nao aparece. */
   chave: string | null;
-  emitente: { nome: string; cnpj: string | null };
+  emitente: {
+    /** Razao social, da tabela do emitente (sem ela, o nome do cabecalho). */
+    nome: string;
+    cnpj: string | null;
+    /** Endereco do cabecalho da pagina, para reconhecer a loja; `null` se nao veio. */
+    endereco: string | null;
+    /** Nome do cabecalho quando difere do `nome` (pode ser o nome fantasia). */
+    outroNome: string | null;
+  };
   /** `YYYY-MM-DDTHH:mm:ss`, hora local da emissao; `null` se nao veio. */
   dataEmissao: string | null;
   numero: number | null;
@@ -336,6 +344,24 @@ const lerPagamento = (texto: string, valor: number | null): PagamentoNotaFiscal 
     : { codigo: null, descricao: texto, valor };
 };
 
+/**
+ * Endereco do emitente: no cabecalho da pagina (a tabela com o nome em `<h4>`
+ * no `<thead>`), a celula do corpo que nao e a do "CNPJ: ..., Inscrição
+ * Estadual: ...". `null` quando o cabecalho nao traz.
+ */
+const enderecoDoCabecalho = (html: string): string | null => {
+  const cabecalho = blocos(html, 'table').find((tabela) =>
+    /<thead\b[^>]*>[\s\S]*?<h4\b/i.test(tabela),
+  );
+  const corpo = /<tbody\b[^>]*>([\s\S]*?)<\/tbody\s*>/i.exec(cabecalho ?? '')?.[1] ?? '';
+
+  return (
+    blocos(corpo, 'td')
+      .map(textoDoHtml)
+      .find((texto) => texto.length > 5 && !/cnpj|inscri/i.test(texto)) ?? null
+  );
+};
+
 /** Primeira chave de acesso valida que aparece numa celula da pagina. */
 const chaveDaPagina = (html: string): string | null => {
   for (const celula of blocos(html, 'td')) {
@@ -432,6 +458,7 @@ const lerNota = (html: string, linhas: string[], fimDosItens: number): NotaFisca
   const nome =
     (tabelaEmitente && coluna(tabelaEmitente, /nome|razao/)) || nomeCabecalho || 'Emitente';
   const cnpj = lerCnpj(tabelaEmitente && coluna(tabelaEmitente, /cnpj/)) ?? lerCnpj(cnpjCabecalho);
+  const outroNome = nomeCabecalho && rotulo(nomeCabecalho) !== rotulo(nome) ? nomeCabecalho : null;
 
   const serie = tabelaNota ? lerNumero(coluna(tabelaNota, /^serie$/) ?? '') : null;
   const numero = tabelaNota ? lerNumero(coluna(tabelaNota, /^numero$/) ?? '') : null;
@@ -466,7 +493,7 @@ const lerNota = (html: string, linhas: string[], fimDosItens: number): NotaFisca
 
   return {
     chave: chaveDaPagina(html),
-    emitente: { nome, cnpj },
+    emitente: { nome, cnpj, endereco: enderecoDoCabecalho(html), outroNome },
     dataEmissao: lerDataHora(tabelaNota && coluna(tabelaNota, /emissao/)),
     numero: numero !== null && Number.isInteger(numero) ? numero : null,
     serie: serie !== null && Number.isInteger(serie) ? serie : null,

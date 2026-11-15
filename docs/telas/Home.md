@@ -81,10 +81,23 @@ Atalho **Cupom** (`qr-code-outline`). O fluxo fica em `useCupomFiscal.ts`; a tel
      o app de novo" com "Lançar sem os itens": a biblioteca é carregada sob demanda, porque o `import` direto
      derrubaria o app.
 4. **Empresa:** pelo CNPJ da chave, comparado sem pontuação e em maiúsculas (o CNPJ novo tem letras); senão, uma
-   empresa com a mesma raiz (8 primeiros caracteres: outra filial). Sem nenhuma, o alerta "Empresa nova" oferece
-   cadastrar o emitente com o CNPJ (`insertEmpresa`); se uma empresa com o nome do emitente já existe sem CNPJ, o
-   alerta "Empresa da nota" oferece gravar o CNPJ nela (`updateEmpresa`). Recusar deixa o lançamento sem empresa
-   (ou com a do mesmo nome, sem gravar o CNPJ).
+   empresa com a mesma raiz (8 primeiros caracteres: outra filial). Sem nenhuma, abre o painel **Empresa da nota**
+   (`EmpresaDaNotaSheet`), porque a nota traz a razão social e a loja costuma estar cadastrada com o nome comercial
+   e sem CNPJ:
+   - No topo, o que a nota diz da loja: a razão social, o outro nome do cabeçalho da página quando ele é diferente
+     ("Também aparece como ..."), o CNPJ e o endereço.
+   - **Já está cadastrada?** Busca pelo nome ou CNPJ. Sem busca, a lista mostra as **Parecidas com a nota** (o mesmo
+     nome primeiro, depois as que dividem palavras com os nomes da nota, sem contar "ltda", "comércio",
+     "supermercado"...; `empresasParecidas`) e as empresas **Sem CNPJ**, as candidatas mais prováveis. As que já têm
+     CNPJ aparecem ao buscar. Tocar numa empresa a escolhe: sem CNPJ, o CNPJ da nota é gravado nela
+     (`updateEmpresa`, formatado) e as próximas notas da loja já vêm com a empresa. Com outro CNPJ, o alerta
+     "Empresa com outro CNPJ" oferece "Cancelar" (volta ao painel), "Só nesta nota" (usa sem gravar) e "Trocar
+     CNPJ".
+   - **Ou cadastre uma nova:** o campo já vem com a razão social (com o CNPJ no fim se outra empresa já usa o nome,
+     `nomeParaCadastro`) e pode ser trocado pelo nome comercial; "Cadastrar com o CNPJ da nota" grava a empresa
+     (`insertEmpresa`). Nome repetido aparece embaixo do campo, com o painel ainda aberto.
+   - **Seguir sem empresa** (ou fechar o painel): o formulário abre sem empresa, e dá para escolher nele.
+   - No "Lançar sem os itens" a página não foi lida: o painel mostra só o CNPJ, e o nome para cadastrar começa vazio.
 5. **Rascunho** (`rascunhoDaNotaFiscal`, em `src/utils/rascunhoDaNotaFiscal.ts`): saída, descrição com o nome da
    empresa (ou do emitente), data de emissão, categoria sugerida pela empresa, conta padrão (pago só no crédito e com
    um cartão só cadastrado, o cartão), a chave da nota e um item por linha da nota. A Home guarda o rascunho e troca a
@@ -98,8 +111,8 @@ Atalho **Cupom** (`qr-code-outline`). O fluxo fica em `useCupomFiscal.ts`; a tel
      ativa. De-para que aponta para cadastro excluído é ignorado.
    - Item sem valor fica de fora, com aviso; o que não fechou na leitura (soma dos itens, valor pago, item que não se
      leu) vai em `avisos` e aparece no topo do formulário. Nada vira valor inventado.
-6. **Lançar sem os itens:** `rascunhoDaChave`, só com a empresa achada pelo CNPJ, a chave e, na nota em
-   contingência, o dia e o valor que o QR Code traz.
+6. **Lançar sem os itens:** `rascunhoDaChave`, só com a empresa (achada pelo CNPJ ou escolhida no painel), a chave
+   e, na nota em contingência, o dia e o valor que o QR Code traz.
 
 O (+) continua reabrindo o que ficou digitado no formulário; depois de um cupom, ele abre um formulário novo, sem os
 dados da nota.
@@ -220,6 +233,7 @@ Painel inferior (`BottomSheet`) "Novo lançamento", aberto pelo botão flutuante
 | `components/LancamentoItemCard.tsx`     | Item já adicionado, com editar e remover                                       |
 | `components/ParcelamentoSelector.tsx`   | Chave, contador e prévia do parcelamento                                       |
 | `components/TagsLancamentoSheet.tsx`    | Painel de tags de um lançamento                                                |
+| `components/EmpresaDaNotaSheet.tsx`     | Painel "Empresa da nota": apontar a loja já cadastrada, cadastrar ou seguir sem |
 
 Árvore da tela:
 
@@ -238,7 +252,8 @@ HomeView
 │   ├── LancamentoItemCard*, LancamentoItemForm (SeletorMultiplo, ChipSelector, ScannerCodigoBarras)
 │   └── ParcelamentoSelector
 ├── ScannerCodigoBarras modo "qr" (Modal, só com o atalho Cupom)
-└── ConsultaNfce (Modal: faixa, WebView da SEFAZ-MG, "Lançar sem os itens")
+├── ConsultaNfce (Modal: faixa, WebView da SEFAZ-MG, "Lançar sem os itens")
+└── EmpresaDaNotaSheet (BottomSheet, só quando nenhuma empresa tem o CNPJ da nota)
 ```
 
 ## Lógica
@@ -351,9 +366,9 @@ O cupom fiscal lê o catálogo na hora (`listEmpresas`, `listCategoriasLancament
 ativas), só com os cadastros ativos.
 
 Utilitários do cupom: `lerQrCodeNfce`, `urlConsultaMg`, `urlPermitidaNaConsulta` e `ehPaginaDaSefazMg`
-(`utils/chaveNfce.ts`), `interpretarPaginaNfceMg` (`utils/paginaNfceMg.ts`), `acharEmpresaDaNota`, `cadastroDaNota`,
-`rascunhoDaNotaFiscal`, `rascunhoDaChave`, `ratearDesconto`, `chaveDoItemNota` e `quantidadeFracionada`
-(`utils/rascunhoDaNotaFiscal.ts`).
+(`utils/chaveNfce.ts`), `interpretarPaginaNfceMg` (`utils/paginaNfceMg.ts`), `acharEmpresaDaNota`,
+`empresasParecidas`, `situacaoDoCnpj`, `nomeParaCadastro`, `rascunhoDaNotaFiscal`, `rascunhoDaChave`,
+`ratearDesconto`, `chaveDoItemNota` e `quantidadeFracionada` (`utils/rascunhoDaNotaFiscal.ts`).
 
 Utilitários: `projetarMes` (`utils/projecaoMes.ts`), `agruparPorDia`, `agruparItensPorTransacao`, `faturaDaCompra`
 (`utils/cartao.ts`), `dividirEmParcelas` e `parcelasDaCompra` (`utils/parcelas.ts`), `progressoDaMeta` e `corDaConta`
@@ -394,8 +409,11 @@ Utilitários: `projetarMes` (`utils/projecaoMes.ts`), `agruparPorDia`, `agruparI
 | Nota de outro estado                          | "Por enquanto só notas de Minas Gerais; esta é de SP."    |
 | Versão do QR Code desconhecida                | "Versão do QR Code não suportada (1)."                    |
 | Cupom já lançado                              | "Esta nota já foi lançada em 14/11 (R$ 152,30)." (Cancelar / Lançar de novo) |
-| CNPJ sem empresa                              | "Cadastrar "X" com o CNPJ 20.320.503/0011-23? ..." (Agora não / Cadastrar) |
-| Empresa com o nome do emitente, sem CNPJ      | ""X" já está cadastrada, sem CNPJ. Gravar nela o CNPJ ...?" (Agora não / Gravar CNPJ) |
+| CNPJ sem empresa                              | Painel "Empresa da nota", subtítulo "Nenhuma empresa cadastrada tem este CNPJ" |
+| Empresa escolhida com outro CNPJ              | "X está com o CNPJ ..., e a nota é do ..." (Cancelar / Só nesta nota / Trocar CNPJ) |
+| Cadastrar com nome em uso                     | "Já existe a empresa "X". Se for ela, toque nela na lista." (embaixo do campo) |
+| Cadastrar sem nome                            | "Informe o nome da loja."                                  |
+| Falha ao gravar o CNPJ na empresa             | "Não foi possível gravar o CNPJ. O lançamento segue com a empresa." |
 | Falha ao montar o rascunho                    | "Não foi possível preparar o lançamento da nota."          |
 
 Os avisos de validação do formulário de lançamento abrem "Confira o lançamento", vibram (`vibrarAviso`) e não fecham
@@ -415,9 +433,10 @@ o painel. No painel de tags o título é "Confira a tag".
   estado, CNPJ com letras, texto que não é nota, filtro de navegação), `src/utils/paginaNfceMg.test.ts` (a página real
   de `tests/fixtures/nfce/` e variações dela: desconto, troco, dois pagamentos, soma que não fecha, item ilegível,
   outra nota; tela da verificação, nota não encontrada e layout desconhecido),
-  `src/utils/rascunhoDaNotaFiscal.test.ts` (empresa pelo CNPJ e pela raiz, cadastro sugerido, rateio do desconto,
-  de-para, código de barras, conta do pagamento) e `src/models/notaFiscal.test.ts` (migration 021, chave no
-  lançamento e no parcelado, "Desfazer", de-para, tudo ou nada, backup antigo sem a coluna).
+  `src/utils/rascunhoDaNotaFiscal.test.ts` (empresa pelo CNPJ e pela raiz, lojas parecidas, CNPJ da loja escolhida,
+  nome para cadastrar, rateio do desconto, de-para, código de barras, conta do pagamento) e
+  `src/models/notaFiscal.test.ts` (migration 021, chave no lançamento e no parcelado, "Desfazer", de-para, tudo ou
+  nada, backup antigo sem a coluna).
 
 ## Observações
 

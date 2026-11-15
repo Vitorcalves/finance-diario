@@ -20,6 +20,7 @@ import {
 import type { HomeStackParamList, RootTabParamList } from '../../routes/types';
 import { fontSize, fontWeight, iconSize, makeStyles, spacing, useTheme } from '../../theme';
 import AtalhosRapidos from './components/AtalhosRapidos';
+import EmpresaDaNotaSheet from './components/EmpresaDaNotaSheet';
 import ListaLancamentos from './components/ListaLancamentos';
 import NovoLancamentoForm from './components/NovoLancamentoForm';
 import ResumoTotais from './components/ResumoTotais';
@@ -222,6 +223,17 @@ export default function HomeView(): React.ReactNode {
           onNota={cupom.receberNota}
           onSemItens={cupom.lancarSemItens}
           onFechar={cupom.fecharConsulta}
+        />
+      ) : null}
+
+      {cupom.escolhaEmpresa ? (
+        <EmpresaDaNotaSheet
+          emitente={cupom.escolhaEmpresa.emitente}
+          empresas={cupom.escolhaEmpresa.empresas}
+          ocupado={cupom.gravandoEmpresa}
+          onEscolher={cupom.escolherEmpresa}
+          onCadastrar={cupom.cadastrarEmpresa}
+          onSemEmpresa={cupom.seguirSemEmpresa}
         />
       ) : null}
     </SafeAreaView>

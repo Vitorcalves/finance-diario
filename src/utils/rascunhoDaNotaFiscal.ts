@@ -90,36 +90,110 @@ export const acharEmpresaDaNota = (
   return filial ? { empresa: filial, como: 'raiz' } : null;
 };
 
-export type CadastroDaNota =
-  /** Cadastrar a empresa do emitente, ja com o CNPJ (formatado). */
-  | { tipo: 'cadastrar'; nome: string; cnpj: string }
-  /** A empresa com o nome do emitente existe e nao tem CNPJ: gravar nela. */
-  | { tipo: 'gravar_cnpj'; empresa: EmpresaDaNota; cnpj: string };
+/**
+ * Palavras que quase todo nome de empresa tem e que nao ajudam a reconhecer a
+ * loja: tipo de sociedade, ramo e ligacoes.
+ */
+const PALAVRAS_GENERICAS = new Set([
+  'ltda',
+  'me',
+  'epp',
+  'eireli',
+  'sa',
+  'cia',
+  'filial',
+  'matriz',
+  'comercio',
+  'comercial',
+  'industria',
+  'servicos',
+  'distribuidora',
+  'atacado',
+  'varejo',
+  'supermercado',
+  'supermercados',
+  'mercado',
+  'mercados',
+  'loja',
+  'lojas',
+  'de',
+  'da',
+  'do',
+  'das',
+  'dos',
+  'e',
+  'em',
+]);
+
+/** Palavras que identificam o nome: "BAHAMAS SUPERMERCADOS LTDA" fica com "bahamas". */
+const palavrasDoNome = (nome: string): string[] =>
+  chaveDoNome(nome)
+    .split(/[^a-z0-9]+/)
+    .filter((palavra) => palavra.length >= 2 && !PALAVRAS_GENERICAS.has(palavra));
 
 /**
- * O que oferecer quando nenhuma empresa tem o CNPJ da nota. Mesmo nome e sem
- * CNPJ: gravar o CNPJ na empresa que ja existe. Mesmo nome com outro CNPJ (e
- * outra empresa): o cadastro novo leva o CNPJ no nome, porque o nome repetido
- * seria recusado. O nome e comparado como o cadastro compara (`chaveDoNome`).
+ * Empresas cadastradas que parecem ser a loja da nota, da mais para a menos
+ * parecida: o mesmo nome primeiro (comparado como o cadastro compara,
+ * `chaveDoNome`), depois as que dividem mais palavras com os nomes da nota, sem
+ * contar "ltda", "comercio", "supermercado"... No empate, a ordem de
+ * `empresas`. A loja cadastrada com o nome comercial e a nota com a razao social
+ * muitas vezes nao dividem palavra nenhuma: para isso o painel tem a busca.
  */
-export const cadastroDaNota = (
+export const empresasParecidas = (
+  nomesDaNota: string[],
+  empresas: EmpresaDaNota[],
+  limite = 5,
+): EmpresaDaNota[] => {
+  const chaves = new Set(nomesDaNota.map(chaveDoNome).filter(Boolean));
+  const palavras = new Set(nomesDaNota.flatMap(palavrasDoNome));
+
+  return empresas
+    .map((empresa) => ({
+      empresa,
+      pontos: chaves.has(chaveDoNome(empresa.nome))
+        ? Number.MAX_SAFE_INTEGER
+        : new Set(palavrasDoNome(empresa.nome).filter((palavra) => palavras.has(palavra))).size,
+    }))
+    .filter(({ pontos }) => pontos > 0)
+    .sort((a, b) => b.pontos - a.pontos)
+    .slice(0, limite)
+    .map(({ empresa }) => empresa);
+};
+
+/** CNPJ da empresa escolhida no painel, comparado com o da nota. */
+export type SituacaoDoCnpj = 'sem_cnpj' | 'mesmo' | 'outro';
+
+export const situacaoDoCnpj = (
+  cnpjDaEmpresa: string | null | undefined,
+  cnpjDaNota: string,
+): SituacaoDoCnpj => {
+  const atual = normalizarCnpj(cnpjDaEmpresa);
+
+  if (!atual) {
+    return 'sem_cnpj';
+  }
+
+  return atual === normalizarCnpj(cnpjDaNota) ? 'mesmo' : 'outro';
+};
+
+/**
+ * Nome sugerido para cadastrar a loja da nota: o do emitente ou, quando outra
+ * empresa ativa ja usa esse nome, ele com o CNPJ no fim (o nome repetido seria
+ * recusado). Vazio quando a nota nao trouxe o nome ("Lançar sem os itens").
+ */
+export const nomeParaCadastro = (
   nomeEmitente: string,
   cnpj: string,
   empresas: EmpresaDaNota[],
-): CadastroDaNota => {
-  const cnpjFormatado = formatarCnpj(cnpj);
-  const nome = nomeEmitente.trim() || `Empresa ${cnpjFormatado}`;
-  const mesmoNome = empresas.find((empresa) => chaveDoNome(empresa.nome) === chaveDoNome(nome));
+): string => {
+  const nome = nomeEmitente.trim();
 
-  if (!mesmoNome) {
-    return { tipo: 'cadastrar', nome, cnpj: cnpjFormatado };
+  if (!nome) {
+    return '';
   }
 
-  if (!normalizarCnpj(mesmoNome.cnpj)) {
-    return { tipo: 'gravar_cnpj', empresa: mesmoNome, cnpj: cnpjFormatado };
-  }
-
-  return { tipo: 'cadastrar', nome: `${nome} (${cnpjFormatado})`, cnpj: cnpjFormatado };
+  const usado = empresas.some((empresa) => chaveDoNome(empresa.nome) === chaveDoNome(nome));
+  return usado ? `${nome} (${formatarCnpj(cnpj)})` : nome;
 };
 
 /**

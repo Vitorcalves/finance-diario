@@ -40,7 +40,12 @@ describe('interpretarPaginaNfceMg com a pagina real', () => {
   test('le a nota inteira', () => {
     assert.deepEqual(nota(interpretarPaginaNfceMg(PAGINA_REAL, CHAVE_REAL)), {
       chave: CHAVE_REAL,
-      emitente: { nome: 'Fundacao Arthur Bernardes', cnpj: '20320503001123' },
+      emitente: {
+        nome: 'Fundacao Arthur Bernardes',
+        cnpj: '20320503001123',
+        endereco: 'Avenida Peter Henry Rolfs, S/N, Campus Universitario, 3171303 - Vicosa, MG',
+        outroNome: null,
+      },
       dataEmissao: '2026-11-13T12:36:31',
       numero: 197278,
       serie: 35,
@@ -76,6 +81,14 @@ describe('interpretarPaginaNfceMg com a pagina real', () => {
       pagamentos: [{ codigo: '04', descricao: 'Cartão de Débito', valor: 41.34 }],
       avisos: [],
     });
+  });
+
+  test('cabecalho com outro nome: a razao social fica no nome e o outro vem a parte', () => {
+    const html = PAGINA_REAL.replace('<b>Fundacao Arthur Bernardes</b>', '<b>FUNARBE</b>');
+    const { emitente } = nota(interpretarPaginaNfceMg(html));
+
+    assert.equal(emitente.nome, 'Fundacao Arthur Bernardes');
+    assert.equal(emitente.outroNome, 'FUNARBE');
   });
 
   test('sem a chave do QR Code para comparar, le do mesmo jeito', () => {

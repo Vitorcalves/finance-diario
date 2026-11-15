@@ -92,9 +92,10 @@ pilha (dá para deixar uma análise aberta e consultar outra aba); tocar de novo
 - Atalhos rápidos: Lista, Cupom, Notas e Orçamento (este abre a tela na aba Análises). Os atalhos Assinaturas e
   Preços estão comentados no código.
 - **Cupom:** câmera no modo QR Code → aviso se a nota já foi lançada → consulta da SEFAZ-MG numa WebView de tela
-  cheia (o usuário passa pela verificação e toca em Visualizar) → empresa achada pelo CNPJ (ou cadastrada na hora) →
-  formulário de lançamento preenchido com data, itens (desconto rateado), categoria e valor, para conferir. "Lançar sem
-  os itens" abre o formulário só com o que o QR Code dá. Só notas de MG.
+  cheia (o usuário passa pela verificação e toca em Visualizar) → empresa achada pelo CNPJ (sem ela, o painel
+  "Empresa da nota" deixa apontar a loja já cadastrada, que passa a ter o CNPJ, ou cadastrar uma nova) → formulário
+  de lançamento preenchido com data, itens (desconto rateado), categoria e valor, para conferir. "Lançar sem os itens"
+  abre o formulário só com o que o QR Code dá. Só notas de MG.
 - Lançamentos agrupados por dia; deslizar o item define a categoria, marca tags de evento (só em gasto e entrada) ou
   exclui (com desfazer). As tags aparecem como etiquetas abaixo da descrição.
 - Botão flutuante (+) abre `NovoLancamentoForm`, com tags de evento (criadas na hora, se preciso), itens de produto e

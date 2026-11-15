@@ -1,11 +1,13 @@
 import dayjs from 'dayjs';
 import { v4 as uuid4 } from 'uuid';
 import { faturaDaCompra } from '../utils/cartao';
+import { chaveDoItemNota } from '../utils/rascunhoDaNotaFiscal';
 import { CONTA_CAIXA_PADRAO, getContaById } from './contas';
 import { emTransacao } from './database';
 import { garantirFatura } from './faturas';
 import { insertItemTransacao } from './itensTransacao';
 import { criarCompraParcelada } from './materializacaoPlanos';
+import { gravarDeParaItemNfce } from './nfceItensVariantes';
 import { registrarPrecoVariante } from './produtoVariantes';
 import { definirTagsTransacao } from './tags';
 import { insertTransacao } from './transacoesModel';
@@ -19,6 +21,11 @@ export type ItemDoLancamento = {
   descricao: string;
   quantidade: number;
   precoUnitario: number;
+  /**
+   * So no item lido da nota fiscal: o codigo e a descricao da nota. Saindo
+   * ligado a um produto, vira o de-para da empresa (`nfce_itens_variantes`).
+   */
+  itemNota?: { codigo: string | null; descricao: string } | null;
 };
 
 export type DadosLancamento = {
@@ -51,6 +58,11 @@ export type DadosLancamento = {
    * gasto do evento.
    */
   tagIds?: string[];
+  /**
+   * Chave da NFC-e lida pelo QR Code. Fica na transacao dos itens (na compra
+   * parcelada, no registro da compra); a transferencia nao leva.
+   */
+  chaveNfce?: string | null;
 };
 
 /** Data com hora local, para o historico de precos ser exibido no dia correto. */
@@ -138,6 +150,7 @@ export const registrarLancamento = async (dados: DadosLancamento, local: number)
         local,
         categoriaId: dados.categoriaId,
         contaId,
+        chaveNfce: dados.chaveNfce ?? null,
       });
 
       transacaoDosItens = compraTransacaoId;
@@ -155,6 +168,7 @@ export const registrarLancamento = async (dados: DadosLancamento, local: number)
         conta_id: fatura ? conta?.id : contaId,
         fatura_id: fatura?.id ?? null,
         natureza: fatura ? 'compra_cartao' : 'movimento',
+        chave_nfce: dados.chaveNfce ?? null,
         created_at: agora,
       });
     }
@@ -186,6 +200,19 @@ export const registrarLancamento = async (dados: DadosLancamento, local: number)
           data: toDataHistorico(dados.data),
           local,
         });
+      }
+
+      // Item da nota ligado a um produto: a proxima nota da loja ja vem ligada.
+      if (item.itemNota && item.produtoId && dados.empresaId) {
+        await gravarDeParaItemNfce(
+          {
+            empresaId: dados.empresaId,
+            chaveItem: chaveDoItemNota(item.itemNota),
+            produtoId: item.produtoId,
+            varianteId: item.varianteId,
+          },
+          agora,
+        );
       }
     }
   });

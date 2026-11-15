@@ -32,6 +32,14 @@ Marcas, empresas e categorias de produto não aceitam nome repetido, sem diferen
 tags. Só os cadastros ativos contam: o nome de um excluído pode ser usado de novo. A regra está na seção "Nome único
 nos cadastros" do mesmo README.
 
+O cupom fiscal (NFC-e de Minas Gerais) vira lançamento pelo QR Code: o atalho "Cupom" da Home lê o QR Code, abre a
+consulta da SEFAZ-MG numa WebView dentro do app (`ConsultaNfce`), o usuário passa pela verificação e toca em
+"Visualizar", e o app lê a nota e abre o formulário de lançamento já com empresa, data, itens e valor. A chave da nota
+fica no lançamento (`transacoes.chave_nfce`, migration 021), para avisar quando o mesmo cupom é lido de novo, e cada
+item ligado a um produto ensina o de-para da loja (`nfce_itens_variantes`). A WebView (`react-native-webview`) pede
+um build nativo novo; antes dele, a consulta mostra o aviso e o "Lançar sem os itens". Detalhes na
+[Home](telas/Home.md), seção "Cupom fiscal (NFC-e)".
+
 Este relatório é a visão geral. O detalhe de cada tela (funcionalidades, componentes, models e a lógica por trás) fica
 em [`docs/telas/`](telas/README.md), um arquivo por tela; o [README](telas/README.md) de lá reúne o que vale para todas:
 navegação, banco e migrations, natureza das transações, componentes e utilitários compartilhados.
@@ -81,12 +89,16 @@ pilha (dá para deixar uma análise aberta e consultar outra aba); tocar de novo
 **Home (Finance Diário)** — tela inicial, com a data por extenso no subtítulo.
 
 - Resumo de totais no topo (`ResumoTotais`).
-- Atalhos rápidos: Lista, Notas e Orçamento (este abre a tela na aba Análises). Os atalhos Assinaturas e Preços estão
-  comentados no código.
+- Atalhos rápidos: Lista, Cupom, Notas e Orçamento (este abre a tela na aba Análises). Os atalhos Assinaturas e
+  Preços estão comentados no código.
+- **Cupom:** câmera no modo QR Code → aviso se a nota já foi lançada → consulta da SEFAZ-MG numa WebView de tela
+  cheia (o usuário passa pela verificação e toca em Visualizar) → empresa achada pelo CNPJ (ou cadastrada na hora) →
+  formulário de lançamento preenchido com data, itens (desconto rateado), categoria e valor, para conferir. "Lançar sem
+  os itens" abre o formulário só com o que o QR Code dá. Só notas de MG.
 - Lançamentos agrupados por dia; deslizar o item define a categoria, marca tags de evento (só em gasto e entrada) ou
   exclui (com desfazer). As tags aparecem como etiquetas abaixo da descrição.
 - Botão flutuante (+) abre `NovoLancamentoForm`, com tags de evento (criadas na hora, se preciso), itens de produto e
-  compra parcelada.
+  compra parcelada. Com itens, o total soma cada linha arredondada ao centavo.
 - Busca no header e "Ver todos" levam à Busca; puxar para baixo atualiza.
 
 **Busca de lançamentos** — todos os lançamentos com filtros.

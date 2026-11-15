@@ -43,6 +43,11 @@ export type Transacoes = {
   conta_destino_id?: string | null;
   /** Fatura do ciclo, nas compras no cartao e no pagamento dela. */
   fatura_id?: string | null;
+  /**
+   * Chave de acesso da NFC-e lida pelo QR Code (migration 021). Fica na
+   * transacao dos itens: na compra parcelada, no registro da compra.
+   */
+  chave_nfce?: string | null;
   created_at: string;
 };
 
@@ -61,6 +66,7 @@ export type NovaTransacao = Omit<
   | 'conta_id'
   | 'conta_destino_id'
   | 'fatura_id'
+  | 'chave_nfce'
 > &
   Partial<
     Pick<
@@ -72,6 +78,7 @@ export type NovaTransacao = Omit<
       | 'conta_id'
       | 'conta_destino_id'
       | 'fatura_id'
+      | 'chave_nfce'
     >
   >;
 
@@ -96,7 +103,7 @@ export type OpcoesListaTransacoes = {
 };
 
 const COLUNAS =
-  'id, descricao, valor, data, empresa_id, natureza, contabilizado_saldo, plano_id, parcela_numero, local, categoria_id, conta_id, conta_destino_id, fatura_id, created_at';
+  'id, descricao, valor, data, empresa_id, natureza, contabilizado_saldo, plano_id, parcela_numero, local, categoria_id, conta_id, conta_destino_id, fatura_id, chave_nfce, created_at';
 
 export const listTransacoes = async (
   start: string | null = null,
@@ -181,8 +188,9 @@ export const insertTransacao = async (transacao: NovaTransacao): Promise<void> =
     `
         INSERT INTO transacoes (id, descricao, valor, data, empresa_id, natureza,
                                 contabilizado_saldo, plano_id, parcela_numero, local,
-                                categoria_id, conta_id, conta_destino_id, fatura_id, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                categoria_id, conta_id, conta_destino_id, fatura_id, chave_nfce,
+                                created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       transacao.id,
@@ -199,8 +207,31 @@ export const insertTransacao = async (transacao: NovaTransacao): Promise<void> =
       transacao.conta_id ?? null,
       transacao.conta_destino_id ?? null,
       transacao.fatura_id ?? null,
+      transacao.chave_nfce ?? null,
       transacao.created_at,
     ],
+  );
+};
+
+/** Lancamento ja gravado com uma NFC-e: o que o alerta de nota repetida mostra. */
+export type LancamentoDaNota = Pick<Transacoes, 'id' | 'descricao' | 'valor' | 'data'>;
+
+/**
+ * O lancamento mais recente gravado com a chave de acesso, ou `null`. Na
+ * compra parcelada e o registro da compra, com o valor cheio e a data da compra.
+ */
+export const buscarLancamentoDaNota = async (chave: string): Promise<LancamentoDaNota | null> => {
+  const db = await getConnection();
+
+  return await db.getFirstAsync<LancamentoDaNota>(
+    `
+        SELECT id, descricao, valor, data
+        FROM transacoes
+        WHERE chave_nfce = ?
+        ORDER BY created_at DESC
+        LIMIT 1
+    `,
+    [chave],
   );
 };
 

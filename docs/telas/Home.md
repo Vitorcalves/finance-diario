@@ -8,7 +8,8 @@ Voltar ao [Relatório de telas](<../Relatório de telas — Finance Diário.md>)
 
 É a tela inicial do app. Mostra o saldo do caixa, o resumo do mês (gasto, média por dia, projeção e o que ainda vai
 vencer), as reservas, os atalhos das telas usadas no mercado e o feed de lançamentos agrupado por dia. O botão (+) abre
-o formulário de novo lançamento, o mesmo que a Lista de compras e as Notas para lançar abrem já preenchido.
+o formulário de novo lançamento, o mesmo que a Lista de compras e as Notas para lançar abrem já preenchido. O atalho
+Cupom lê o QR Code do cupom fiscal (NFC-e de MG) e abre esse formulário com a nota já lançada nele.
 
 ## Navegação
 
@@ -17,10 +18,12 @@ o formulário de novo lançamento, o mesmo que a Lista de compras e as Notas par
 - **Saídas:**
   - Lupa do header e "Ver todos" → `BuscaLancamentos`, na mesma pilha, sem filtros.
   - Atalho **Lista** → `ListaCompras`; atalho **Notas** → `NotasLancamento`.
+  - Atalho **Cupom** → câmera (`ScannerCodigoBarras` no modo `qr`) e consulta da nota (`ConsultaNfce`), dois modais
+    de tela cheia sem rota própria; ver "Cupom fiscal (NFC-e)" abaixo.
   - Atalho **Orçamento** → aba Análises, `Orcamento`, com `initial: false` (o hub `DashboardHome` fica embaixo e o
     voltar leva a ele).
 - Os atalhos **Assinaturas** (`Menu › Planos`) e **Preços** (`Análises › HistoricoPrecos`) estão comentados em
-  `index.tsx`: hoje a linha de atalhos tem só três botões.
+  `index.tsx`: hoje a linha de atalhos tem quatro botões (Lista, Cupom, Notas e Orçamento).
 
 ## Funcionalidades
 
@@ -41,6 +44,65 @@ o formulário de novo lançamento, o mesmo que a Lista de compras e as Notas par
 
 Linha de botões iguais (ícone + rótulo), cada um com vibração curta no toque. A lista de atalhos vem pronta da tela
 (`index.tsx`); o componente só desenha.
+
+### Cupom fiscal (NFC-e)
+
+Atalho **Cupom** (`qr-code-outline`). O fluxo fica em `useCupomFiscal.ts`; a tela só monta os modais.
+
+1. **Câmera:** `ScannerCodigoBarras` com `modo="qr"` (lê só QR Code, moldura quadrada, "Aponte para o QR Code do
+   cupom"). O texto lido passa por `lerQrCodeNfce` (`src/utils/chaveNfce.ts`): pega o parâmetro `p` da URL, valida a
+   chave de 44 caracteres (formato e dígito verificador) e só aceita NFC-e (modelo 65) de produção (ambiente 1) de
+   Minas Gerais (UF 31), nas versões 2 e 3 do QR Code. O resto volta num alerta "QR Code não reconhecido" com o
+   motivo.
+2. **Nota repetida:** `buscarLancamentoDaNota(chave)`. Se a chave já está num lançamento, o alerta "Nota já lançada"
+   diz "Esta nota já foi lançada em 14/11 (R$ 152,30)." com "Cancelar" e "Lançar de novo".
+3. **Consulta** (`src/components/ConsultaNfce.tsx`): modal de tela cheia "Consulta da nota", com o número e a série no
+   subtítulo, a faixa "Passe pela verificação e toque em Visualizar. O app lê a nota em seguida." e a WebView da
+   consulta oficial (`urlConsultaMg`). O usuário passa pela verificação (Cloudflare Turnstile) e toca em Visualizar;
+   o app não mexe no widget nem clica em nada.
+   - A WebView só carrega a URL montada a partir do QR Code validado (nunca o texto cru) e só navega em
+     `portalsped.fazenda.mg.gov.br`, `challenges.cloudflare.com`, `about:blank` e `about:srcdoc`
+     (`urlPermitidaNaConsulta`). `originWhitelist={['*']}` deixa tudo passar por esse filtro: com a lista padrão da
+     biblioteca, um endereço fora dela seria aberto em outro app. `setSupportMultipleWindows={false}` faz um link
+     de nova janela passar pelo mesmo filtro. Sem `incognito`, sem `userAgent` próprio e sem limpar cookies: o
+     Turnstile pode falhar com isso.
+   - Um script injetado em cada página do frame principal confere o endereço e manda o HTML ao app por
+     `postMessage`; um `MutationObserver` reenvia quando a página muda (no máximo a cada 400 ms e só se o HTML
+     mudou). O `onMessage` aceita só mensagem vinda de página da SEFAZ-MG e entrega o HTML a
+     `interpretarPaginaNfceMg` (`src/utils/paginaNfceMg.ts`).
+   - O HTML fica só na memória: não vai para o banco nem para o console (pode trazer o CPF do comprador).
+   - Estados: carregando ("Abrindo a consulta da SEFAZ..."); sem internet (`renderError`, com "Tentar de novo");
+     erro HTTP, nota não encontrada ("A SEFAZ respondeu: ...") e página de outra nota, na faixa, com "Recomeçar"
+     (a WebView nasce de novo na URL do QR Code). O botão **Lançar sem os itens** fica sempre no rodapé.
+   - Só em desenvolvimento (`__DEV__`): botão **HTML**, que grava a última página num arquivo do cache e abre o
+     compartilhamento, para guardar páginas reais em `tests/fixtures/nfce/`. O arquivo é apagado ao fechar a
+     consulta.
+   - Num build feito antes do `react-native-webview`, a consulta mostra "A consulta da nota aparece depois de gerar
+     o app de novo" com "Lançar sem os itens": a biblioteca é carregada sob demanda, porque o `import` direto
+     derrubaria o app.
+4. **Empresa:** pelo CNPJ da chave, comparado sem pontuação e em maiúsculas (o CNPJ novo tem letras); senão, uma
+   empresa com a mesma raiz (8 primeiros caracteres: outra filial). Sem nenhuma, o alerta "Empresa nova" oferece
+   cadastrar o emitente com o CNPJ (`insertEmpresa`); se uma empresa com o nome do emitente já existe sem CNPJ, o
+   alerta "Empresa da nota" oferece gravar o CNPJ nela (`updateEmpresa`). Recusar deixa o lançamento sem empresa
+   (ou com a do mesmo nome, sem gravar o CNPJ).
+5. **Rascunho** (`rascunhoDaNotaFiscal`, em `src/utils/rascunhoDaNotaFiscal.ts`): saída, descrição com o nome da
+   empresa (ou do emitente), data de emissão, categoria sugerida pela empresa, conta padrão (pago só no crédito e com
+   um cartão só cadastrado, o cartão), a chave da nota e um item por linha da nota. A Home guarda o rascunho e troca a
+   `key` do formulário, como as Notas para lançar.
+   - Cada item leva a descrição como veio, a quantidade e o preço unitário pago: o desconto da nota é rateado entre
+     os itens na proporção do valor de cada um, sem perder centavo (`ratearDesconto`), e o total fecha com o valor
+     pago. A página de MG não traz o valor unitário: ele sai do total da linha dividido pela quantidade, sem
+     arredondar.
+   - O item já vem ligado ao produto quando a loja tem de-para para ele (`nfce_itens_variantes`) ou quando o código
+     da nota, com cara de código de barras (GTIN de 8, 12, 13 ou 14 dígitos), é o `codigo_barras` de uma variante
+     ativa. De-para que aponta para cadastro excluído é ignorado.
+   - Item sem valor fica de fora, com aviso; o que não fechou na leitura (soma dos itens, valor pago, item que não se
+     leu) vai em `avisos` e aparece no topo do formulário. Nada vira valor inventado.
+6. **Lançar sem os itens:** `rascunhoDaChave`, só com a empresa achada pelo CNPJ, a chave e, na nota em
+   contingência, o dia e o valor que o QR Code traz.
+
+O (+) continua reabrindo o que ficou digitado no formulário; depois de um cupom, ele abre um formulário novo, sem os
+dados da nota.
 
 ### Lista de lançamentos (`ListaLancamentos`)
 
@@ -70,8 +132,11 @@ Painel inferior (`BottomSheet`) "Novo lançamento", aberto pelo botão flutuante
 
 - **Tipo:** Saída, Entrada ou Transferência (`SegmentedControl`). Trocar o tipo limpa a categoria se ela for do outro
   tipo.
+- **Cupom fiscal:** com o rascunho de uma nota, um cartão no topo diz "Lido do cupom fiscal" ou, quando a leitura
+  deixou avisos, "Confira a nota antes de lançar" com a lista deles. Não aparece na transferência.
 - **Valor:** campo grande com centavos (`BrazilianIntegerInput`, 2 casas), em vermelho na saída e verde na entrada.
-  Com itens, o campo vira "Soma de N itens" e o valor passa a ser a soma deles.
+  Com itens, o campo vira "Soma de N itens" e o valor passa a ser a soma deles: cada linha arredondada ao centavo,
+  como no cupom (0,750 kg x R$ 8,90 dá R$ 6,68), somada em centavos.
 - **Conta:** chips com as contas caixa e cartão ativas; o padrão é a primeira caixa. Num cartão, a etiqueta mostra
   "Cai na fatura de DD/MM (vence DD/MM)", recalculada ao mudar a data; parcelado, "1ª parcela cai na fatura de ...".
 - **Transferência:** troca a conta por "De (origem)" e "Para (destino)"; o destino não lista a origem. Some categoria,
@@ -92,8 +157,9 @@ Painel inferior (`BottomSheet`) "Novo lançamento", aberto pelo botão flutuante
 - Ao salvar com sucesso: limpa o formulário, fecha e mostra o aviso ("Saída de R$ X registrada", "Compra parcelada em
   Nx registrada", "Transferência de R$ X registrada" ou a `mensagemSucesso` recebida).
 - **Rascunho:** a prop `rascunho` (`RascunhoLancamento`) abre o formulário preenchido (tipo, descrição, valor, data,
-  conta, parcelas, empresa, categoria e itens). Ela é lida só na montagem; quem usa troca a `key` do formulário para
-  aplicar outro rascunho. A Home não usa; a Lista de compras e as Notas para lançar usam.
+  conta, parcelas, empresa, categoria, itens, chave da NFC-e e avisos). Ela é lida só na montagem; quem usa troca a
+  `key` do formulário para aplicar outro rascunho. A Home usa no cupom fiscal; a Lista de compras e as Notas para
+  lançar também usam. A chave da nota vai junto no lançamento salvo (menos na transferência).
 
 ### Item do lançamento (`LancamentoItemForm`)
 
@@ -107,6 +173,17 @@ Painel inferior (`BottomSheet`) "Novo lançamento", aberto pelo botão flutuante
   volta para 1 pacote.
 - O cartão do item avisa "Sem variante selecionada" quando há produto sem variante (o preço não vai para o
   histórico).
+- **Item da nota fiscal** (`itemNota`: código, descrição e unidade como vieram na nota):
+  - O formulário mostra "Da nota: QUEIJO TIROLEZ PARMESAO KG (código 3875)" e explica que, ligado a um produto, o
+    item já vem ligado na próxima nota da loja.
+  - Escolher produto ou variante (inclusive pelo código de barras) só liga o item: o preço e a quantidade continuam
+    os da nota.
+  - Em peso, volume ou medida (KG, L, M...) ou com quantidade quebrada, a quantidade aceita 3 casas mesmo sem
+    variante a granel ("Quantidade (kg)", "Preço por kg") e aparece a prévia "0,196 kg x R$ 119,90 = R$ 23,50". O
+    cartão mostra "0,196 kg" e, sem produto ligado, "Da nota, sem produto ligado".
+  - O preço do campo tem 2 casas, mas o da nota tem mais (o total da linha dividido pelo peso): sem editar o campo,
+    salvar devolve o preço original, e o total da linha continua o da nota.
+  - Salvar o item mantém o `itemNota`.
 
 ### Parcelamento (`ParcelamentoSelector`)
 
@@ -131,7 +208,8 @@ Painel inferior (`BottomSheet`) "Novo lançamento", aberto pelo botão flutuante
 | `index.tsx`                             | Monta a tela: header com busca, cabeçalho da lista, lista, Fab e formulário    |
 | `useHome.ts`                            | Carga dos dados, resumo do mês e ações (lançar, excluir, categoria, tags)      |
 | `useCatalogoLancamento.ts`              | Cadastros que o formulário de lançamento usa                                   |
-| `types.ts`                              | `NovoLancamento`, `ItemLancamento`, `RascunhoLancamento`, `TipoLancamento`     |
+| `useCupomFiscal.ts`                     | Fluxo do atalho Cupom: QR Code, nota repetida, consulta, empresa e rascunho    |
+| `types.ts`                              | `NovoLancamento`, `ItemLancamento`, `ItemDaNota`, `RascunhoLancamento`, `TipoLancamento` |
 | `components/ResumoTotais.tsx`           | Cartão de saldo, projeção e reservas                                           |
 | `components/AtalhosRapidos.tsx`         | Linha de atalhos                                                               |
 | `components/ListaLancamentos.tsx`       | Lista por dia com as ações de deslizar; reutilizada pela Busca                 |
@@ -154,11 +232,13 @@ HomeView
 │   ├── OpcoesSheet (categoria)
 │   └── TagsLancamentoSheet
 ├── Fab (+)
-└── NovoLancamentoForm (BottomSheet)
-    ├── SegmentedControl, BrazilianIntegerInput, ChipSelector (conta), SeletorCategoria
-    ├── BrazilianDateInput, SeletorMultiplo (empresa), SeletorMultiplo (tags) + NomeSimplesForm
-    ├── LancamentoItemCard*, LancamentoItemForm (SeletorMultiplo, ChipSelector, ScannerCodigoBarras)
-    └── ParcelamentoSelector
+├── NovoLancamentoForm (BottomSheet, key trocada a cada cupom)
+│   ├── cartão do cupom fiscal (avisos), SegmentedControl, BrazilianIntegerInput, ChipSelector (conta), SeletorCategoria
+│   ├── BrazilianDateInput, SeletorMultiplo (empresa), SeletorMultiplo (tags) + NomeSimplesForm
+│   ├── LancamentoItemCard*, LancamentoItemForm (SeletorMultiplo, ChipSelector, ScannerCodigoBarras)
+│   └── ParcelamentoSelector
+├── ScannerCodigoBarras modo "qr" (Modal, só com o atalho Cupom)
+└── ConsultaNfce (Modal: faixa, WebView da SEFAZ-MG, "Lançar sem os itens")
 ```
 
 ## Lógica
@@ -234,13 +314,17 @@ Tudo roda em `emTransacao`: se um passo falha, nada fica gravado (o aviso diz "N
 - **Itens:** uma linha em `itens_transacao` por item, presa à transação da compra (no parcelado, à parcela 0), com
   `valor` = preço unitário. Item com produto e variante chama `registrarPrecoVariante`: atualiza o preço atual da
   variante e grava uma linha em `historico_preco` com empresa, local e a data com hora.
+- **Nota fiscal:** a chave da NFC-e (`chaveNfce`) vai em `transacoes.chave_nfce` da transação dos itens; no
+  parcelado, no registro da compra (parcela 0), com o valor cheio e a data da compra. A transferência não leva.
+  Cada item que veio da nota (`itemNota`) e saiu ligado a um produto grava ou atualiza o de-para da empresa
+  (`gravarDeParaItemNfce`, chave do item = `chaveDoItemNota`), na mesma transação: sem empresa não há de-para.
 - **Local:** sai de `getLocalPadrao()` (Menu › Preferências); o formulário não pergunta.
 
 ### Exclusão e "Desfazer"
 
 `excluirTransacao` lê a linha, os itens e as tags, apaga itens e transação (as tags caem por `ON DELETE CASCADE`) e
-devolve tudo. `restaurarTransacao` regrava com os mesmos ids; uma tag apagada enquanto o aviso estava na tela fica de
-fora. Excluir uma parcela apaga só aquela linha: o plano continua e, como o `gerado_ate` já passou dela, ela não volta
+devolve tudo. `restaurarTransacao` regrava com os mesmos ids (a chave da NFC-e volta junto); uma tag apagada enquanto
+o aviso estava na tela fica de fora. Excluir uma parcela apaga só aquela linha: o plano continua e, como o `gerado_ate` já passou dela, ela não volta
 a ser gerada.
 
 ## Models e tabelas
@@ -258,6 +342,18 @@ a ser gerada.
 | `listEmpresas`, `listCategoriasPorEmpresa`   | `empresas.ts`              | `empresas`, `empresas_categorias_lancamento`              |
 | `listProdutos`, `listProdutoVariantes`, `listMarcas` | `produtos.ts`, `produtoVariantes.ts`, `marcas.ts` | `produtos`, `produto_variantes`, `marcas` |
 | `getLocalPadrao`                             | `settingsModel.ts`         | `settings` (chave `local_padrao`)                         |
+| `buscarLancamentoDaNota`                     | `transacoesModel.ts`       | `transacoes` (`chave_nfce`)                               |
+| `listDeParaItensNfce`, `gravarDeParaItemNfce` | `nfceItensVariantes.ts`   | `nfce_itens_variantes`                                    |
+| `getEmpresaById`, `insertEmpresa`, `updateEmpresa` (cupom) | `empresas.ts` | `empresas`, `empresas_categorias_lancamento`             |
+
+O cupom fiscal lê o catálogo na hora (`listEmpresas`, `listCategoriasLancamento`, `ultimaCategoriaPorEmpresa`,
+`listCategoriasPorEmpresa`, `listProdutos`, `listProdutoVariantes`, `listDeParaItensNfce` e as contas caixa e cartão
+ativas), só com os cadastros ativos.
+
+Utilitários do cupom: `lerQrCodeNfce`, `urlConsultaMg`, `urlPermitidaNaConsulta` e `ehPaginaDaSefazMg`
+(`utils/chaveNfce.ts`), `interpretarPaginaNfceMg` (`utils/paginaNfceMg.ts`), `acharEmpresaDaNota`, `cadastroDaNota`,
+`rascunhoDaNotaFiscal`, `rascunhoDaChave`, `ratearDesconto`, `chaveDoItemNota` e `quantidadeFracionada`
+(`utils/rascunhoDaNotaFiscal.ts`).
 
 Utilitários: `projetarMes` (`utils/projecaoMes.ts`), `agruparPorDia`, `agruparItensPorTransacao`, `faturaDaCompra`
 (`utils/cartao.ts`), `dividirEmParcelas` e `parcelasDaCompra` (`utils/parcelas.ts`), `progressoDaMeta` e `corDaConta`
@@ -292,6 +388,15 @@ Utilitários: `projetarMes` (`utils/projecaoMes.ts`), `agruparPorDia`, `agruparI
 | Item com preço zero                           | "Preço unitário do item deve ser maior que zero"          |
 | Código de barras sem variante                 | "Nenhuma variante cadastrada com o código ..."            |
 | Tag vazia, com mais de 40 letras ou repetida  | Motivo do `ValidacaoTagError` ("Já existe a tag ...")     |
+| QR Code que não é de NFC-e (ou de NF-e)       | "Este QR Code não é de nota fiscal de consumidor (NFC-e)." |
+| Dígito da chave errado                        | "A chave de acesso deste QR Code não confere. Tente ler o cupom de novo." |
+| Nota de homologação                           | "Esta é uma nota de teste (homologação): não vale como compra." |
+| Nota de outro estado                          | "Por enquanto só notas de Minas Gerais; esta é de SP."    |
+| Versão do QR Code desconhecida                | "Versão do QR Code não suportada (1)."                    |
+| Cupom já lançado                              | "Esta nota já foi lançada em 14/11 (R$ 152,30)." (Cancelar / Lançar de novo) |
+| CNPJ sem empresa                              | "Cadastrar "X" com o CNPJ 20.320.503/0011-23? ..." (Agora não / Cadastrar) |
+| Empresa com o nome do emitente, sem CNPJ      | ""X" já está cadastrada, sem CNPJ. Gravar nela o CNPJ ...?" (Agora não / Gravar CNPJ) |
+| Falha ao montar o rascunho                    | "Não foi possível preparar o lançamento da nota."          |
 
 Os avisos de validação do formulário de lançamento abrem "Confira o lançamento", vibram (`vibrarAviso`) e não fecham
 o painel. No painel de tags o título é "Confira a tag".
@@ -306,9 +411,24 @@ o painel. No painel de tags o título é "Confira a tag".
 - `src/models/tags.test.ts`, `src/models/transferencias.test.ts`, `src/models/naturezaTransacao.test.ts`,
   `src/models/contas.test.ts` e `src/models/categoriasLancamento.test.ts`.
 - `src/utils/projecaoMes.test.ts`, `parcelas.test.ts`, `cartao.test.ts` e `format.test.ts`.
+- Cupom fiscal: `src/utils/chaveNfce.test.ts` (dígito verificador, QR Code das versões 2 e 3, contingência, outro
+  estado, CNPJ com letras, texto que não é nota, filtro de navegação), `src/utils/paginaNfceMg.test.ts` (a página real
+  de `tests/fixtures/nfce/` e variações dela: desconto, troco, dois pagamentos, soma que não fecha, item ilegível,
+  outra nota; tela da verificação, nota não encontrada e layout desconhecido),
+  `src/utils/rascunhoDaNotaFiscal.test.ts` (empresa pelo CNPJ e pela raiz, cadastro sugerido, rateio do desconto,
+  de-para, código de barras, conta do pagamento) e `src/models/notaFiscal.test.ts` (migration 021, chave no
+  lançamento e no parcelado, "Desfazer", de-para, tudo ou nada, backup antigo sem a coluna).
 
 ## Observações
 
 - Os atalhos Assinaturas e Preços estão comentados no código; o Relatório de telas ainda os lista.
 - `ehFuturo(data)` fica em `useHome.ts` e é usado pela linha e pelo cabeçalho do dia para marcar "a vencer".
 - O feed corta em 50 linhas: para ver tudo, a Busca de lançamentos não tem limite.
+- Cupom fiscal: o layout da página de MG foi lido de uma página salva do navegador (Ctrl+S). Falta conferir no
+  aparelho que o Turnstile passa dentro da WebView do Android e que o HTML que chega ao app é o mesmo. Desconto,
+  troco, mais de um pagamento e "nota não encontrada" foram escritos sem página real desses casos: o leitor procura os
+  rótulos ("Descontos R$", "Valor a pagar R$", "Troco R$") e as caixas de erro do PrimeFaces, e vale guardar essas
+  páginas em `tests/fixtures/nfce/` quando aparecerem (botão HTML, só em desenvolvimento).
+- A nota repetida é procurada pela chave nos lançamentos gravados: excluir o lançamento tira o aviso, e o "Desfazer"
+  devolve a chave junto. Excluir as parcelas de uma compra parcelada deixa o registro da compra (parcela 0) com a
+  chave: a nota continua "já lançada".

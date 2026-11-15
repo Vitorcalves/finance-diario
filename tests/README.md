@@ -13,7 +13,18 @@ Sem dependencia nova: `node --test` (nativo do Node) rodando TypeScript pelo
 ## Onde ficam
 
 Cada teste mora ao lado do que testa, como `<modulo>.test.ts`. Esta pasta tem
-so a infraestrutura.
+so a infraestrutura e as paginas guardadas em `fixtures/`.
+
+## Paginas reais (`fixtures/nfce/`)
+
+Paginas da consulta da NFC-e da SEFAZ-MG, salvas depois da verificacao, que o
+`paginaNfceMg.test.ts` le com `readFileSync`. Cada pagina vira um caso de
+teste. Para guardar uma nova: no app em desenvolvimento, botao "HTML" da
+consulta (ou Ctrl+S no navegador do computador). Antes de versionar, troque o
+CPF e o nome do comprador, se a nota tiver.
+
+- `mg-itens-por-peso.html`: 3 itens em KG, sem desconto, cartao de debito, sem
+  CPF (salva do navegador em 15/11/2026).
 
 ## Como os testes de banco funcionam
 

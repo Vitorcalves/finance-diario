@@ -128,6 +128,7 @@ validada uma vez na abertura (`getConnection`).
 | 018 | Índice único (`transacao_id`, `tag_id`) e índice por tag em `transacoes_tags`                      |
 | 019 | `empresas_categorias_lancamento` (categorias de lançamento de cada empresa)                        |
 | 020 | `deleted_at` em `produtos`, `produto_variantes`, `marcas`, `categorias` e `empresas` (exclusão lógica) |
+| 021 | `transacoes.chave_nfce` (com índice) e `nfce_itens_variantes` (de-para dos itens da nota fiscal por empresa) |
 
 Migration publicada não muda: correções entram numa migration nova. O "Recriar banco" desfaz todas (cada `down`) e
 aplica de novo.
@@ -188,6 +189,25 @@ Marcas, empresas e categorias de produto **não aceitam nome repetido**, como as
 Não há índice único no banco nem migration: os repetidos que já existiam continuam lá, e o backup importado entra como
 está. Para desfazer uma repetição antiga, renomeie ou exclua um dos dois.
 
+### Nota fiscal pelo QR Code (migration 021)
+
+O cupom fiscal (NFC-e de MG) lido pelo atalho Cupom da Home vira lançamento; o fluxo está na
+[Home](Home.md), seção "Cupom fiscal (NFC-e)".
+
+- **`transacoes.chave_nfce`:** a chave de acesso da nota (44 caracteres) na transação dos itens; na compra
+  parcelada, no registro da compra (parcela 0). Serve para avisar "Esta nota já foi lançada" ao ler o mesmo cupom.
+  `insertTransacao` grava a coluna, então o "Desfazer" da exclusão a devolve.
+- **`nfce_itens_variantes`:** `empresa_id`, `chave_item`, `produto_id`, `variante_id`, `created_at` e `updated_at`,
+  com chave primária (`empresa_id`, `chave_item`). A `chave_item` é `codigo:<código do item na nota>` ou, sem código,
+  `descricao:<descrição normalizada>`. Vale por empresa porque o código é o do cadastro da loja. Grava ao lançar,
+  para cada item que veio da nota e saiu ligado a um produto; aprender de novo atualiza a linha. De-para que aponta
+  para produto ou variante excluído continua no banco e é ignorado na leitura.
+- **Backup:** a coluna e a tabela entram no JSON sozinhas (o export lê o `sqlite_master`); um backup de antes da 021
+  entra com a chave vazia e sem de-para.
+- **CNPJ das empresas:** o cadastro aceita o CNPJ com ou sem pontuação; a nota compara sem pontuação e em maiúsculas
+  (o CNPJ novo, de julho de 2026, tem letras). A empresa cadastrada pelo cupom grava o CNPJ formatado
+  (`20.320.503/0011-23`).
+
 ### Natureza das transações (`src/models/naturezaTransacao.ts`)
 
 Cada linha de `transacoes` grava o que ela é; as consultas filtram por aqui.
@@ -228,10 +248,11 @@ Cada linha de `transacoes` grava o que ela é; as consultas filtram por aqui.
 | `BrazilianDateInput`     | Campo DD/MM/AAAA que devolve `YYYY-MM-DD` (ou vazio, se inválida)              | lançamento, busca, orçamento, planos, contas, faturas |
 | `BrazilianIntegerInput`  | Campo numérico digitado da direita para a esquerda, com casas decimais fixas   | valores, quantidades e preços |
 | `CategoriaIcone`         | Círculo com o ícone da categoria sobre a cor dela                              | listas, seletores, gráficos |
+| `ConsultaNfce`           | Modal de tela cheia com a consulta da NFC-e da SEFAZ-MG numa WebView (`react-native-webview`, carregado sob demanda): o usuário passa pela verificação, o app lê o HTML e entrega a nota; "Lançar sem os itens" sempre à mão | Home (atalho Cupom) |
 | `ContaIcone`             | Selo do tipo da conta na cor dela                                              | Contas |
 | `HistoricoProdutoModal`  | Histórico de preços e de compras de um produto, com filtro por variante        | Produtos, Orçamento |
 | `NomeSimplesForm`        | Formulário de uma linha para criar categoria, marca ou tag dentro de um seletor | Produto, variante, lançamento |
-| `ScannerCodigoBarras`    | Câmera (`expo-camera`) que lê o código de barras                               | item do lançamento, variante, lista, histórico, orçamento |
+| `ScannerCodigoBarras`    | Câmera (`expo-camera`) que lê o código de barras; `modo="qr"` lê o QR Code do cupom (título, dica e moldura quadrada próprios) | item do lançamento, variante, lista, histórico, orçamento; QR Code na Home |
 | `SeletorCategoria`       | Faixa de categorias de um tipo, com ícone e cor                                | lançamento, assinatura |
 | `SeletorCor`             | Grade com a paleta do app                                                      | categorias de lançamento, contas |
 | `SeletorMultiplo`        | Lista com busca, de escolha única ou múltipla, com "adicionar" opcional; opção `oculta` só aparece quando buscada (`textoOcultas` avisa que a lista está filtrada) | produto, empresa, tags, categorias, marcas |
@@ -271,14 +292,17 @@ vermelho, cinza) é validada para daltonismo nos dois modos.
 | `comparativoMercados.ts`, `comparativoLista.ts`, `cotacoesLista.ts`, `comparativoVariantes.ts` | Comparações de preço do Orçamento e da Lista de compras |
 | `sugestoesCompra.ts`, `precosParaHistorico.ts` | Sugestões "Costuma comprar" e preços da pesquisa para o histórico |
 | `interpretarNota.ts`     | Interpretador local das Notas para lançar                                       |
+| `chaveNfce.ts`           | QR Code e chave de acesso da NFC-e (dígito verificador, versões 2 e 3, contingência), URL da consulta de MG e o filtro de navegação da WebView |
+| `paginaNfceMg.ts`        | Leitor da página da NFC-e da SEFAZ-MG (nota, verificação, não encontrada, outra nota), sem biblioteca de DOM |
+| `rascunhoDaNotaFiscal.ts` | Da nota para o rascunho do formulário: empresa pelo CNPJ, cadastro sugerido, rateio do desconto, de-para dos itens |
 | `haptics.ts`, `local.ts` | Vibrações e catálogo de locais                                                  |
 
 ## Testes
 
 `npm test` roda `node --test` com `tsx`. Cada teste fica ao lado do módulo (`<modulo>.test.ts`). Os testes de banco
 usam o SQL de verdade: `tsconfig.test.json` troca `expo-sqlite` por um adaptador sobre o `node:sqlite` em memória
-(`tests/setup/expo-sqlite.ts`) e `expo-file-system/legacy` por um sistema de arquivos em memória. Detalhes em
-`tests/README.md`.
+(`tests/setup/expo-sqlite.ts`) e `expo-file-system/legacy` por um sistema de arquivos em memória. Páginas reais da
+consulta da NFC-e ficam em `tests/fixtures/nfce/`. Detalhes em `tests/README.md`.
 
 ## Mantendo os documentos
 

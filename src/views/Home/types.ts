@@ -1,5 +1,18 @@
 /** Tipos do formulario de lancamento da Home. */
 
+/**
+ * Item que veio da nota fiscal (QR Code do cupom): o que a nota dizia dele.
+ * Ao salvar ligado a um produto, vira o de-para da empresa para a proxima nota.
+ */
+export type ItemDaNota = {
+  /** Codigo do item na nota (o do cadastro da loja); `null` quando nao veio. */
+  codigo: string | null;
+  /** Descricao como veio na nota. */
+  descricao: string;
+  /** Unidade da nota (`KG`, `UN`...): em peso ou volume a quantidade tem casas decimais. */
+  unidade: string;
+};
+
 export type ItemLancamento = {
   localId: string;
   produtoId: string | null;
@@ -7,6 +20,8 @@ export type ItemLancamento = {
   descricao: string;
   quantidade: number;
   precoUnitario: number;
+  /** So no item lido da nota fiscal. */
+  itemNota?: ItemDaNota | null;
 };
 
 export type TipoLancamento = 'saida' | 'entrada' | 'transferencia';
@@ -40,6 +55,8 @@ export type NovoLancamento = {
   contaDestinoId?: string | null;
   /** Tags de evento ("Viagem julho"); a transferencia nao leva tags. */
   tagIds?: string[];
+  /** Chave da NFC-e quando o lancamento veio do QR Code do cupom. */
+  chaveNfce?: string | null;
 };
 
 /**
@@ -61,4 +78,8 @@ export type RascunhoLancamento = {
   empresaId?: string | null;
   categoriaId?: string | null;
   itens?: Omit<ItemLancamento, 'localId'>[];
+  /** Chave da NFC-e lida pelo QR Code; vai junto para o lancamento gravado. */
+  chaveNfce?: string | null;
+  /** O que nao fechou na leitura da nota, mostrado no topo do formulario para conferir. */
+  avisos?: string[];
 };

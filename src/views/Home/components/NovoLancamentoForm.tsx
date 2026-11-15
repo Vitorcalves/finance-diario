@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, View } from 'react-native';
 import dayjs from 'dayjs';
@@ -17,7 +18,15 @@ import {
   useToast,
 } from '../../../components/ui';
 import { salvarTag, ValidacaoTagError } from '../../../models/tags';
-import { fontSize, fontWeight, makeStyles, radius, spacing, useTheme } from '../../../theme';
+import {
+  fontSize,
+  fontWeight,
+  iconSize,
+  makeStyles,
+  radius,
+  spacing,
+  useTheme,
+} from '../../../theme';
 import { faturaDaCompra } from '../../../utils/cartao';
 import { opcoesDeEmpresa, sugerirCategoriaDaEmpresa } from '../../../utils/empresasPorCategoria';
 import { formatarData, toCurrency } from '../../../utils/format';
@@ -98,6 +107,10 @@ export default function NovoLancamentoForm({
   const [contaDestinoId, setContaDestinoId] = useState<string | null>(null);
   /** Tags de evento ("Viagem julho"); nao valem para transferencia. */
   const [tagIds, setTagIds] = useState<string[]>([]);
+  /** Chave da NFC-e quando o rascunho veio do QR Code do cupom; vai junto ao salvar. */
+  const [chaveNfce, setChaveNfce] = useState<string | null>(rascunho?.chaveNfce ?? null);
+  /** O que nao fechou na leitura da nota, para o usuario conferir. */
+  const [avisos, setAvisos] = useState<string[]>(rascunho?.avisos ?? []);
 
   const [itens, setItens] = useState<ItemLancamento[]>(() =>
     (rascunho?.itens ?? []).map((item) => ({ ...item, localId: uuidv4() })),
@@ -200,8 +213,17 @@ export default function NovoLancamentoForm({
     }
   };
 
+  /**
+   * Cada linha arredondada ao centavo, como no cupom, e a soma feita em
+   * centavos: 0,196 kg x R$ 119,8979... da R$ 23,50, e o total fecha com o
+   * valor pago da nota sem sobra de ponto flutuante.
+   */
   const totalItens = useMemo(
-    () => itens.reduce((soma, item) => soma + item.quantidade * item.precoUnitario, 0),
+    () =>
+      itens.reduce(
+        (soma, item) => soma + Math.round(item.quantidade * item.precoUnitario * 100),
+        0,
+      ) / 100,
     [itens],
   );
 
@@ -286,6 +308,8 @@ export default function NovoLancamentoForm({
     setContaId(catalogo.contas.find((conta) => conta.tipo === 'caixa')?.id ?? null);
     setContaDestinoId(null);
     setTagIds([]);
+    setChaveNfce(null);
+    setAvisos([]);
     setItens([]);
     fecharFormItem();
   };
@@ -297,7 +321,12 @@ export default function NovoLancamentoForm({
       }
 
       const copia = [...prev];
-      copia[itemEditIndex] = { ...dados, localId: prev[itemEditIndex].localId };
+      // O item que veio da nota continua sabendo de onde veio (de-para ao salvar).
+      copia[itemEditIndex] = {
+        ...dados,
+        itemNota: dados.itemNota ?? prev[itemEditIndex].itemNota ?? null,
+        localId: prev[itemEditIndex].localId,
+      };
       return copia;
     });
 
@@ -378,6 +407,7 @@ export default function NovoLancamentoForm({
         contaId,
         contaDestinoId: ehTransferencia ? contaDestinoId : null,
         tagIds: ehTransferencia ? [] : tagIds,
+        chaveNfce: ehTransferencia ? null : chaveNfce,
       });
 
       const mensagem =
@@ -430,6 +460,30 @@ export default function NovoLancamentoForm({
         </View>
       }
     >
+      {chaveNfce && !ehTransferencia ? (
+        <View style={[styles.nota, avisos.length > 0 && styles.notaComAviso]}>
+          <View style={styles.notaTitulo}>
+            <Ionicons
+              name={avisos.length > 0 ? 'alert-circle-outline' : 'receipt-outline'}
+              size={iconSize.sm}
+              color={avisos.length > 0 ? colors.warning : colors.primary}
+            />
+            <Text style={styles.notaTituloTexto}>
+              {avisos.length > 0 ? 'Confira a nota antes de lançar' : 'Lido do cupom fiscal'}
+            </Text>
+          </View>
+          {avisos.length > 0 ? (
+            avisos.map((aviso) => (
+              <Text key={aviso} style={styles.notaAviso}>
+                {`• ${aviso}`}
+              </Text>
+            ))
+          ) : (
+            <Text style={styles.notaAviso}>Confira os itens e o valor e lance.</Text>
+          )}
+        </View>
+      ) : null}
+
       <SegmentedControl
         opcoes={[
           { valor: 'saida', rotulo: 'Saída', cor: colors.danger },
@@ -702,5 +756,29 @@ const useStyles = makeStyles((colors) => ({
     fontSize: fontSize.caption,
     color: colors.textSubtle,
     marginBottom: spacing.md,
+  },
+  nota: {
+    gap: spacing.xs,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    borderRadius: radius.lg,
+    backgroundColor: colors.primarySoft,
+  },
+  notaComAviso: {
+    backgroundColor: colors.warningSoft,
+  },
+  notaTitulo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  notaTituloTexto: {
+    fontSize: fontSize.body,
+    fontWeight: fontWeight.bold,
+    color: colors.textStrong,
+  },
+  notaAviso: {
+    fontSize: fontSize.caption,
+    color: colors.text,
   },
 }));

@@ -167,6 +167,8 @@ export type DadosCompraParcelada = {
   categoriaId?: string | null;
   /** Conta da compra e das parcelas; padrao: caixa global. */
   contaId?: string | null;
+  /** Chave da NFC-e lida pelo QR Code; vai so no registro da compra (parcela 0). */
+  chaveNfce?: string | null;
 };
 
 export type CompraParceladaCriada = {
@@ -231,8 +233,8 @@ const gravarCompraParcelada = async (
     `
         INSERT INTO transacoes (id, descricao, valor, data, empresa_id, natureza,
                                 contabilizado_saldo, plano_id, parcela_numero, local,
-                                categoria_id, conta_id, created_at)
-        VALUES (?, ?, ?, ?, ?, 'registro_compra', ?, ?, 0, ?, ?, ?, ?)
+                                categoria_id, conta_id, chave_nfce, created_at)
+        VALUES (?, ?, ?, ?, ?, 'registro_compra', ?, ?, 0, ?, ?, ?, ?, ?)
     `,
     [
       compraTransacaoId,
@@ -245,6 +247,7 @@ const gravarCompraParcelada = async (
       dados.local ?? Locais.padrao,
       dados.categoriaId ?? null,
       dados.contaId ?? CONTA_CAIXA_PADRAO,
+      dados.chaveNfce ?? null,
       agora,
     ],
   );

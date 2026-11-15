@@ -227,6 +227,11 @@ As que mais combinam com o que o app já faz: F1, F3, F9, F16 e F17.
   `NovoLancamentoForm` já com empresa, data, itens e valor, para só conferir e lançar. Caminho escolhido em
   15/11/2026: a página de consulta da SEFAZ abre numa WebView dentro do app, o usuário passa pela verificação e o app
   lê o HTML. Começar por MG. Pede build nativo a partir da F1.2.
+    - **Feito em 15/11/2026 (código e testes):** atalho Cupom na Home → câmera no modo QR → aviso de nota já lançada →
+      `ConsultaNfce` → empresa pelo CNPJ (ou cadastro na hora) → formulário preenchido. `react-native-webview` 14.0.1
+      instalado (`npx expo install`). Falta o que só o aparelho mostra: gerar o build (`npm run android`), conferir
+      que o Turnstile passa dentro da WebView e guardar mais páginas reais (ver F1.2). Detalhes em
+      [docs/telas/Home.md](telas/Home.md), seção "Cupom fiscal (NFC-e)".
     - **O que a pesquisa de 15/11/2026 mostrou:**
         - A SEFAZ-MG não tem API aberta para o consumidor. Os web services (`nfce.fazenda.mg.gov.br`) são para
           emissores e pedem certificado digital. O Nota Fiscal Mineira só tem app com login e mostra valor e
@@ -247,7 +252,11 @@ As que mais combinam com o que o app já faz: F1, F3, F9, F16 e F17.
         - A WebView carrega só a URL montada pelo app a partir do QR Code validado, nunca o texto cru dele, e não
           navega para fora da SEFAZ.
         - O HTML fica só na memória: não vai para o banco nem para o console (pode trazer o CPF do comprador).
-    - [ ] **F1.1 Chave de acesso e QR Code (sem build nativo):** `src/utils/chaveNfce.ts`, com teste.
+    - [x] **F1.1 Chave de acesso e QR Code (sem build nativo):** `src/utils/chaveNfce.ts`, com teste. Feito como
+      descrito; o erro volta com código e mensagem (`nao_e_nota`, `chave_invalida`, `versao`, `teste`,
+      `outro_estado`, este com a sigla da UF). O mesmo arquivo tem o filtro de navegação da WebView
+      (`urlPermitidaNaConsulta`, que recusa endereço com usuário ou `\`). Testado com o cupom real de 15/11 e com
+      chaves derivadas dele (dígito calculado à parte).
         - `lerQrCodeNfce(texto)` pega o parâmetro `p` da URL e separa por `|`. O 1º campo é a chave, o 2º a versão
           do QR Code (2 ou 3) e o 3º o ambiente. Em nota de contingência (forma de emissão 9), o 4º e o 5º campos
           são o dia da emissão e o valor total, nas duas versões.
@@ -269,7 +278,11 @@ As que mais combinam com o que o app já faz: F1, F3, F9, F16 e F17.
         - Testes: chave válida, dígito errado, QR Code das versões 2 e 3, contingência, outro estado, CNPJ com
           letras e texto que não é nota. Usar chaves de cupons de verdade.
     - [ ] **F1.2 Tela de consulta com WebView (pede build nativo):** `src/components/ConsultaNfce.tsx`, modal de tela
-      cheia como o scanner.
+      cheia como o scanner. Código feito; falta o "Pronto quando" no aparelho. Diferenças do plano: a WebView é
+      carregada sob demanda (o pacote pede o módulo nativo ao ser importado e derrubaria um build antigo); o
+      `originWhitelist` é `['*']` (com o padrão, endereço fora da lista abre em outro app, antes do filtro); nova
+      janela fica desligada; "Recomeçar" recria a WebView na URL do QR Code; o erro HTTP só aparece na faixa, com a
+      página por baixo (um desafio da Cloudflare pode vir com 403 e passar).
         - Instalar com `npx expo install react-native-webview` e gerar um novo build (`npm run android`).
         - `ScreenHeader` "Consulta da nota" com fechar, uma faixa "Passe pela verificação e toque em Visualizar. O
           app lê a nota em seguida." e a WebView por baixo.
@@ -290,8 +303,11 @@ As que mais combinam com o que o app já faz: F1, F3, F9, F16 e F17.
         - Pronto quando: no aparelho, a verificação passa dentro da WebView, a nota aparece e o HTML chega ao app.
           Guardar de 3 a 5 páginas reais em `tests/fixtures/nfce/` (itens por peso, desconto, CPF na nota,
           contingência e nota não encontrada, se aparecerem), trocando antes o CPF e o nome do comprador.
-    - [ ] **F1.3 Leitor da página de MG:** `src/utils/paginaNfceMg.ts`, função pura com teste, escrita a partir de
-      páginas reais.
+    - [x] **F1.3 Leitor da página de MG:** `src/utils/paginaNfceMg.ts`, função pura com teste, escrita a partir de
+      páginas reais. Feito com a página salva do navegador (Ctrl+S), em `tests/fixtures/nfce/mg-itens-por-peso.html`.
+      A página de MG não traz valor unitário (sai de total ÷ quantidade) e escreve a quantidade e os totais com
+      ponto decimal. Tipo a mais: `outra_nota`, quando a chave da página não é a do QR Code. Desconto, troco, dois
+      pagamentos e "não encontrada" saíram sem página real: vale guardar essas quando aparecerem.
         - Dá para adiantar sem o build: abrir a URL do QR Code no navegador do computador, passar pela verificação
           e salvar a página (Ctrl+S). A F1.2 confirma depois que o HTML da WebView é o mesmo.
         - `interpretarPaginaNfceMg(html)` devolve `nota`, `verificacao` (ainda na tela do Turnstile),
@@ -306,8 +322,12 @@ As que mais combinam com o que o app já faz: F1, F3, F9, F16 e F17.
           em `avisos`, para a tela mostrar, nunca como valor inventado.
         - Cada página guardada vira um caso de teste. Outro estado entra depois como outro arquivo
           (`paginaNfce<UF>.ts`), escolhido pela UF da chave.
-    - [ ] **F1.4 Da nota para o rascunho:** `src/utils/rascunhoDaNotaFiscal.ts`, função pura com teste, que recebe a
-      nota e o catálogo (empresas, variantes, de-para) e devolve o `RascunhoLancamento`.
+    - [x] **F1.4 Da nota para o rascunho:** `src/utils/rascunhoDaNotaFiscal.ts`, função pura com teste, que recebe a
+      nota e o catálogo (empresas, variantes, de-para) e devolve o `RascunhoLancamento`. Feito; o rascunho ganhou
+      `chaveNfce` e `avisos` (mostrados no topo do formulário). Mesmo nome com outro CNPJ: o cadastro sugerido leva o
+      CNPJ no nome, porque o repetido seria recusado. O código da nota só é comparado com o `codigo_barras` quando
+      tem cara de GTIN (8, 12, 13 ou 14 dígitos): o código interno da loja é curto. Para o total fechar, o
+      formulário passou a somar cada linha arredondada ao centavo, em centavos (vale para todo lançamento com itens).
         - Empresa: mesmo CNPJ, comparado sem pontuação e em maiúsculas (não usar `\D`, por causa das letras);
           senão, mesma raiz (8 primeiros caracteres: outra filial da mesma empresa). Sem nenhuma, a tela pergunta
           "Cadastrar <emitente> com este CNPJ?" (`insertEmpresa`); se o nome já existe sem CNPJ, oferece gravar o
@@ -321,7 +341,10 @@ As que mais combinam com o que o app já faz: F1, F3, F9, F16 e F17.
           de cada um, sem perder centavo (a ideia do `dividirEmParcelas`), para o total fechar com o valor pago. O
           preço que vai ao histórico passa a ser o pago. Rever a regra se a página trouxer desconto por item.
         - Home: câmera (F1.1) → consulta (F1.2) → rascunho → `NovoLancamentoForm`.
-    - [ ] **F1.5 Banco (migration 021): nota repetida e de-para dos itens.**
+    - [x] **F1.5 Banco (migration 021): nota repetida e de-para dos itens.** Feito (`src/models/nfceItensVariantes.ts`,
+      `buscarLancamentoDaNota` em `transacoesModel.ts`, teste em `src/models/notaFiscal.test.ts`). O `itemNota` leva
+      também a unidade da nota: em peso ou volume a quantidade do item aceita 3 casas mesmo sem variante a granel.
+      Sem editar o campo de preço, o item mantém o preço exato da nota.
         - `transacoes.chave_nfce` (texto, com índice). A chave sai do rascunho (`chaveNfce`), passa por
           `NovoLancamento` e `DadosLancamento` e é gravada na transação dos itens (na compra parcelada, a do
           registro da compra). O `insertTransacao` passa a gravar a coluna; com isso o "Desfazer" da exclusão
@@ -341,11 +364,12 @@ As que mais combinam com o que o app já faz: F1, F3, F9, F16 e F17.
         - Backup: o export lê as tabelas do `sqlite_master`, então a tabela e a coluna novas entram sozinhas.
           Testar a importação de um backup antigo, sem a coluna.
     - [ ] **F1.6 Documentação e extras:**
-        - Atualizar `docs/telas/Home.md` (atalho, fluxo e item do lançamento), o [README das telas](telas/README.md)
-          (migration 021, `ConsultaNfce`, modo do scanner, utilitários novos) e o Relatório de telas.
-        - Extras, sem ordem: forma de pagamento → conta (crédito com um cartão só já escolhe o cartão); outros
-          estados; digitar a chave quando o QR Code não lê (usa a consulta por chave, `consultaarg.xhtml`, que tem
-          a mesma verificação).
+        - [x] Atualizar `docs/telas/Home.md` (atalho, fluxo e item do lançamento), o
+          [README das telas](telas/README.md) (migration 021, `ConsultaNfce`, modo do scanner, utilitários novos) e o
+          Relatório de telas.
+        - Extras, sem ordem: [x] forma de pagamento → conta (crédito com um cartão só já escolhe o cartão,
+          `contaDoPagamento`); [ ] outros estados; [ ] digitar a chave quando o QR Code não lê (usa a consulta por
+          chave, `consultaarg.xhtml`, que tem a mesma verificação).
 - [ ] **F2. Importar extrato do banco (OFX ou CSV):** escolher o arquivo com o `expo-document-picker` (já instalado) e
   abrir uma tela de conferência. Cada linha do extrato fica como "já lançado" (mesmo valor e data próxima na mesma
   conta), "novo" (vira lançamento, com a categoria sugerida pela descrição) ou "ignorar". Guardar o identificador da

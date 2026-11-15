@@ -1,11 +1,13 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { type CompositeNavigationProp, useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import dayjs from 'dayjs';
+import ConsultaNfce from '../../components/ConsultaNfce';
+import ScannerCodigoBarras from '../../components/ScannerCodigoBarras';
 import {
   Aparecer,
   EmptyState,
@@ -21,6 +23,8 @@ import AtalhosRapidos from './components/AtalhosRapidos';
 import ListaLancamentos from './components/ListaLancamentos';
 import NovoLancamentoForm from './components/NovoLancamentoForm';
 import ResumoTotais from './components/ResumoTotais';
+import type { RascunhoLancamento } from './types';
+import { useCupomFiscal } from './useCupomFiscal';
 import { useHome } from './useHome';
 
 type HomeNavigation = CompositeNavigationProp<
@@ -40,6 +44,31 @@ export default function HomeView(): React.ReactNode {
   const styles = useStyles();
   const navigation = useNavigation<HomeNavigation>();
   const [formAberto, setFormAberto] = useState(false);
+  /** Rascunho do cupom fiscal lido; `null` no lancamento digitado pelo (+). */
+  const [rascunho, setRascunho] = useState<RascunhoLancamento | null>(null);
+  /** Trocada a cada rascunho: o formulario so le o rascunho ao montar. */
+  const [formKey, setFormKey] = useState(0);
+
+  const abrirRascunho = useCallback((novo: RascunhoLancamento): void => {
+    setRascunho(novo);
+    setFormKey((atual) => atual + 1);
+    setFormAberto(true);
+  }, []);
+
+  /**
+   * O (+) reabre o que ficou digitado no formulario; so depois de um cupom ele
+   * nasce de novo, sem os dados da nota.
+   */
+  const abrirNovoLancamento = (): void => {
+    if (rascunho !== null) {
+      setRascunho(null);
+      setFormKey((atual) => atual + 1);
+    }
+
+    setFormAberto(true);
+  };
+
+  const cupom = useCupomFiscal(abrirRascunho);
   const {
     loading,
     atualizando,
@@ -73,6 +102,11 @@ export default function HomeView(): React.ReactNode {
               rotulo: 'Lista',
               icone: 'cart-outline',
               onPress: (): void => navigation.navigate('ListaCompras'),
+            },
+            {
+              rotulo: 'Cupom',
+              icone: 'qr-code-outline',
+              onPress: cupom.abrirScanner,
             },
             {
               rotulo: 'Notas',
@@ -168,13 +202,28 @@ export default function HomeView(): React.ReactNode {
         />
       )}
 
-      <Fab onPress={(): void => setFormAberto(true)} accessibilityLabel="Novo lançamento" />
+      <Fab onPress={abrirNovoLancamento} accessibilityLabel="Novo lançamento" />
 
       <NovoLancamentoForm
+        key={`lancamento-${formKey}`}
         visivel={formAberto}
+        rascunho={rascunho}
         onFechar={(): void => setFormAberto(false)}
         onAddLancamento={adicionarLancamento}
       />
+
+      {cupom.scannerAberto ? (
+        <ScannerCodigoBarras modo="qr" onLer={cupom.lerQrCode} onFechar={cupom.fecharScanner} />
+      ) : null}
+
+      {cupom.consulta ? (
+        <ConsultaNfce
+          qrCode={cupom.consulta}
+          onNota={cupom.receberNota}
+          onSemItens={cupom.lancarSemItens}
+          onFechar={cupom.fecharConsulta}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }

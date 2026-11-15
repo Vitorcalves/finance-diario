@@ -9,6 +9,7 @@ import type { Produto } from '../../../models/produtos';
 import type { ProdutoVariantes } from '../../../models/produtoVariantes';
 import { useTheme } from '../../../theme';
 import { toCurrency } from '../../../utils/format';
+import { quantidadeFracionada } from '../../../utils/rascunhoDaNotaFiscal';
 import { ehGranel, medidaGranel, rotuloQuantidade, rotuloVariante } from '../../../utils/variantes';
 import type { ItemLancamento } from '../types';
 
@@ -43,10 +44,23 @@ export default function LancamentoItemForm({
   const [varianteId, setVarianteId] = useState<string | null>(itemInicial?.varianteId ?? null);
   const [descricao, setDescricao] = useState(itemInicial?.descricao ?? '');
   const [quantidade, setQuantidade] = useState(itemInicial ? String(itemInicial.quantidade) : '1');
-  const [preco, setPreco] = useState(itemInicial ? itemInicial.precoUnitario.toFixed(2) : '');
+  /**
+   * O campo mostra 2 casas; o preco do item da nota tem mais (o total da linha
+   * dividido pelo peso). Sem edicao, o salvar devolve o preco original.
+   */
+  const precoInicial = itemInicial ? itemInicial.precoUnitario.toFixed(2) : '';
+  const [preco, setPreco] = useState(precoInicial);
   const [scannerAberto, setScannerAberto] = useState(false);
 
   const editando = itemInicial !== null;
+
+  /**
+   * Item lido da nota fiscal: quantidade e preco sao os da nota. Escolher o
+   * produto ou a variante so liga o item ao cadastro, sem trocar os dois.
+   */
+  const itemNota = itemInicial?.itemNota ?? null;
+  const notaFracionada =
+    itemNota !== null && quantidadeFracionada(itemNota.unidade, itemInicial?.quantidade ?? 1);
 
   const variantesDoProduto = useMemo(
     () => (produtoId ? variantes.filter((variante) => variante.produto_id === produtoId) : []),
@@ -61,12 +75,19 @@ export default function LancamentoItemForm({
   /** Item a granel: quantidade e o peso/volume comprado e o preco e por medida. */
   const granel = ehGranel(varianteSelecionada);
   const medida = varianteSelecionada && granel ? medidaGranel(varianteSelecionada) : '';
+  /** Peso da nota (0,196 kg) tem casas decimais mesmo sem variante a granel. */
+  const quantidadeDecimal = granel || notaFracionada;
 
   /**
    * Troca de variante entre pacote e granel: limpa o peso para o usuario digitar
-   * (o campo passa a ter casas decimais) ou volta para 1 pacote.
+   * (o campo passa a ter casas decimais) ou volta para 1 pacote. No item da
+   * nota a quantidade e a da nota e nao muda.
    */
   const ajustarQuantidade = (nova: ProdutoVariantes | undefined): void => {
+    if (itemNota) {
+      return;
+    }
+
     const novaGranel = ehGranel(nova);
 
     if (novaGranel !== granel) {
@@ -88,7 +109,10 @@ export default function LancamentoItemForm({
     setVarianteId(null);
     ajustarQuantidade(undefined);
     setDescricao(produto?.nome ?? '');
-    setPreco(produto ? produto.preco.toFixed(2) : '');
+
+    if (!itemNota) {
+      setPreco(produto ? produto.preco.toFixed(2) : '');
+    }
   };
 
   const aplicarVariante = (variante: ProdutoVariantes): void => {
@@ -98,7 +122,11 @@ export default function LancamentoItemForm({
     setVarianteId(variante.id);
     ajustarQuantidade(variante);
     setDescricao(`${produto?.nome ?? ''} - ${rotuloVariante(variante, marcas)}`.trim());
-    setPreco(variante.preco.toFixed(2));
+
+    // O preco da nota e o pago; o da variante e so o da ultima compra.
+    if (!itemNota) {
+      setPreco(variante.preco.toFixed(2));
+    }
   };
 
   const selecionarVariante = (id: string): void => {
@@ -140,10 +168,20 @@ export default function LancamentoItemForm({
     aplicarVariante(variante);
   };
 
+  /** Preco que vale: o original enquanto o campo nao for editado. */
+  const precoEfetivo =
+    itemInicial && preco === precoInicial ? itemInicial.precoUnitario : Number(preco);
+
+  /** `0,196 kg` no item da nota sem variante a granel; senao, o rotulo de sempre. */
+  const rotuloDaQuantidade = (valor: number): string =>
+    !granel && notaFracionada && itemNota?.unidade
+      ? `${rotuloQuantidade(valor, undefined)} ${itemNota.unidade.toLowerCase()}`
+      : rotuloQuantidade(valor, varianteSelecionada);
+
   const salvar = (): void => {
     const descricaoLimpa = descricao.trim();
     const quantidadeNumero = Number(quantidade);
-    const precoNumero = Number(preco);
+    const precoNumero = precoEfetivo;
 
     if (!descricaoLimpa) {
       Alert.alert('Erro', 'Informe a descrição do item ou selecione um produto');
@@ -171,12 +209,20 @@ export default function LancamentoItemForm({
       descricao: descricaoLimpa,
       quantidade: quantidadeNumero,
       precoUnitario: precoNumero,
+      itemNota,
     });
   };
 
   return (
     <View style={sharedStyles.subForm}>
       <Text style={sharedStyles.subFormTitle}>{editando ? 'Editar item' : 'Novo item'}</Text>
+
+      {itemNota ? (
+        <Text style={[sharedStyles.sectionHint, sharedStyles.inputSpaced]}>
+          {`Da nota: ${itemNota.descricao}${itemNota.codigo ? ` (código ${itemNota.codigo})` : ''}. ` +
+            'Ligado a um produto, ele já vem ligado na próxima nota desta loja.'}
+        </Text>
+      ) : null}
 
       <SeletorMultiplo
         label="Produto"
@@ -230,18 +276,28 @@ export default function LancamentoItemForm({
         style={[sharedStyles.input, sharedStyles.inputSpaced]}
       />
 
-      <Text style={sharedStyles.label}>{granel ? `Quantidade (${medida})` : 'Quantidade'}</Text>
+      <Text style={sharedStyles.label}>
+        {granel
+          ? `Quantidade (${medida})`
+          : notaFracionada && itemNota?.unidade
+            ? `Quantidade (${itemNota.unidade.toLowerCase()})`
+            : 'Quantidade'}
+      </Text>
       <BrazilianIntegerInput
         value={quantidade}
         onChangeValue={setQuantidade}
-        decimalScale={granel ? 3 : 0}
-        placeholder={granel ? 'Ex.: 0,750' : 'Ex.: 2'}
+        decimalScale={quantidadeDecimal ? 3 : 0}
+        placeholder={quantidadeDecimal ? 'Ex.: 0,750' : 'Ex.: 2'}
         placeholderTextColor={colors.placeholder}
         style={[sharedStyles.input, sharedStyles.inputSpaced]}
       />
 
       <Text style={sharedStyles.label}>
-        {granel ? `Preço por ${medida} (R$)` : 'Preço unitário (R$)'}
+        {granel
+          ? `Preço por ${medida} (R$)`
+          : notaFracionada && itemNota?.unidade
+            ? `Preço por ${itemNota.unidade.toLowerCase()} (R$)`
+            : 'Preço unitário (R$)'}
       </Text>
       <BrazilianIntegerInput
         value={preco}
@@ -252,11 +308,11 @@ export default function LancamentoItemForm({
         style={[sharedStyles.input, sharedStyles.inputSpaced]}
       />
 
-      {granel && Number(quantidade) > 0 && Number(preco) > 0 && (
+      {quantidadeDecimal && Number(quantidade) > 0 && precoEfetivo > 0 && (
         <Text style={[sharedStyles.sectionHint, sharedStyles.inputSpaced]}>
-          {`${rotuloQuantidade(Number(quantidade), varianteSelecionada)} x ${toCurrency(
-            Number(preco),
-          )} = ${toCurrency(Number(quantidade) * Number(preco))}`}
+          {`${rotuloDaQuantidade(Number(quantidade))} x ${toCurrency(
+            precoEfetivo,
+          )} = ${toCurrency(Number(quantidade) * precoEfetivo)}`}
         </Text>
       )}
 
